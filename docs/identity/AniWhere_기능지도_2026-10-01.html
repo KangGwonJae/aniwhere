@@ -1,0 +1,292 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>AniWhere 기능 지도</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: 한 줄 세로 문서. 시청 여정 5단계를 위에서 아래로, 각 단계 안에 페인포인트→기능 행. 상단에 우선순위 필터, 하단에 회의 안건. */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --ink: #161a24;
+  --muted: #5d6475;
+  --line: #dfe2e9;
+  --accent: #2346d8;        /* 회차 진행선 블루 */
+  --accent-soft: #e6ebff;
+  --spoiler: #d6324a;       /* 스포일러 차단선 */
+  --spoiler-soft: #fde8eb;
+  --t-must: #157a52;  --t-must-bg: #e3f5ec;
+  --t-now: #2346d8;   --t-now-bg: #e6ebff;
+  --t-maybe: #8a5a00; --t-maybe-bg: #fbf0d9;
+  --t-later: #5d6475; --t-later-bg: #eceef2;
+  --f-display: "Black Han Sans", "IBM Plex Sans KR", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans KR", system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10131a; --surface: #171b24; --ink: #e8eaf0; --muted: #9aa1b2; --line: #2a303d;
+    --accent: #7d95ff; --accent-soft: #1e2647; --spoiler: #ff6b80; --spoiler-soft: #3a1820;
+    --t-must: #5fd3a0; --t-must-bg: #14322a; --t-now: #8da2ff; --t-now-bg: #1e2647;
+    --t-maybe: #f0c060; --t-maybe-bg: #352a12; --t-later: #a3a9b8; --t-later-bg: #242a35;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10131a; --surface: #171b24; --ink: #e8eaf0; --muted: #9aa1b2; --line: #2a303d;
+  --accent: #7d95ff; --accent-soft: #1e2647; --spoiler: #ff6b80; --spoiler-soft: #3a1820;
+  --t-must: #5fd3a0; --t-must-bg: #14322a; --t-now: #8da2ff; --t-now-bg: #1e2647;
+  --t-maybe: #f0c060; --t-maybe-bg: #352a12; --t-later: #a3a9b8; --t-later-bg: #242a35;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.6; }
+.wrap { max-width: 980px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 72px; display: flex; flex-direction: column; gap: 44px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+p { margin: 0; }
+
+/* Header */
+header { display: flex; flex-direction: column; gap: 14px; }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
+h1 { font-family: var(--f-display); font-weight: 400; font-size: clamp(34px, 6vw, 52px); line-height: 1.1; letter-spacing: -.01em; }
+.thesis { font-size: 18px; max-width: 40em; }
+.thesis b { color: var(--accent); font-weight: 700; }
+
+.sub { max-width: 44em; color: var(--muted); }
+.journey { list-style: none; margin: 4px 0 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.journey li { background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: 14px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.journey li:first-child { border-radius: 8px 0 0 8px; } .journey li:last-child { border-radius: 0 8px 8px 0; }
+.journey li span { font-family: var(--f-mono); font-size: 11px; font-weight: 500; opacity: .8; }
+@media (max-width: 520px) { .journey { grid-template-columns: 1fr; } .journey li, .journey li:first-child, .journey li:last-child { border-radius: 6px; flex-direction: row; gap: 10px; } }
+.principle { font-size: 14px; color: var(--muted); }
+.principle b { color: var(--ink); }
+/* Episode progress strip: the subject's own detail */
+.strip { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.eps { display: grid; grid-template-columns: repeat(24, 1fr); gap: 3px; }
+.eps span { height: 14px; border-radius: 2px; background: var(--accent); }
+.eps span.after { background: var(--line); background-image: repeating-linear-gradient(135deg, transparent 0 3px, var(--spoiler-soft) 3px 6px); }
+.eps span.cut { position: relative; }
+.eps span.cut::after { content: ""; position: absolute; right: -3px; top: -6px; bottom: -6px; width: 2px; background: var(--spoiler); }
+.strip-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+.strip-legend .r { color: var(--spoiler); }
+
+/* Filter */
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.filters .label { font-size: 13px; color: var(--muted); margin-right: 4px; }
+.fbtn { font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.fbtn[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.fbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Stage sections */
+.stage { display: flex; flex-direction: column; gap: 12px; }
+.stage-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; border-bottom: 2px solid var(--ink); padding-bottom: 8px; }
+.stage-no { font-family: var(--f-mono); font-size: 13px; color: var(--accent); font-weight: 700; }
+.stage-head h2 { font-size: 20px; font-weight: 700; }
+.stage-head .q { color: var(--muted); font-size: 14px; }
+
+.rows { display: flex; flex-direction: column; }
+.row { display: grid; grid-template-columns: 34px minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, .9fr); gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--line); align-items: start; }
+.row .no { font-family: var(--f-mono); font-size: 13px; color: var(--muted); padding-top: 2px; }
+.row .pain { color: var(--muted); }
+.row .pain::before { content: "😣 "; }
+.row .feat { display: flex; flex-direction: column; gap: 4px; }
+.row .feat strong { font-weight: 700; }
+.row .feat small { color: var(--muted); font-size: 13.5px; }
+.row .tech { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; font-size: 13px; color: var(--muted); }
+.tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.tag { font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: 4px; white-space: nowrap; }
+.tag.must { color: var(--t-must); background: var(--t-must-bg); }
+.tag.now { color: var(--t-now); background: var(--t-now-bg); }
+.tag.maybe { color: var(--t-maybe); background: var(--t-maybe-bg); }
+.tag.later { color: var(--t-later); background: var(--t-later-bg); }
+.tag.exist { color: var(--muted); border: 1px solid var(--line); }
+.vdb { font-family: var(--f-mono); font-size: 11.5px; color: var(--accent); }
+.row.hidden-by-filter { display: none; }
+.stage.empty { display: none; }
+
+.colhead { display: grid; grid-template-columns: 34px minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, .9fr); gap: 14px; font-size: 12px; color: var(--muted); letter-spacing: .04em; padding-top: 2px; }
+
+@media (max-width: 720px) {
+  .row { grid-template-columns: 28px minmax(0, 1fr); gap: 6px 10px; }
+  .row .pain, .row .feat, .row .tech { grid-column: 2; }
+  .colhead { display: none; }
+}
+
+/* Scope plan */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 22px; display: flex; flex-direction: column; gap: 16px; }
+.panel h2 { font-size: 20px; }
+.tiers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.tier { display: flex; flex-direction: column; gap: 6px; padding-left: 12px; border-left: 3px solid var(--line); }
+.tier.must { border-color: var(--t-must); } .tier.now { border-color: var(--t-now); }
+.tier.maybe { border-color: var(--t-maybe); } .tier.later { border-color: var(--t-later); }
+.tier h3 { font-size: 15px; }
+.tier p { font-size: 14px; color: var(--muted); }
+.tier .ids { font-family: var(--f-mono); font-size: 13px; color: var(--ink); }
+@media (max-width: 640px) { .tiers { grid-template-columns: 1fr; } }
+
+/* Recap flow */
+.flow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; counter-reset: s; }
+.step { background: var(--bg); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; }
+.step b { font-size: 14px; }
+.step .who { font-family: var(--f-mono); font-size: 11px; color: var(--accent); letter-spacing: .04em; }
+.step.judge { outline: 1.5px dashed var(--accent); }
+@media (max-width: 760px) { .flow { grid-template-columns: 1fr; } }
+.note { font-size: 14px; color: var(--muted); }
+.note b { color: var(--ink); }
+.compare { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; }
+.compare > div { padding: 12px 14px; border-radius: 8px; background: var(--bg); font-size: 14px; display: flex; flex-direction: column; gap: 4px; }
+.compare code { font-family: var(--f-mono); font-size: 12.5px; color: var(--accent); }
+@media (max-width: 640px) { .compare { grid-template-columns: 1fr; } }
+
+/* Agenda */
+.agenda { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.agenda li { display: grid; grid-template-columns: 22px minmax(0,1fr); gap: 10px; align-items: start; }
+.agenda input { width: 18px; height: 18px; margin-top: 3px; accent-color: var(--accent); }
+.agenda label { cursor: pointer; }
+.agenda small { display: block; color: var(--muted); font-size: 13px; }
+
+footer { font-size: 12.5px; color: var(--muted); font-family: var(--f-mono); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .row { transition: background-color .15s; }
+  .row:hover { background: color-mix(in srgb, var(--accent-soft) 45%, transparent); }
+}
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Category G · 팀 회의 자료 · 2026-10-01</div>
+  <h1>AniWhere 기능 지도</h1>
+  <p class="thesis">당신의 덕질 어디서든지, <b>AniWhere</b></p>
+  <p class="sub">볼 작품을 고를 때도, 제목이 기억 안 날 때도, 오랜만에 이어볼 때도 여기서 시작해요. 영화 볼 때 왓챠피디아를 여는 것처럼, 애니 볼 때는 AniWhere를 열게 만드는 게 목표예요.</p>
+  <ol class="journey" aria-label="AniWhere가 함께하는 시청 여정">
+    <li><span>01</span>입문</li><li><span>02</span>탐색</li><li><span>03</span>시청</li><li><span>04</span>이어보기</li><li><span>05</span>깊이 빠지기</li>
+  </ol>
+  <p class="principle">모든 기능에 적용되는 원칙: <b>내 시청 기록을 기억하고, 본 회차 이후 내용은 보여주지 않는다.</b></p>
+</header>
+
+<div class="filters" role="group" aria-label="우선순위 필터">
+  <span class="label">보기</span>
+  <button class="fbtn" id="f-all" data-f="all" aria-pressed="true">전체 14개</button>
+  <button class="fbtn" id="f-must" data-f="must" aria-pressed="false">필수</button>
+  <button class="fbtn" id="f-now" data-f="now" aria-pressed="false">이번에 추가</button>
+  <button class="fbtn" id="f-maybe" data-f="maybe" aria-pressed="false">여유 되면</button>
+  <button class="fbtn" id="f-later" data-f="later" aria-pressed="false">발표 때 언급만</button>
+</div>
+
+<div id="stages" style="display:flex;flex-direction:column;gap:36px">
+
+  <section class="stage">
+    <div class="stage-head"><span class="stage-no">STAGE 1</span><h2>입문</h2><span class="q">뭘 봐야 할지 모르겠어</span></div>
+    <div class="colhead"><span>#</span><span>페인포인트</span><span>기능</span><span>쓰는 기술 · 우선순위</span></div>
+    <div class="rows">
+      <div class="row" data-t="maybe"><span class="no">01</span><p class="pain">애니가 너무 많아서 어디서 시작할지 모름</p><div class="feat"><strong>취향 인터뷰 추천</strong><small>좋아하는 영화·드라마·웹툰을 물어보고 분위기가 비슷한 애니 추천. 권재 님의 첫 아이디어(입문자 가이드맵)와 연결</small></div><div class="tech"><span class="vdb">Vector DB · 작품 요약 유사도</span><div class="tags"><span class="tag maybe">여유 되면</span></div></div></div>
+      <div class="row" data-t="later"><span class="no">02</span><p class="pain">좋아하는 작품은 있는데 비슷한 걸 못 찾음</p><div class="feat"><strong>"○○ 같은 거" 검색</strong><small>"진격의 거인처럼 반전 많은 거"</small></div><div class="tech"><span class="vdb">Vector DB</span><div class="tags"><span class="tag later">발표 때 언급</span></div></div></div>
+      <div class="row" data-t="later"><span class="no">03</span><p class="pain">시리즈 보는 순서가 복잡함 (극장판, OVA, 외전)</p><div class="feat"><strong>시청 순서 가이드</strong><small>방영 순과 시간 순, 건너뛰어도 되는 회차 표시</small></div><div class="tech"><span>API 메타데이터 (AniList 관계 정보)</span><div class="tags"><span class="tag later">발표 때 언급</span></div></div></div>
+      <div class="row" data-t="later"><span class="no">04</span><p class="pain">초반이 지루하다는 말에 시작을 망설임</p><div class="feat"><strong>"몇 화부터 재밌어져요" 안내</strong><small>스포일러 없이 입문 장벽만 알려줌</small></div><div class="tech"><span>회차 청크 + LLM 요약</span><div class="tags"><span class="tag later">발표 때 언급</span></div></div></div>
+    </div>
+  </section>
+
+  <section class="stage">
+    <div class="stage-head"><span class="stage-no">STAGE 2</span><h2>탐색</h2><span class="q">그 애니 뭐였더라?</span></div>
+    <div class="rows">
+      <div class="row" data-t="must"><span class="no">05</span><p class="pain">장면은 기억나는데 제목이 기억 안 남</p><div class="feat"><strong>기억으로 작품 찾기</strong><small>"키 작은 아저씨가 커터칼 같은 칼 들고 날아다녀" → 진격의 거인 · 리바이</small></div><div class="tech"><span class="vdb">Vector DB · 캐릭터·사건 청크</span><div class="tags"><span class="tag must">필수</span><span class="tag exist">기존</span></div></div></div>
+      <div class="row" data-t="must"><span class="no">06</span><p class="pain">어디까지 봤는지 모름</p><div class="feat"><strong>기억으로 회차 찾기</strong><small>후보가 비슷하면 추가 질문, 근거가 약하면 회차를 단정하지 않음</small></div><div class="tech"><span class="vdb">Vector DB + 추가 질문</span><div class="tags"><span class="tag must">필수</span><span class="tag exist">기존</span></div></div></div>
+    </div>
+  </section>
+
+  <section class="stage">
+    <div class="stage-head"><span class="stage-no">STAGE 3</span><h2>시청</h2><span class="q">어디서 보지? 이 사람 누구지?</span></div>
+    <div class="rows">
+      <div class="row" data-t="must"><span class="no">07</span><p class="pain">어느 OTT에 있는지 매번 찾아야 함</p><div class="feat"><strong>시청처 안내</strong><small>국내 OTT 제공 정보와 확인일 표시</small></div><div class="tech"><span>OTT API 조회 (TMDB · JustWatch)</span><div class="tags"><span class="tag must">필수</span><span class="tag exist">기존</span></div></div></div>
+      <div class="row" data-t="maybe"><span class="no">08</span><p class="pain">보다가 인물·용어가 헷갈림</p><div class="feat"><strong>"지금 몇 화 보는 중" 기준 인물·용어 사전</strong><small>그 회차까지 나온 정보만 보여줌</small></div><div class="tech"><span class="vdb">Vector DB + 회차 필터</span><div class="tags"><span class="tag maybe">여유 되면</span></div></div></div>
+    </div>
+  </section>
+
+  <section class="stage">
+    <div class="stage-head"><span class="stage-no">STAGE 4</span><h2>이어보기</h2><span class="q">다시 보려니 다 까먹었어</span></div>
+    <div class="rows">
+      <div class="row" data-t="now"><span class="no">09</span><p class="pain">오랜만에 보려니 내용이 기억 안 남</p><div class="feat"><strong>맞춤 복습</strong><small>전체 요약 / 인물 관계 / 마지막 화 상황 중 골라서. 기존 "복습하기"를 앱의 핵심으로 확장</small></div><div class="tech"><span class="vdb">회차 필터 + Vector DB</span><div class="tags"><span class="tag now">이번에 추가</span><span class="tag exist">기존 확장</span></div></div></div>
+      <div class="row" data-t="later"><span class="no">10</span><p class="pain">새 시즌이 나온 걸 모름</p><div class="feat"><strong>새 시즌 알림 + 직전 시즌 3분 복습</strong><small>사용자가 묻기 전에 먼저 제안</small></div><div class="tech"><span>API 방영 정보 + 시청 기록</span><div class="tags"><span class="tag later">발표 때 언급</span></div></div></div>
+      <div class="row" data-t="must"><span class="no">11</span><p class="pain">찾다가 스포일러를 봄</p><div class="feat"><strong>스포일러 차단</strong><small>모든 기능에 "본 회차까지만" 규칙 적용. 다른 LLM과의 차별점</small></div><div class="tech"><span>회차 메타데이터 필터</span><div class="tags"><span class="tag must">필수</span><span class="tag exist">기존</span></div></div></div>
+    </div>
+  </section>
+
+  <section class="stage">
+    <div class="stage-head"><span class="stage-no">STAGE 5</span><h2>깊이 빠지기</h2><span class="q">더 알고 싶어, 남기고 싶어</span></div>
+    <div class="rows">
+      <div class="row" data-t="later"><span class="no">12</span><p class="pain">다 봤는데 원작 어디부터 읽어야 할지 모름</p><div class="feat"><strong>애니 → 원작 연결</strong><small>"애니 마지막 화는 원작 ○권 ○화"</small></div><div class="tech"><span>원작 화수가 있는 팬 위키</span><div class="tags"><span class="tag later">발표 때 언급</span></div></div></div>
+      <div class="row" data-t="now"><span class="no">13</span><p class="pain">내가 뭘 봤는지 정리가 안 됨</p><div class="feat"><strong>시청 기록장</strong><small>왓챠피디아처럼 본 작품, 평점, 진행 회차 저장. 9번 복습의 스포일러 범위를 자동으로 정함</small></div><div class="tech"><span>일반 DB</span><div class="tags"><span class="tag now">이번에 추가</span></div></div></div>
+      <div class="row" data-t="later"><span class="no">14</span><p class="pain">친구에게 추천하고 싶은데 스포일러가 걱정됨</p><div class="feat"><strong>스포일러 없는 추천 문구 생성</strong></div><div class="tech"><span>LLM + 회차 필터</span><div class="tags"><span class="tag later">발표 때 언급</span></div></div></div>
+    </div>
+  </section>
+</div>
+
+<section class="panel">
+  <h2>12일 안에 만들 범위 (10/13 제출)</h2>
+  <div class="tiers">
+    <div class="tier must"><h3>필수</h3><span class="ids">05 · 06 · 07 · 11</span><p>이미 구현했거나 거의 다 된 것</p></div>
+    <div class="tier now"><h3>이번에 추가</h3><span class="ids">09 맞춤 복습 · 13 시청 기록장</span><p>"기억하고 판단하는 Agent"를 보여주는 핵심. 에이전트스러움 피드백 보완</p></div>
+    <div class="tier maybe"><h3>여유 되면</h3><span class="ids">01 · 08</span><p>입문자 추천, 회차 기준 인물 사전</p></div>
+    <div class="tier later"><h3>발표 때 확장 방향으로만</h3><span class="ids">02 · 03 · 04 · 10 · 12 · 14</span><p>"앞으로 이렇게 커질 수 있다" 한 장</p></div>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>09 맞춤 복습은 이렇게 움직인다</h2>
+  <div class="strip" aria-label="회차 진행 예시: 11화까지 봤고 12화부터는 차단">
+    <div class="eps">
+      <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span class="cut"></span>
+      <span class="after"></span><span class="after"></span><span class="after"></span><span class="after"></span><span class="after"></span><span class="after"></span><span class="after"></span><span class="after"></span><span class="after"></span><span class="after"></span><span class="after"></span><span class="after"></span><span class="after"></span>
+    </div>
+    <div class="strip-legend"><span>EP 01–11 본 회차 · 검색·요약에 사용</span><span class="r">| EP 12– 스포일러 차단</span></div>
+  </div>
+  <div class="flow">
+    <div class="step"><span class="who">AGENT · 확인</span><b>어디까지 봤나</b><span>시청 기록장(13)에서 꺼냄. 없으면 "어디까지 봤어요?" → 기억으로 회차 찾기(06)</span></div>
+    <div class="step"><span class="who">AGENT · 질문</span><b>뭐가 헷갈리나</b><span>전체 요약 / 인물 관계 / 마지막 화 상황</span></div>
+    <div class="step judge"><span class="who">AGENT · 판단</span><b>도구 고르기</b><span>전체 요약 → DB 조건 검색<br>특정 궁금증 → Vector DB</span></div>
+    <div class="step"><span class="who">AGENT · 답변</span><b>본 회차까지만</b><span>12화 이후 청크는 검색 전에 이미 제외</span></div>
+    <div class="step"><span class="who">AGENT · 기억</span><b>진행 저장</b><span>다음 대화에서도 자동으로 스포일러 차단</span></div>
+  </div>
+  <div class="compare">
+    <div><b>Vector DB가 필요 없는 경우</b><span>"1~11화 정리해줘" → 회차 조건으로 꺼내서 요약하면 끝</span><code>WHERE episode &lt;= 11</code></div>
+    <div><b>Vector DB가 제 역할을 하는 경우</b><span>"그 빨간 머리 애가 왜 편이 바뀌었지?" → 11화 이하 청크 안에서 의미 검색</span><code>filter(ep ≤ 11) → similarity search</code></div>
+  </div>
+  <p class="note"><b>청킹 포인트:</b> 100화 넘는 작품은 전체를 한 번에 LLM에 넣기 어려우니, 회차 청크 위에 아크(이야기 묶음) 요약 청크를 하나 더 두는 계층형 청킹. 대표님이 강조한 "청킹 방식"으로 발표에 그대로 사용.</p>
+  <p class="note"><b>데이터 한계:</b> 회차 줄거리는 Kitsu·TMDB는 짧고(죠죠 5부 20화 기준 4문장), 팬 위키는 자세함(같은 회차 약 1만 4천 자, CC BY-SA). 비인기작은 부실하므로 범위는 회차 설명이 충분한 작품으로 한정.</p>
+</section>
+
+<section class="panel">
+  <h2>오늘 회의에서 정할 것</h2>
+  <ul class="agenda">
+    <li><input type="checkbox" id="a1"><label for="a1">범위 확정: "이번에 추가" 2개(09, 13)로 갈지<small>에이전트스러움 피드백을 이걸로 충분히 보완하는지</small></label></li>
+    <li><input type="checkbox" id="a2"><label for="a2">작품 범위: 몇 작품을 회차까지 지원할지<small>데모 3작품(귀멸·나히아·진격)만 팬 위키로 보강할지</small></label></li>
+    <li><input type="checkbox" id="a3"><label for="a3">역할 분담<small>기획서 안: 데이터·청킹 / 검색·Vector DB / Agent·앱</small></label></li>
+    <li><input type="checkbox" id="a4"><label for="a4">Workflow 전/후 흐름도 담당과 마감<small>단계 수·소요 시간을 숫자로 비교, 판단 지점은 분기(◇)로</small></label></li>
+    <li><input type="checkbox" id="a5"><label for="a5">10/2 주제 등록 문구 확정</label></li>
+  </ul>
+</section>
+
+<footer>AniWhere · 강권재 · 이의진 · 한태호 · 빅데이터 핀테크 AI 응용사례</footer>
+</div>
+
+<script>
+(function () {
+  var btns = document.querySelectorAll('.fbtn');
+  var rows = document.querySelectorAll('.row');
+  var stages = document.querySelectorAll('.stage');
+  function apply(f) {
+    btns.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.f === f)); });
+    rows.forEach(function (r) { r.classList.toggle('hidden-by-filter', f !== 'all' && r.dataset.t !== f); });
+    stages.forEach(function (s) {
+      var visible = s.querySelectorAll('.row:not(.hidden-by-filter)').length;
+      s.classList.toggle('empty', visible === 0);
+    });
+  }
+  btns.forEach(function (b) { b.addEventListener('click', function () { apply(b.dataset.f); }); });
+})();
+</script>
+
+</body></html>

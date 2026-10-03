@@ -1,0 +1,16 @@
+# 바뀔 수 있는 값은 코드가 아니라 여기에 둡니다. (docs/ARCHITECTURE.md 참고)
+
+# 회차까지 지원하는 작품 — docs/data-sources.md의 "작품 × 출처" 표로 확정
+works: []
+
+embedding:
+  model: null        # 임베딩 모델 비교 후 확정
+
+chunking:
+  strategy: memory_unit   # memory_unit(기억 단위) | fixed(고정 길이, 비교용)
+
+retrieval:
+  top_k: 5
+
+llm:
+  model: null
