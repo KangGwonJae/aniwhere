@@ -37,7 +37,8 @@ AniWhere는 기능 하나짜리 도구가 아니라, 애니를 보는 모든 순
 ## 문서
 
 - 기능 지도(프로젝트 정체성·범위의 기준): [`docs/identity/AniWhere_기능지도_2026-10-01.html`](docs/identity/AniWhere_기능지도_2026-10-01.html)
-- 폴더 구조 정의: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- 폴더 구조 정의: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · 한눈에 보기: [`docs/repo-map.html`](docs/repo-map.html)
+- 회의록: [`docs/meetings/`](docs/meetings/)
 - 협업 규칙(사람·AI 공통): [`AGENTS.md`](AGENTS.md)
 
 ## 실행 방법

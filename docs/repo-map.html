@@ -1,0 +1,481 @@
+<meta charset="utf-8">
+<title>AniWhere 저장소 지도</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&family=Black+Han+Sans&display=swap">
+<style>
+/* Layout: 상단 소개 → 파일 트리(왼쪽) + 상세 패널(오른쪽, sticky) → 데이터 흐름 → 어디에 둘까 → GitHub 협업 → 명령어 */
+:root {
+  --bg: #f3f4f8;
+  --surface: #ffffff;
+  --ink: #1b1f33;
+  --muted: #5d6380;
+  --line: #d9dcea;
+  --accent: #3b4bd8;
+  --accent-soft: #e5e8ff;
+  --ok: #1f8a5b;
+  --ok-soft: #dcf3e8;
+  --no: #8a5a14;
+  --no-soft: #f8ecd6;
+  --plan: #7a4fc7;
+  --plan-soft: #efe6ff;
+  --code-bg: #eceef6;
+  --font-display: "Black Han Sans", "IBM Plex Sans KR", sans-serif;
+  --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12141f; --surface: #1b1e2d; --ink: #e7e9f5; --muted: #9ca2c2; --line: #2e3248;
+    --accent: #8f9bff; --accent-soft: #262c58; --ok: #5fd39c; --ok-soft: #173a2b;
+    --no: #e8b25c; --no-soft: #3d2f17; --plan: #c3a2ff; --plan-soft: #2f2448; --code-bg: #242839;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12141f; --surface: #1b1e2d; --ink: #e7e9f5; --muted: #9ca2c2; --line: #2e3248;
+  --accent: #8f9bff; --accent-soft: #262c58; --ok: #5fd39c; --ok-soft: #173a2b;
+  --no: #e8b25c; --no-soft: #3d2f17; --plan: #c3a2ff; --plan-soft: #2f2448; --code-bg: #242839;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.65; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 72px; display: flex; flex-direction: column; gap: 56px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+h1 { font-family: var(--font-display); font-weight: 400; font-size: clamp(34px, 6vw, 52px); line-height: 1.1; letter-spacing: -0.01em; }
+h2 { font-size: 22px; font-weight: 700; }
+h3 { font-size: 16px; font-weight: 700; }
+p { margin: 0; }
+code, .mono { font-family: var(--font-mono); font-size: 0.92em; }
+code { background: var(--code-bg); padding: 1px 6px; border-radius: 4px; }
+a { color: var(--accent); }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+section { display: flex; flex-direction: column; gap: 18px; }
+.section-head { display: flex; flex-direction: column; gap: 6px; max-width: 68ch; }
+.section-head p { color: var(--muted); }
+
+/* Hero */
+header { display: flex; flex-direction: column; gap: 14px; }
+.lede { font-size: 17px; max-width: 62ch; color: var(--muted); }
+.lede strong { color: var(--ink); }
+.repo-line { display: flex; flex-wrap: wrap; gap: 8px 16px; font-family: var(--font-mono); font-size: 13px; color: var(--muted); }
+
+/* Legend */
+.legend { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 500; padding: 3px 10px; border-radius: 999px; border: 1px solid transparent; white-space: nowrap; }
+.chip.ok { background: var(--ok-soft); color: var(--ok); }
+.chip.no { background: var(--no-soft); color: var(--no); }
+.chip.plan { background: var(--plan-soft); color: var(--plan); }
+.chip.stage { background: var(--accent-soft); color: var(--accent); }
+button.chip { cursor: pointer; font-family: inherit; border-color: var(--line); background: var(--surface); color: var(--muted); }
+button.chip[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+button:focus-visible, .node:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Explorer */
+.explorer { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.tree { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 8px; font-family: var(--font-mono); font-size: 13.5px; overflow-x: auto; }
+.node { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: none; border: 0; color: var(--ink); font: inherit; padding: 4px 8px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+.node:hover { background: var(--code-bg); }
+.node[aria-current="true"] { background: var(--accent-soft); color: var(--accent); }
+.node .guide { color: var(--line); white-space: pre; }
+.node .name { flex: 1 1 auto; }
+.node.dir .name { font-weight: 600; }
+.node .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.dot.ok { background: var(--ok); }
+.dot.no { background: var(--no); }
+.dot.plan { background: transparent; border: 1.5px dashed var(--plan); }
+.node.dim { opacity: 0.3; }
+.node.plan-node .name { color: var(--plan); font-style: italic; }
+
+.detail { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 24px; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.detail-path { font-family: var(--font-mono); font-size: 20px; font-weight: 600; word-break: break-all; }
+.detail-one { font-size: 16px; }
+.detail .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.facts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.fact { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.fact h4 { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; color: var(--muted); }
+.fact ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 2px; }
+.fact.full { grid-column: 1 / -1; }
+.fact .do li::marker { color: var(--ok); }
+.fact .dont li::marker { color: var(--no); }
+.fact .ex { font-family: var(--font-mono); font-size: 13px; background: var(--code-bg); border-radius: 6px; padding: 10px 12px; white-space: pre-wrap; word-break: break-all; }
+
+/* Flow */
+.flows { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.panel > p { color: var(--muted); font-size: 14px; }
+.pipe { display: flex; flex-direction: column; gap: 0; }
+.step { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.step .k { font-family: var(--font-mono); font-weight: 600; font-size: 13.5px; }
+.step .v { font-size: 13.5px; color: var(--muted); }
+.step.human { border-color: var(--ok); border-style: dashed; }
+.arrow { display: flex; align-items: center; gap: 10px; padding: 4px 0 4px 24px; font-family: var(--font-mono); font-size: 12px; color: var(--accent); }
+.arrow::before { content: "↓"; font-size: 16px; }
+.side-in { font-size: 12.5px; color: var(--ok); padding-left: 24px; font-family: var(--font-mono); }
+
+/* Finder */
+.finder { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.q { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.q p { font-size: 14.5px; }
+.q .to { font-family: var(--font-mono); font-size: 13.5px; font-weight: 600; color: var(--accent); }
+
+/* GitHub */
+.gh { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.branch-viz { font-family: var(--font-mono); font-size: 13px; background: var(--code-bg); border-radius: 8px; padding: 14px 16px; overflow-x: auto; white-space: pre; line-height: 1.7; }
+.branch-viz .m { color: var(--accent); font-weight: 600; }
+.branch-viz .f { color: var(--ok); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+.tbl { overflow-x: auto; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: 0.04em; }
+td:first-child { font-family: var(--font-mono); white-space: nowrap; }
+ol.steps { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; }
+ol.steps li::marker { font-family: var(--font-mono); color: var(--accent); font-weight: 600; }
+
+footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 18px; }
+
+@media (max-width: 860px) {
+  .explorer, .flows, .gh { grid-template-columns: minmax(0, 1fr); }
+  .detail { position: static; }
+  .finder { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+@media (max-width: 520px) {
+  .wrap { padding-inline: 16px; }
+  .finder, .facts { grid-template-columns: minmax(0, 1fr); }
+  .step { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .detail { padding: 18px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .detail { transition: border-color .2s; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">KangGwonJae/aniwhere · main 기준 · 2026-10-04</span>
+    <h1>AniWhere 저장소 지도</h1>
+    <p class="lede">폴더와 파일이 각각 <strong>무엇을 담당하는지</strong>, 그리고 <strong>무엇을 넣으면 안 되는지</strong> 한눈에 보는 안내서입니다. 왼쪽 트리에서 아무 항목이나 누르면 오른쪽에 설명이 나옵니다. 규칙의 원본은 <code>AGENTS.md</code>와 <code>docs/ARCHITECTURE.md</code>이고, 이 페이지는 그 내용을 보기 쉽게 옮긴 것입니다.</p>
+    <div class="legend" aria-label="범례">
+      <span class="chip ok"><span class="dot ok"></span>Git에 올림 (커밋)</span>
+      <span class="chip no"><span class="dot no"></span>올리지 않음 (코드가 다시 만듦·비밀 값)</span>
+      <span class="chip plan"><span class="dot plan"></span>아직 없음 · 데모 확인 후 결정</span>
+    </div>
+  </header>
+
+  <section id="tree">
+    <div class="section-head">
+      <span class="eyebrow">1 · 폴더 구조</span>
+      <h2>각 폴더는 무엇을 담당하나</h2>
+      <p>필터로 커밋하는 것과 커밋하지 않는 것만 골라 볼 수 있습니다.</p>
+    </div>
+    <div class="legend" role="group" aria-label="필터">
+      <button class="chip" type="button" id="f-all" data-filter="all" aria-pressed="true">전체</button>
+      <button class="chip" type="button" id="f-ok" data-filter="ok" aria-pressed="false">커밋하는 것</button>
+      <button class="chip" type="button" id="f-no" data-filter="no" aria-pressed="false">커밋하지 않는 것</button>
+      <button class="chip" type="button" id="f-plan" data-filter="plan" aria-pressed="false">예정</button>
+    </div>
+    <div class="explorer">
+      <nav class="tree" id="treeList" aria-label="저장소 파일 트리"></nav>
+      <article class="detail" id="detail" aria-live="polite"></article>
+    </div>
+  </section>
+
+  <section id="flow">
+    <div class="section-head">
+      <span class="eyebrow">2 · 흐름</span>
+      <h2>데이터와 코드는 한 방향으로만 흐른다</h2>
+      <p>거꾸로 흐르는 순간 "누가 이 파일을 고쳤지?"가 생깁니다. 두 흐름 모두 위에서 아래로만 갑니다.</p>
+    </div>
+    <div class="flows">
+      <div class="panel">
+        <h3>데이터 흐름 <span class="mono" style="color:var(--muted);font-weight:400">data/</span></h3>
+        <p>사람 손이 닿는 곳은 <code>curated/</code> 하나뿐입니다. 나머지는 명령 한 번으로 다시 만들 수 있으니 Git에 올리지 않습니다.</p>
+        <div class="pipe">
+          <div class="step"><span class="k">인터넷</span><span class="v">AniList · TMDB · Kitsu · JustWatch · 팬 위키</span></div>
+          <div class="arrow">make data · aniwhere/ingest</div>
+          <div class="step"><span class="k">data/raw/</span><span class="v">받은 원본 그대로. 수정 금지 · 커밋 안 함</span></div>
+          <div class="arrow">make index · aniwhere/chunking</div>
+          <div class="side-in">＋ data/curated/ (사람이 검수한 사건·회차 보강) 합류</div>
+          <div class="step"><span class="k">data/processed/</span><span class="v">청크 + 메타데이터(작품·종류·시즌·회차)</span></div>
+          <div class="arrow">make index · aniwhere/retrieval</div>
+          <div class="step"><span class="k">data/index/</span><span class="v">벡터 DB. 질문이 들어오면 여기서 검색</span></div>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>코드 의존 방향 <span class="mono" style="color:var(--muted);font-weight:400">aniwhere/</span></h3>
+        <p>아래 모듈은 위 모듈을 써도 되지만, 위 모듈이 아래 모듈을 부르면 안 됩니다. <code>records/</code>는 모든 단계가 "어디까지 봤나"를 읽는 중심 기억입니다.</p>
+        <div class="pipe">
+          <div class="step"><span class="k">ingest/</span><span class="v">외부에서 데이터 수집</span></div>
+          <div class="arrow">쓴다</div>
+          <div class="step"><span class="k">chunking/</span><span class="v">기억 단위로 자르기</span></div>
+          <div class="arrow">쓴다</div>
+          <div class="step"><span class="k">retrieval/</span><span class="v">검색 + 스포일러 필터 (검색 전에 제외)</span></div>
+          <div class="arrow">쓴다</div>
+          <div class="side-in">＋ records/ (본 회차) 를 읽어 스포일러 범위 결정</div>
+          <div class="step"><span class="k">agent/</span><span class="v">의도 파악 · 도구 선택 · 추가 질문 · 답변</span></div>
+          <div class="arrow">쓴다</div>
+          <div class="step human"><span class="k">api/ 또는 app/</span><span class="v">화면과의 입구. 판단 로직 금지 (예정)</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="where">
+    <div class="section-head">
+      <span class="eyebrow">3 · 헷갈릴 때</span>
+      <h2>이 파일, 어디에 둘까</h2>
+      <p>새 파일을 만들기 전에 아래 질문 중 "예"가 나오는 곳에 둡니다.</p>
+    </div>
+    <div class="finder">
+      <div class="q"><p>사람이 직접 쓰거나 검수한 데이터인가?</p><span class="to">data/curated/</span></div>
+      <div class="q"><p>코드를 돌리면 다시 생기는 데이터인가?</p><span class="to">data/raw · processed · index</span></div>
+      <div class="q"><p>반복 실행되고 매번 같은 결과가 나와야 하는 코드인가?</p><span class="to">aniwhere/</span></div>
+      <div class="q"><p>한 번 해보는 실험·비교인가?</p><span class="to">notebooks/</span></div>
+      <div class="q"><p>숫자나 이름만 바뀌는 값인가? (작품 목록, top_k, 모델명)</p><span class="to">config/settings.yaml</span></div>
+      <div class="q"><p>API 키 같은 비밀 값인가?</p><span class="to">.env (커밋 금지)</span></div>
+      <div class="q"><p>"얼마나 잘 찾나"를 숫자로 재는가?</p><span class="to">eval/</span></div>
+      <div class="q"><p>"고장 났나"를 확인하는가?</p><span class="to">tests/</span></div>
+      <div class="q"><p>사람이 읽는 글인가? 발표용 그림인가?</p><span class="to">docs/ · reports/figures/</span></div>
+    </div>
+  </section>
+
+  <section id="github">
+    <div class="section-head">
+      <span class="eyebrow">4 · GitHub 협업</span>
+      <h2>브랜치와 PR은 이렇게 돌아간다</h2>
+      <p>과제 요구사항이 "merge log 공개"라서, 모든 변경은 PR을 거쳐 Merge commit으로 들어옵니다. 그래야 누가 무엇을 언제 합쳤는지 기록이 남습니다.</p>
+    </div>
+    <div class="gh">
+      <div class="panel">
+        <h3>브랜치 구조</h3>
+        <div class="branch-viz"><span class="m">main</span> ──●────────────●─────────── ●  (보호됨: 직접 push 불가)
+          │            ↑             ↑
+          └─<span class="f">docs/kwonjae-identity</span>  │
+                                     │
+          └─<span class="f">feat/taeho-kitsu-collect</span> ──┘  PR → 승인 1명 → Merge commit</div>
+        <div class="tbl"><table>
+          <thead><tr><th>종류</th><th>언제 쓰나</th></tr></thead>
+          <tbody>
+            <tr><td>feat/</td><td>새 기능</td></tr>
+            <tr><td>fix/</td><td>버그 수정</td></tr>
+            <tr><td>data/</td><td>curated 데이터 추가·수정</td></tr>
+            <tr><td>docs/</td><td>문서</td></tr>
+            <tr><td>exp/</td><td>노트북 실험</td></tr>
+            <tr><td>chore/</td><td>설정·환경</td></tr>
+          </tbody>
+        </table></div>
+        <p style="font-size:14px;color:var(--muted)">이름 규칙: <code>종류/이름-주제</code> · 예) <code>fix/uijin-search-ui</code></p>
+      </div>
+      <div class="panel">
+        <h3>작업 한 번의 순서</h3>
+        <ol class="steps">
+          <li><code>git switch main && git pull</code>로 최신 상태 받기</li>
+          <li><code>git switch -c feat/이름-주제</code>로 브랜치 만들기</li>
+          <li>작업 후 <code>make test</code> 통과 확인</li>
+          <li><code>git push -u origin 브랜치이름</code></li>
+          <li>GitHub에서 PR 생성. <code>.github/pull_request_template.md</code>가 자동으로 채워짐: 시청 여정 몇 단계인지, 무엇·왜·어떻게 확인했는지, 키·스포일러 체크</li>
+          <li>팀원 1명 승인 → <strong>Merge commit</strong>으로 합치기 (Squash·Rebase는 꺼져 있음)</li>
+        </ol>
+        <div class="tbl"><table>
+          <thead><tr><th>GitHub 설정</th><th>상태</th></tr></thead>
+          <tbody>
+            <tr><td>main 보호</td><td>PR 필수 · 승인 1명 · 관리자도 예외 없음</td></tr>
+            <tr><td>Merge 방식</td><td>Merge commit만 허용</td></tr>
+            <tr><td>공개 범위</td><td>Public (개인 계정)</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="make">
+    <div class="section-head">
+      <span class="eyebrow">5 · 명령어</span>
+      <h2>Makefile 명령 한눈에</h2>
+      <p>데모 코드를 옮기기 전이라 <code>data · index · run · eval</code>은 아직 안내 문구만 출력합니다.</p>
+    </div>
+    <div class="panel tbl">
+      <table>
+        <thead><tr><th>명령</th><th>하는 일</th><th>결과가 생기는 곳</th><th>상태</th></tr></thead>
+        <tbody>
+          <tr><td>make setup</td><td>가상환경 만들고 패키지 설치</td><td><code>.venv/</code></td><td><span class="chip ok">동작</span></td></tr>
+          <tr><td>make data</td><td>외부 데이터 수집</td><td><code>data/raw/</code></td><td><span class="chip plan">연결 예정</span></td></tr>
+          <tr><td>make index</td><td>청킹 + 벡터 DB 생성</td><td><code>data/processed/</code>, <code>data/index/</code></td><td><span class="chip plan">연결 예정</span></td></tr>
+          <tr><td>make run</td><td>데모 실행</td><td>화면</td><td><span class="chip plan">연결 예정</span></td></tr>
+          <tr><td>make test</td><td>pytest 실행 (스포일러 테스트 포함)</td><td>터미널</td><td><span class="chip ok">동작</span></td></tr>
+          <tr><td>make eval</td><td>평가 질문셋 실행</td><td><code>eval/results/</code></td><td><span class="chip plan">연결 예정</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>서울대 KDT 13기 · 빅데이터 핀테크 AI 응용사례 · Category G · AniWhere 팀 (강권재 · 이의진 · 한태호)</footer>
+</div>
+
+<script>
+const NODES = [
+  { path: "aniwhere/", label: "aniwhere/ (저장소 루트)", depth: 0, dir: true, status: "ok",
+    one: "저장소 전체. GitHub의 KangGwonJae/aniwhere와 같은 내용입니다.",
+    do: ["앱 코드, 사람이 만든 데이터, 문서, 설정"], dont: ["API 키(.env)", "코드가 다시 만드는 데이터", ".venv/ 같은 개인 환경"],
+    who: "팀 전원", ex: "git clone https://github.com/KangGwonJae/aniwhere.git" },
+  { path: "README.md", depth: 1, status: "ok",
+    one: "처음 온 사람이 보는 정문. 프로젝트 소개, clone부터 실행까지의 명령, 팀 구성.",
+    do: ["프로젝트 소개와 정체성", "설치·실행 명령", "팀과 담당"], dont: ["세부 규칙(→ AGENTS.md)", "폴더 상세 정의(→ docs/ARCHITECTURE.md)"],
+    who: "강권재(저장소 담당)", test: "이것만 보고 데모를 돌릴 수 있어야 함" },
+  { path: "AGENTS.md", depth: 1, status: "ok",
+    one: "사람과 AI 코딩 도구가 함께 따르는 작업 규칙의 원본. Cursor·Codex·Copilot이 이 파일을 읽습니다.",
+    do: ["반드시 지킬 원칙 (스포일러 차단, 근거 없는 답 금지 등)", "폴더 규칙 요약", "Git 규칙, 실행 명령"], dont: ["특정 도구 전용 메모(→ CLAUDE.md 아래쪽)"],
+    who: "팀 전원 (규칙 변경은 PR로)", test: "팀원마다 쓰는 AI 도구가 달라서 규칙을 한 파일에 모음" },
+  { path: "CLAUDE.md", depth: 1, status: "ok",
+    one: "Claude Code용 입구. 첫 줄 @AGENTS.md로 원본 규칙을 불러오기만 합니다.",
+    do: ["Claude Code에만 필요한 메모"], dont: ["프로젝트 규칙 (중복되면 어긋나기 시작함)"],
+    who: "Claude Code 쓰는 사람", ex: "@AGENTS.md" },
+  { path: "Makefile", depth: 1, status: "ok",
+    one: "자주 쓰는 명령 모음. setup → data → index → run 순서와 test, eval.",
+    do: ["명령 이름과 실제 스크립트 연결"], dont: ["로직 자체(→ aniwhere/)"],
+    who: "강권재", ex: "make setup\nmake test" },
+  { path: "requirements.txt", depth: 1, status: "ok",
+    one: "파이썬 패키지와 버전 목록. make setup이 이 파일로 설치합니다.",
+    do: ["앱이 쓰는 패키지와 버전"], dont: ["노트북에서만 잠깐 쓴 패키지를 무작정 추가"], who: "패키지를 추가한 사람", test: "현재 비어 있음. 데모 코드를 옮길 때 채움" },
+  { path: ".env.example", depth: 1, status: "ok",
+    one: "필요한 비밀 키의 이름 목록. 값은 비워 둡니다. 복사해서 .env를 만듭니다.",
+    do: ["키 이름 (TMDB_API_KEY, LLM_API_KEY)"], dont: ["실제 키 값"], who: "새 키가 필요해진 사람", ex: "cp .env.example .env" },
+  { path: ".env", depth: 1, status: "no",
+    one: "실제 API 키를 넣는 개인 파일. .gitignore에 있어서 Git에 올라가지 않습니다.",
+    do: ["내 API 키 값"], dont: ["절대 커밋 금지"], who: "각자 로컬에서" },
+  { path: ".gitignore", depth: 1, status: "ok",
+    one: "Git이 무시할 파일 목록. 비밀 값, 가상환경, 다시 만들 수 있는 데이터를 제외합니다.",
+    do: [".env, .venv/, data/raw·processed·index, node_modules/"], dont: ["data/curated/ (팀 자산이라 커밋함)"], who: "강권재" },
+  { path: ".github/", depth: 1, dir: true, status: "ok",
+    one: "GitHub가 읽는 설정 폴더.",
+    do: ["PR 템플릿", "(필요하면) 이슈 템플릿, Actions"], dont: ["앱 코드"], who: "강권재" },
+  { path: ".github/pull_request_template.md", label: "pull_request_template.md", depth: 2, status: "ok",
+    one: "PR을 열면 본문에 자동으로 채워지는 양식.",
+    do: ["시청 여정 몇 단계를 위한 변경인지", "무엇·왜·어떻게 확인했는지", ".env·스포일러 체크"], dont: [], who: "PR 올리는 사람이 채움" },
+  { path: "config/", depth: 1, dir: true, status: "ok",
+    one: "바뀔 수 있는 값을 모으는 곳. 코드 안에 작품명이나 숫자를 하드코딩하지 않습니다.",
+    do: ["지원 작품 목록", "임베딩·LLM 모델 이름", "청킹 방식·크기, top_k"], dont: ["API 키(→ .env)", "로직"], who: "팀 전원" },
+  { path: "config/settings.yaml", label: "settings.yaml", depth: 2, status: "ok",
+    one: "현재 유일한 설정 파일. works는 data-sources.md 비교표로 확정 후 채웁니다.",
+    do: [], dont: [], who: "팀 전원", ex: "chunking:\n  strategy: memory_unit   # 또는 fixed(비교용)\nretrieval:\n  top_k: 5" },
+  { path: "data/", depth: 1, dir: true, status: "ok",
+    one: "데이터 창고. raw → processed → index 한 방향으로만 흐르고, curated만 사람이 직접 넣습니다.",
+    do: ["하위 폴더 4개와 README(출처·라이선스)"], dont: ["data/ 바로 아래에 파일 흩뿌리기"], who: "코드와 사람" },
+  { path: "data/raw/", label: "raw/", depth: 2, dir: true, status: "no",
+    one: "외부 API·위키에서 받은 원본 그대로.",
+    do: ["ingest가 받아온 원본 JSON 등"], dont: ["손으로 수정 (고칠 게 있으면 curated에)"], who: "aniwhere/ingest · make data", test: "다시 받으면 되므로 커밋 안 함" },
+  { path: "data/curated/", label: "curated/", depth: 2, dir: true, status: "ok",
+    one: "사람이 쓰거나 검수한 데이터. 팀의 핵심 자산입니다.",
+    do: ["주요 사건 정리", "회차 줄거리 보강", "\"커터칼 같은 칼\" 같은 사용자식 표현"], dont: ["코드가 자동으로 만든 결과물"], who: "사람 (data/ 브랜치로 PR)" },
+  { path: "data/processed/", label: "processed/", depth: 2, dir: true, status: "no",
+    one: "청크 파일. 각 청크에 작품·종류·시즌·회차 메타데이터가 붙어 있습니다.",
+    do: ["chunks.jsonl"], dont: ["손으로 수정"], who: "aniwhere/chunking · make index" },
+  { path: "data/index/", label: "index/", depth: 2, dir: true, status: "no",
+    one: "벡터 DB 파일. 질문이 들어오면 여기서 비슷한 청크를 찾습니다.",
+    do: ["벡터 DB 저장 파일"], dont: [], who: "aniwhere/retrieval · make index" },
+  { path: "notebooks/", depth: 1, dir: true, status: "ok",
+    one: "탐색과 실험의 기록. 앱의 부품이 아닙니다.",
+    do: ["출처 비교, 데이터 품질 확인, 청킹 A/B 비교"], dont: ["앱 코드가 import하는 함수 (→ aniwhere/로 옮기기)"], who: "주로 한태호(데이터 탐색)", ex: "0-taeho-출처비교.ipynb\n1-taeho-청킹AB.ipynb" },
+  { path: "aniwhere/aniwhere/", label: "aniwhere/ (앱 본체)", depth: 1, dir: true, status: "ok",
+    one: "파이썬 패키지인 앱 본체. 반복 실행되고 매번 같은 결과가 나와야 하는 코드가 여기 있습니다.",
+    do: ["ingest → chunking → retrieval → agent → api/app 방향의 코드"], dont: ["일회성 실험", "하드코딩된 작품명·숫자"], who: "팀 전원" },
+  { path: "aniwhere/ingest/", label: "ingest/", depth: 2, dir: true, status: "ok", stage: "03 시청 (OTT 정보)",
+    one: "외부 수집. 출처마다 파일 하나씩.",
+    do: ["anilist.py, tmdb.py, kitsu.py …"], dont: ["청킹·검색 로직"], who: "make data", io: "인터넷 → data/raw/" },
+  { path: "aniwhere/chunking/", label: "chunking/", depth: 2, dir: true, status: "ok", stage: "공통 기반",
+    one: "기억 단위 청킹. 교수님이 강조한 핵심 부분입니다. 비교용 고정 길이 방식도 함께 구현합니다.",
+    do: ["청크 종류: anime_summary · character · event · episode · terminology · streaming"], dont: ["검색·답변 로직"], who: "make index", io: "raw/ + curated/ → processed/" },
+  { path: "aniwhere/retrieval/", label: "retrieval/", depth: 2, dir: true, status: "ok", stage: "02 탐색 · 04 이어보기",
+    one: "임베딩, 벡터 DB 적재·검색, 하이브리드 검색, 2단계 검색(작품 확정 → 회차 재검색). 스포일러 필터가 여기 있습니다.",
+    do: ["검색 함수는 \"본 회차\"를 필수 인자로 받음", "본 회차 이후 청크는 검색 전에 제외"], dont: ["검색 결과에서 나중에 거르기 (금지)"], who: "make index", io: "processed/ → index/, 질문 → 근거 청크" },
+  { path: "aniwhere/agent/", label: "agent/", depth: 2, dir: true, status: "ok", stage: "01 입문 · 02 탐색 · 04 이어보기",
+    one: "AI 에이전트의 두뇌. 사용자가 시청 여정 어느 단계에 있는지 판단하고, 도구를 고르고, 필요하면 되묻고, 답합니다.",
+    do: ["의도 분류, 단서 추출", "도구 선택(조건 검색 vs 벡터 검색)", "추가 질문, 답변 생성", "prompts/에 프롬프트"], dont: ["검색된 청크 없이 지어낸 답"], who: "팀 전원", io: "사용자 발화 → 판단 → 답변" },
+  { path: "aniwhere/records/", label: "records/", depth: 2, dir: true, status: "ok", stage: "05 깊이 빠지기 + 전 단계",
+    one: "앱의 중심 기억. 본 작품·평점·진행 회차를 저장·조회합니다. 모든 단계가 여기서 \"어디까지 봤나\"를 읽습니다.",
+    do: ["시청 기록 저장·조회", "스포일러 범위 결정"], dont: [], who: "팀 전원", io: "사용자 기록 ↔ DB" },
+  { path: "aniwhere/api/ 또는 app/", label: "api/ 또는 app/", depth: 2, dir: true, status: "plan",
+    one: "바깥(화면)과의 입구. 데모가 Python 단일이면 app/, 화면·서버 분리면 api/.",
+    do: ["agent/를 호출하고 결과만 전달"], dont: ["판단 로직"], who: "이의진 데모 확인 후 결정" },
+  { path: "frontend/", depth: 1, dir: true, status: "plan",
+    one: "HTML/JS 화면. 화면과 서버가 분리된 경우에만 만듭니다.",
+    do: ["시청 여정 단계별 화면", "한/영 문구는 frontend/i18n/ (가점 항목)"], dont: ["데이터 파일·DB 직접 읽기 (API만 호출)"], who: "이의진(UI·데모)" },
+  { path: "eval/", depth: 1, dir: true, status: "ok",
+    one: "검색 품질을 숫자로 증명합니다. tests는 \"고장 났나\", eval은 \"얼마나 잘 찾나\".",
+    do: ["questions.jsonl (질문 ↔ 정답 작품·회차, 30 → 100개)", "results/날짜_설정.json"], dont: ["대용량 임시 파일(*.tmp)"], who: "make eval", ex: "results/2026-10-08_chunk-memory-unit.json" },
+  { path: "tests/", depth: 1, dir: true, status: "ok",
+    one: "코드가 깨지지 않았는지 확인합니다. PR 전에 make test 통과가 필수입니다.",
+    do: ["필수: N화까지 봤으면 N+1화 이후 청크는 절대 나오지 않는다"], dont: ["품질 측정(→ eval/)"], who: "make test" },
+  { path: "reports/figures/", depth: 1, dir: true, status: "ok",
+    one: "노트북과 eval이 만든 발표용 차트·그림.",
+    do: ["발표 슬라이드에 들어갈 그림"], dont: ["글 문서(→ docs/)"], who: "그림을 만든 사람" },
+  { path: "docs/", depth: 1, dir: true, status: "ok",
+    one: "사람이 읽는 문서 모음.",
+    do: ["ARCHITECTURE.md (폴더 정의 원본)", "data-sources.md (작품 × 출처 비교표)"], dont: ["코드"], who: "팀 전원" },
+  { path: "docs/identity/", label: "identity/", depth: 2, dir: true, status: "ok",
+    one: "AniWhere 기능 지도. 정체성, 시청 여정 5단계, 기능 14개와 우선순위의 기준.",
+    do: ["AniWhere_기능지도_2026-10-01.html"], dont: [], who: "범위가 바뀌면 PR로 갱신" },
+  { path: "docs/workflow/", label: "workflow/", depth: 2, dir: true, status: "ok",
+    one: "도입 전/후 흐름도. Category G 필수 제출물입니다.",
+    do: ["Before / After workflow 다이어그램"], dont: [], who: "팀 전원" },
+  { path: "docs/ui/", label: "ui/", depth: 2, dir: true, status: "ok",
+    one: "화면 목록과 시안.", do: ["화면 목록", "시안 이미지"], dont: [], who: "이의진(UI·데모)" },
+  { path: "docs/meetings/", label: "meetings/", depth: 2, dir: true, status: "ok",
+    one: "날짜별 회의록.", do: ["YYYY-MM-DD_주제.md"], dont: ["이전 회의록 덮어쓰기 (새 파일로)"], who: "회의 정리 담당", ex: "2026-10-01_주제확정.md" },
+];
+
+const STATUS = { ok: ["ok", "Git에 올림"], no: ["no", "올리지 않음"], plan: ["plan", "아직 없음 · 예정"] };
+const treeEl = document.getElementById("treeList");
+const detailEl = document.getElementById("detail");
+let current = 0;
+
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+NODES.forEach((n, i) => {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "node" + (n.dir ? " dir" : "") + (n.status === "plan" ? " plan-node" : "");
+  b.dataset.i = i;
+  const guide = n.depth ? "│  ".repeat(n.depth - 1) + "├─ " : "";
+  const name = n.label || n.path.split("/").filter(Boolean).pop() + (n.dir ? "/" : "");
+  b.innerHTML = `<span class="guide">${guide}</span><span class="name">${esc(name)}</span><span class="dot ${n.status}" title="${STATUS[n.status][1]}"></span>`;
+  b.addEventListener("click", () => select(i));
+  treeEl.appendChild(b);
+});
+
+function list(items, cls) {
+  return items && items.length ? `<ul class="${cls}">${items.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : "";
+}
+
+function select(i) {
+  current = i;
+  const n = NODES[i];
+  treeEl.querySelectorAll(".node").forEach(el => el.setAttribute("aria-current", el.dataset.i == i ? "true" : "false"));
+  const [cls, txt] = STATUS[n.status];
+  const parts = [];
+  if (n.do && n.do.length) parts.push(`<div class="fact"><h4>넣는 것</h4>${list(n.do, "do")}</div>`);
+  if (n.dont && n.dont.length) parts.push(`<div class="fact"><h4>넣지 않는 것</h4>${list(n.dont, "dont")}</div>`);
+  if (n.io) parts.push(`<div class="fact"><h4>입력 → 출력</h4><p class="mono">${esc(n.io)}</p></div>`);
+  if (n.who) parts.push(`<div class="fact"><h4>만드는 주체 · 담당</h4><p>${esc(n.who)}</p></div>`);
+  if (n.test) parts.push(`<div class="fact full"><h4>메모</h4><p>${esc(n.test)}</p></div>`);
+  if (n.ex) parts.push(`<div class="fact full"><h4>예시</h4><div class="ex">${esc(n.ex)}</div></div>`);
+  detailEl.innerHTML = `
+    <div class="chips"><span class="chip ${cls}"><span class="dot ${cls}"></span>${txt}</span>${n.stage ? `<span class="chip stage">${esc(n.stage)}</span>` : ""}</div>
+    <div class="detail-path">${esc(n.path)}</div>
+    <p class="detail-one">${esc(n.one)}</p>
+    <div class="facts">${parts.join("")}</div>`;
+}
+
+document.querySelectorAll("[data-filter]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const f = btn.dataset.filter;
+    document.querySelectorAll("[data-filter]").forEach(b => b.setAttribute("aria-pressed", b === btn ? "true" : "false"));
+    treeEl.querySelectorAll(".node").forEach(el => {
+      const s = NODES[el.dataset.i].status;
+      el.classList.toggle("dim", f !== "all" && s !== f);
+    });
+  });
+});
+
+select(NODES.findIndex(n => n.path === "aniwhere/retrieval/"));
+</script>

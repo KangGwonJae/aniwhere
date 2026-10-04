@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>AniWhere 에이전트 아이디어 · 이의진</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#fff8dc; --surface:#fffdf6; --ink:#39251f; --muted:#806d64; --line:#ead6af;
+  --yellow:#ffd451; --coral:#e75a43; --red:#a9362d; --soft:#fff0ad; --brown:#6b3e2e;
+  --sans:"Noto Sans KR","Apple SD Gothic Neo",sans-serif; --display:"Jua",var(--sans);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.7;
+  background-image:radial-gradient(circle at 4% 4%,rgba(255,196,35,.20) 0 120px,transparent 121px),radial-gradient(circle at 96% 16%,rgba(231,90,67,.10) 0 150px,transparent 151px)}
+.wrap{width:min(880px,calc(100% - 32px));margin:auto;padding:54px 0 88px;display:grid;gap:48px}
+header{position:relative;padding:36px 38px 32px;background:var(--surface);border:2px solid var(--ink);border-radius:22px;box-shadow:8px 9px 0 var(--ink);overflow:hidden}
+header::after{content:"どこ?";position:absolute;right:-12px;top:-24px;font:110px var(--display);color:rgba(231,90,67,.08);transform:rotate(8deg)}
+.brand{display:flex;align-items:center;gap:10px;color:var(--coral);font:25px var(--display)}
+.mark{width:34px;height:34px;display:grid;place-items:center;background:var(--yellow);border:2px solid var(--ink);border-radius:11px;transform:rotate(-6deg)}
+h1{font:44px/1.13 var(--display);letter-spacing:-.025em;margin:19px 0 9px;max-width:660px}
+h1 em{font-style:normal;color:var(--coral);text-decoration:underline;text-decoration-color:var(--yellow);text-decoration-thickness:10px;text-underline-offset:-4px;text-decoration-skip-ink:none}
+.meta{color:var(--muted);font-size:12px;margin:0 0 19px}.lead{font-size:16px;max-width:680px;margin:0;color:#55433c}
+section{min-width:0}h2{font:28px var(--display);letter-spacing:-.015em;margin:0 0 17px}.kicker{display:block;color:var(--coral);font-size:10px;font-weight:700;letter-spacing:.13em;margin-bottom:4px}
+p{margin:0}ul,ol{margin:0;padding-left:21px;display:grid;gap:7px}.muted{color:var(--muted)}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}.card{background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:20px}.card b{display:block;font-size:15px;margin-bottom:7px}.card p{font-size:12.5px;color:var(--muted)}.card .icon{font-size:25px;margin-bottom:13px}
+.table-wrap{overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:14px}table{border-collapse:collapse;width:100%;min-width:650px;font-size:13.5px}th,td{text-align:left;padding:12px 15px;border-bottom:1px solid var(--line);vertical-align:top}th{background:#fff3bd;color:var(--brown);font-size:12px}tr:last-child td{border:0}.query{font-weight:600}.answer{color:var(--coral);font-weight:600}
+.flow{background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:24px;display:grid;gap:20px}.flow-row{display:grid;grid-template-columns:105px 1fr;gap:16px;align-items:start}.flow-row>strong{font-size:12px;color:var(--muted);padding-top:11px}.nodes{display:flex;align-items:center;gap:8px}.node{flex:1;min-height:67px;border:1px solid var(--line);border-radius:11px;padding:11px;text-align:center;display:grid;place-items:center;background:#fff}.node small{display:block;color:var(--muted);font-size:9px}.node.old{border-color:#d8cfc1;color:#806e65}.node.ai{background:#fff0ad;border-color:#e1b93b}.node.result{background:#fff0ec;border-color:#e88b7b}.arrow{color:#b49c8f;font-weight:700}.caption{font-size:12px;color:var(--muted);margin-top:12px}
+.rag{background:var(--red);color:white;border:2px solid var(--ink);border-radius:18px;padding:27px;box-shadow:6px 7px 0 var(--ink)}.rag h2{margin-bottom:8px}.rag>.muted{color:#eec9c2}.steps{counter-reset:step;list-style:none;padding:0;margin-top:21px;grid-template-columns:repeat(5,1fr);gap:8px}.steps li{counter-increment:step;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:12px;font-size:11px;min-height:102px}.steps li::before{content:counter(step);display:grid;place-items:center;width:21px;height:21px;border-radius:50%;background:var(--yellow);color:var(--ink);font-weight:700;margin-bottom:9px}
+.chunks{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.chunk{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:15px}.chunk code{display:block;color:var(--coral);font-size:10px;margin-bottom:6px}.chunk b{font-size:13px}.chunk p{font-size:11px;color:var(--muted);margin-top:5px}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:13px}.compare>div{border:1px solid var(--line);border-radius:14px;padding:19px;background:var(--surface)}.compare>div:last-child{border:2px solid var(--coral);background:#fff8ef}.badge{display:inline-block;padding:3px 7px;background:var(--yellow);border-radius:6px;font-size:9px;font-weight:700;margin-left:6px}.compare h3{font-size:14px;margin:0 0 9px}.compare p{font-size:12px;color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.stat{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:18px;text-align:center}.stat b{display:block;font:29px var(--display);color:var(--coral)}.stat span{font-size:11px;color:var(--muted)}
+.source-list{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px}.source{border-left:4px solid var(--yellow);background:var(--surface);border-radius:0 10px 10px 0;padding:13px 15px}.source b{display:block;font-size:13px}.source p{font-size:11.5px;color:var(--muted)}
+.scenario{background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:20px}.scenario-row{display:grid;grid-template-columns:110px 1fr 24px 1fr;gap:10px;align-items:center;padding:13px 0;border-bottom:1px solid var(--line)}.scenario-row:last-child{border:0}.scenario-row>strong{font-size:12px;color:var(--coral)}.bubble{background:#fff4c9;border-radius:12px;padding:11px 13px;font-size:12px}.scenario-row i{text-align:center;color:#b0988d}.output{font-size:12px;font-weight:600}
+.stack{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.stack-item{display:grid;grid-template-columns:42px 1fr;gap:12px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:15px}.stack-item>span{width:38px;height:38px;display:grid;place-items:center;background:var(--yellow);border:1px solid var(--ink);border-radius:10px;font-weight:700}.stack-item b{display:block;font-size:13px;margin-bottom:3px}.stack-item p{font-size:11px;color:var(--muted)}
+.decision{margin-top:14px;border:2px solid var(--coral);background:#fff8ef;border-radius:14px;padding:17px 19px}.decision b{display:block;color:var(--coral);font-size:13px;margin-bottom:4px}.decision p{font-size:12px}
+.roadmap{counter-reset:road;list-style:none;padding:0;display:grid;grid-template-columns:repeat(4,1fr);gap:9px}.roadmap li{counter-increment:road;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;font-size:11px;min-height:116px}.roadmap li::before{content:"0" counter(road);display:block;color:var(--coral);font-weight:700;font-size:10px;margin-bottom:9px}.roadmap b{display:block;font-size:12px;margin-bottom:5px}.roles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.role{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:17px}.role>span{font-size:9px;color:var(--coral);font-weight:700;letter-spacing:.1em}.role h3{font-size:14px;margin:5px 0 9px}.role li{font-size:11px}
+.scope{display:grid;grid-template-columns:1fr 1fr;gap:13px}.box{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px}.box h3{font-size:14px;margin:0 0 11px}.box li{font-size:12.5px}.done li::marker{color:var(--coral)}
+footer{border-top:1px solid var(--line);padding-top:20px;display:flex;justify-content:space-between;color:var(--muted);font-size:11px}
+@media(max-width:700px){h1{font-size:34px}.cards,.chunks,.stats,.stack{grid-template-columns:1fr 1fr}.steps,.roadmap{grid-template-columns:1fr}.nodes{display:grid;grid-template-columns:1fr}.arrow{transform:rotate(90deg);text-align:center}.flow-row{grid-template-columns:1fr}.compare,.source-list,.scope,.roles{grid-template-columns:1fr}.scenario-row{grid-template-columns:1fr}.scenario-row i{transform:rotate(90deg)}header{padding:28px 24px}.stat b{font-size:25px}}
+@media print{body{background:white}.wrap{padding:20px 0}.rag{break-inside:avoid}section{break-inside:avoid}header{box-shadow:none}}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <div class="brand"><span class="mark">A</span> AniWhere</div>
+    <h1>무슨 애니였지?<br>어디까지 봤지? <em>어디서 보지?</em></h1>
+    <p class="meta">2026-10-01 · 이의진 · AI Agent 앱 개발 Category G</p>
+    <p class="lead">사용자가 어렴풋이 기억하는 캐릭터와 장면을 자연어로 설명하면 작품과 마지막 시청 회차를 찾고, 확인된 지점까지만 스포일러 없이 복습해주는 애니메이션 기억 복원 앱입니다. 핵심 기능을 빠르게 검증하기 위해 현재 데모만 웹으로 구현했습니다.</p>
+  </header>
+
+  <section>
+    <span class="kicker">PROBLEM</span><h2>왜 필요한가</h2>
+    <div class="cards">
+      <article class="card"><div class="icon">💭</div><b>제목이 기억나지 않는다</b><p>캐릭터의 외형이나 한 장면은 기억하지만 정확한 작품명으로 검색하기 어렵습니다.</p></article>
+      <article class="card"><div class="icon">⏪</div><b>어디까지 봤는지 모른다</b><p>새 시즌을 시작하려 해도 마지막으로 본 회차를 찾느라 여러 줄거리를 확인해야 합니다.</p></article>
+      <article class="card"><div class="icon">🙈</div><b>찾다가 스포일러를 본다</b><p>위키와 검색 결과에는 이후 전개가 함께 노출되어 안전하게 복습하기 어렵습니다.</p></article>
+    </div>
+  </section>
+
+  <section>
+    <span class="kicker">SOLUTION</span><h2>무엇을 해주나</h2>
+    <div class="table-wrap"><table>
+      <tr><th>사용자가 기억을 말하면</th><th>AniWhere가 하는 일</th><th>결과</th></tr>
+      <tr><td class="query">“키 작은 아저씨가 커터칼 같은 칼을 들고 날아다녀.”</td><td>외형·무기·움직임이 유사한 캐릭터 청크 검색</td><td class="answer">진격의 거인 · 리바이</td></tr>
+      <tr><td class="query">“올마이트가 올포원과 싸우고 손가락을 가리켰어.”</td><td>주요 사건과 회차 청크를 비교</td><td class="answer">시즌 3 · 11화</td></tr>
+      <tr><td class="query">“그 지점까지 내용이 기억 안 나.”</td><td>선택 회차 이후 데이터를 먼저 제외</td><td class="answer">스포일러 없는 복습</td></tr>
+      <tr><td class="query">“지금 어디서 볼 수 있어?”</td><td>국내 OTT 제공 정보를 조회</td><td class="answer">시청처와 확인일 안내</td></tr>
+    </table></div>
+  </section>
+
+  <section>
+    <span class="kicker">WORKFLOW</span><h2>도입 전과 후</h2>
+    <div class="flow">
+      <div class="flow-row"><strong>기존 방식</strong><div class="nodes"><div class="node old">기억나는 단어로 검색</div><span class="arrow">→</span><div class="node old">검색 결과 반복 탐색</div><span class="arrow">→</span><div class="node old">위키에서 회차 확인</div><span class="arrow">→</span><div class="node old">OTT별 재검색<small>스포일러 위험</small></div></div></div>
+      <div class="flow-row"><strong>AniWhere</strong><div class="nodes"><div class="node">기억을 자연어로 입력</div><span class="arrow">→</span><div class="node ai">AI가 단서 추출</div><span class="arrow">→</span><div class="node ai">Vector DB 검색</div><span class="arrow">→</span><div class="node result">작품·회차·복습·OTT<small>한 흐름으로 해결</small></div></div></div>
+    </div>
+    <p class="caption">사용자가 여러 사이트를 돌아다니는 대신, 기억 한 문장으로 작품 탐색부터 이어보기까지 연결합니다.</p>
+  </section>
+
+  <section class="rag">
+    <span class="kicker" style="color:var(--yellow)">RAG + VECTOR DB</span><h2>AI가 답을 찾는 방법</h2>
+    <p class="muted">LLM이 작품 내용을 지어내지 않고, 검색된 검수 데이터만 근거로 답하도록 설계합니다.</p>
+    <ol class="steps"><li>사용자의 자연어 기억을 받습니다.</li><li>인물·외형·능력·행동·사건을 단서로 정리합니다.</li><li>질문을 벡터로 바꾸고 의미가 가까운 청크를 찾습니다.</li><li>후보를 비교하고 부족하면 추가 질문을 합니다.</li><li>확인 회차 이후 청크를 제외한 뒤 답합니다.</li></ol>
+  </section>
+
+  <section>
+    <span class="kicker">CHUNKING</span><h2>고정 길이가 아닌 ‘기억 단위’ 청킹</h2>
+    <p class="muted" style="margin-bottom:16px">사용자는 문서의 몇 번째 문장이 아니라 캐릭터·장면·사건을 기억합니다. 그래서 작품 전체를 일정 글자 수로 자르지 않고 검색 의도에 맞는 의미 단위로 분리합니다.</p>
+    <div class="chunks">
+      <div class="chunk"><code>anime_summary</code><b>작품 요약</b><p>전체 줄거리, 장르, 세계관</p></div>
+      <div class="chunk"><code>character</code><b>캐릭터</b><p>인물별 외형, 성격, 능력, 관계</p></div>
+      <div class="chunk"><code>event</code><b>주요 사건</b><p>기억에 남는 행동과 장면, 회차</p></div>
+      <div class="chunk"><code>episode</code><b>에피소드</b><p>시즌, 회차 제목, 회차 줄거리</p></div>
+      <div class="chunk"><code>terminology</code><b>세계관 용어</b><p>능력, 조직, 장비, 고유 개념</p></div>
+      <div class="chunk"><code>streaming</code><b>시청 정보</b><p>OTT 제공처와 정보 확인일</p></div>
+    </div>
+  </section>
+
+  <section>
+    <span class="kicker">EXPERIMENT</span><h2>발표에서 보여줄 청킹 비교</h2>
+    <div class="compare">
+      <div><h3>A. 작품 전체를 하나로 저장</h3><p>한 벡터 안에 여러 인물과 사건이 섞여 세부 장면의 의미가 희석되고, 어떤 문장이 근거인지 설명하기 어렵습니다.</p></div>
+      <div><h3>B. 의미 단위로 저장 <span class="badge">적용 방식</span></h3><p>리바이의 외형·무기·이동 방식이 하나의 캐릭터 청크로 검색되어 더 구체적인 근거와 회차 메타데이터를 제공합니다.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <span class="kicker">TECH DIRECTION</span><h2>검색 성능 개선을 위한 논의안</h2>
+    <p class="muted" style="margin-bottom:16px">자연어 표현 차이와 작품 간 회차 혼동을 줄이기 위한 구성입니다. 구체적인 모델과 구현 도구는 팀 논의를 거쳐 결정합니다.</p>
+    <div class="stack">
+      <div class="stack-item"><span>1</span><div><b>자연어 단서 분석</b><p>질문을 작품 찾기·회차 찾기·복습·OTT로 분류하고 작품명, 인물, 외형, 능력, 사건을 추출합니다.</p></div></div>
+      <div class="stack-item"><span>2</span><div><b>의미 임베딩</b><p>다국어 임베딩 모델을 검토해 “힘을 물려받음”과 “능력을 계승함” 같은 표현을 가까운 벡터로 변환합니다.</p></div></div>
+      <div class="stack-item"><span>3</span><div><b>Vector DB</b><p>의미 청크와 회차·작품 메타데이터를 저장하고 검색할 Vector DB 제품을 비교해 선택합니다.</p></div></div>
+      <div class="stack-item"><span>4</span><div><b>하이브리드 검색</b><p>정확한 작품명·캐릭터명은 키워드로, 흐릿한 장면과 표현은 벡터로 찾아 점수를 결합합니다.</p></div></div>
+      <div class="stack-item"><span>5</span><div><b>2단계 검색</b><p>먼저 작품을 확정하고, 선택된 작품 안의 event·episode 청크만 다시 검색해 엉뚱한 회차를 줄입니다.</p></div></div>
+      <div class="stack-item"><span>6</span><div><b>규칙 기반 Agent</b><p>점수가 높으면 답하고, 후보가 비슷하면 추가 질문하며, 근거가 약하면 회차를 단정하지 않습니다.</p></div></div>
+    </div>
+  </section>
+
+  <section>
+    <span class="kicker">SEARCH IMPROVEMENT</span><h2>현재 방식에서 어떻게 좋아지나</h2>
+    <div class="compare">
+      <div><h3>현재 프로토타입</h3><p>문자 조각 기반 임베딩과 수작업 동의어를 사용합니다. 빠르게 실행할 수 있지만 새로운 표현이 들어올 때 규칙을 계속 추가해야 하고, 전체 작품의 청크가 한 번에 경쟁해 오답이 생길 수 있습니다.</p></div>
+      <div><h3>개선 방향 <span class="badge">논의안</span></h3><p>의미 임베딩, 키워드·벡터 혼합 검색, 작품 확정 후 회차 재검색을 검토합니다. 새로운 표현에 강해지고 작품 간 회차 혼동을 줄이는 것이 목표입니다.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <span class="kicker">DATA</span><h2>현재 구축한 데이터</h2>
+    <div class="stats"><div class="stat"><b>20</b><span>애니메이션 작품</span></div><div class="stat"><b>151</b><span>주요 캐릭터</span></div><div class="stat"><b>269</b><span>에피소드</span></div><div class="stat"><b>466</b><span>Vector DB 청크</span></div></div>
+    <div class="source-list">
+      <div class="source"><b>AniList API</b><p>작품명, 기본 줄거리, 장르, 캐릭터, 포스터</p></div>
+      <div class="source"><b>TMDB · JustWatch</b><p>한국어 제목, 시즌·회차, 포스터, 국내 OTT</p></div>
+      <div class="source"><b>직접 검수 데이터</b><p>귀멸의 칼날·나의 히어로 아카데미아·진격의 거인 주요 사건</p></div>
+      <div class="source"><b>사용자 기억 표현</b><p>“커터칼 같은 칼”, “힘을 물려받음” 같은 일상 표현 보강</p></div>
+    </div>
+  </section>
+
+  <section>
+    <span class="kicker">DEMO</span><h2>하나의 작품으로 이어지는 시연</h2>
+    <div class="scenario">
+      <div class="scenario-row"><strong>1 · 작품 찾기</strong><div class="bubble">“원래 능력이 없었는데 힘을 물려받은 학생이 나와.”</div><i>→</i><div class="output">나의 히어로 아카데미아<br>미도리야 이즈쿠</div></div>
+      <div class="scenario-row"><strong>2 · 회차 찾기</strong><div class="bubble">“올마이트가 올포원과 싸우고 손가락을 가리켰어.”</div><i>→</i><div class="output">시즌 3 · 11화<br>〈원 포 올〉</div></div>
+      <div class="scenario-row"><strong>3 · 복습하기</strong><div class="bubble">“이 회차까지 복습할래.”</div><i>→</i><div class="output">49화 이하만 조회<br>이후 사건 차단</div></div>
+    </div>
+  </section>
+
+  <section>
+    <span class="kicker">SCOPE</span><h2>구현 범위와 다음 단계</h2>
+    <div class="scope">
+      <div class="box"><h3>현재 구현 완료</h3><ul class="done"><li>자연어 작품·캐릭터 검색</li><li>주요 장면 기반 회차 추정</li><li>회차 필터 기반 안전한 복습</li><li>AniList·TMDB 자동 수집</li><li>OTT 안내와 포스터 표시</li><li>SQLite Vector DB 검색</li></ul></div>
+      <div class="box"><h3>다음 단계</h3><ul><li>다국어 의미 임베딩 모델 비교</li><li>Vector DB 후보 비교 및 선택</li><li>키워드·벡터 혼합 및 2단계 검색 검토</li><li>평가 질문 100개 자동 실행</li><li>실패 데이터만 확인하는 예외 검수</li></ul></div>
+    </div>
+  </section>
+
+  <section>
+    <span class="kicker">IMPLEMENTATION PLAN</span><h2>현실적인 구현 순서</h2>
+    <ol class="roadmap">
+      <li><b>검색 기준선 측정</b>현재 질문 30개로 Top-1 정확도와 실패 유형을 기록합니다.</li>
+      <li><b>임베딩·Vector DB 교체</b>동일한 청크를 로컬 의미 임베딩으로 변환해 별도 컬렉션에 저장합니다.</li>
+      <li><b>혼합·2단계 검색</b>작품 후보를 먼저 정하고 해당 작품 안에서 회차를 찾습니다.</li>
+      <li><b>평가와 예외 검수</b>질문을 100개로 늘리고 틀린 항목과 데이터 누락만 확인합니다.</li>
+    </ol>
+  </section>
+
+  <section>
+    <span class="kicker">TEAM</span><h2>3인 역할 분담</h2>
+    <div class="roles">
+      <article class="role"><span>MEMBER 01</span><h3>데이터·청킹</h3><ul><li>API 수집과 자동 품질 검사</li><li>상세 작품 3개 사건 데이터</li><li>청킹 방식 비교</li></ul></article>
+      <article class="role"><span>MEMBER 02</span><h3>검색·Vector DB</h3><ul><li>로컬 의미 임베딩</li><li>하이브리드·2단계 검색</li><li>평가 지표와 자동 테스트</li></ul></article>
+      <article class="role"><span>MEMBER 03</span><h3>Agent·앱</h3><ul><li>추가 질문과 상태 흐름</li><li>회차 복습·스포일러 차단</li><li>앱 UI 설계와 웹 데모 시연</li></ul></article>
+    </div>
+  </section>
+
+  <footer><span>AniWhere · AI Agent + RAG + Vector DB</span><span>이의진 · 2026</span></footer>
+</main>
+</body>
+</html>
