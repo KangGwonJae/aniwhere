@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="흐릿한 기억으로 애니메이션과 마지막 시청 지점을 찾는 서비스" />
+  <title>AniWhere — 기억 속 애니를 찾아서</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="theme.css" />
+</head>
+<body>
+  <div class="grain"></div>
+  <header class="nav shell">
+    <button class="brand" data-view="home" aria-label="홈으로">
+      <span class="brand-mark"><i></i><i></i><i></i></span>
+      <span>AniWhere</span>
+    </button>
+    <p class="nav-slogan">무슨 애니였지? 어디까지 봤지? 어디서 보지?</p>
+  </header>
+
+  <main>
+    <section id="home" class="view active">
+      <div class="hero shell">
+        <div class="eyebrow"><span>✦</span> 흐릿한 애니 기억 수사대</div>
+        <h1>그 장면은 기억나는데,<br><em>무슨 애니였지?</em></h1>
+        <p class="hero-copy">흐릿한 장면, 캐릭터의 생김새, 능력 하나면 충분해요.<br>기억의 조각을 모아 작품과 마지막 시청 지점을 찾아드릴게요.</p>
+
+        <form id="search-form" class="search-box">
+          <div class="mode-row" role="tablist">
+            <button type="button" class="mode active" data-prefix="">✦ 작품 찾기</button>
+            <button type="button" class="mode" data-prefix="어디까지 봤는지 찾아줘: ">◷ 회차 찾기</button>
+            <button type="button" class="mode" data-prefix="스포일러 없이 복습해줘: ">▤ 복습하기</button>
+          </div>
+          <div class="input-row">
+            <textarea id="query" rows="2" placeholder="기억나는 장면이나 캐릭터를 자유롭게 적어보세요..." required></textarea>
+            <button id="submit-button" class="search-button" type="submit" aria-label="기억 검색"><span>찾아보기</span> →</button>
+          </div>
+          <div class="search-foot"><span><kbd>↵</kbd> Enter로 검색</span><span>검증된 샘플 데이터만 사용해요 <b>✓</b></span></div>
+        </form>
+
+        <div class="examples">
+          <span>이렇게 물어보세요</span>
+          <button data-query="노란 머리 남자인데 겁이 많고 번개 기술을 썼던 것 같아">⚡ 노란 머리의 번개 검사</button>
+          <button data-query="올마이트가 올포원과 싸우고 손가락을 화면 쪽으로 가리키는 장면까지 봤어">☝ 올마이트가 손가락을 가리킨 장면</button>
+          <button data-query="붉은 목도리를 한 엄청 강한 여자 병사가 나왔어">🧣 붉은 목도리의 병사</button>
+        </div>
+      </div>
+
+      <section class="catalog-section shell">
+        <div class="section-head"><div><span>작품 둘러보기</span><h2>지금 찾을 수 있는 작품</h2></div></div>
+        <div id="catalog" class="catalog skeletons"></div>
+      </section>
+    </section>
+
+    <section id="result" class="view shell result-page">
+      <button class="back" data-view="home">← 새로운 기억 찾기</button>
+      <div class="result-heading"><div><span id="result-label" class="eyebrow tiny">검색 결과</span><h2 id="result-title">기억 속 장면과<br><em>가장 가까운 작품이에요</em></h2></div><div class="query-quote"><span>“</span><p id="result-query"></p></div></div>
+      <div class="result-grid"><article id="primary-result" class="primary-result"></article></div>
+      <div id="followup" class="followup hidden"></div>
+      <div id="candidates" class="candidates"></div>
+    </section>
+
+  </main>
+
+  <dialog id="evidence-dialog">
+    <div class="dialog-head"><div><span id="dialog-label">AniWhere</span><h2 id="dialog-title">상세 정보</h2></div><button id="close-dialog">×</button></div>
+    <p id="dialog-description"></p>
+    <div id="evidence-list"></div>
+  </dialog>
+  <div id="toast" class="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>

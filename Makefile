@@ -5,16 +5,17 @@ setup:
 	python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 
 data:
-	@echo "TODO: aniwhere/ingest 연결 → data/raw/"
+	.venv/bin/python -m scripts.collect_external_data --count 20
 
 index:
-	@echo "TODO: aniwhere/chunking + retrieval 연결 → data/processed/, data/index/"
+	.venv/bin/python -m scripts.build_chunks
+	.venv/bin/python -m scripts.build_vector_db
 
 run:
-	@echo "TODO: 데모 실행 명령 연결"
+	.venv/bin/python -m aniwhere.api.server
 
 test:
-	.venv/bin/python -m pytest tests
+	.venv/bin/python -m unittest discover -s tests -v
 
 eval:
-	@echo "TODO: eval 스크립트 연결 → eval/results/"
+	.venv/bin/python -m scripts.evaluate_chunking

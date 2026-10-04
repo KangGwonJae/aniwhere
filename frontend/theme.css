@@ -1,0 +1,70 @@
+/* Bright, playful AniWhere skin. Kept separate from layout styles for easy iteration. */
+body {
+  font-family: 'Noto Sans KR', sans-serif;
+  background-color: var(--cream);
+  background-image:
+    radial-gradient(circle at 7% 11%, rgba(255, 194, 32, .24) 0 90px, transparent 91px),
+    radial-gradient(circle at 95% 24%, rgba(231, 76, 54, .12) 0 130px, transparent 131px);
+}
+
+.brand { font-family: 'Jua', sans-serif; font-size: 27px; color: var(--green); }
+.brand-mark { width: 35px; height: 35px; border: 2px solid var(--ink); border-radius: 11px; background: var(--mint); transform: rotate(-5deg); }
+.brand-mark i { background: var(--green); }
+.nav-slogan { color:var(--muted); font-size:12px; }
+.status-pill b { border: 0; background: var(--mint); color: #78400d; border-radius: 8px; padding: 5px 7px; transform: rotate(2deg); }
+
+.hero h1, .lab-hero h1, .about-page h1 { font-family: 'Jua', sans-serif; font-weight: 400; letter-spacing: -.025em; }
+.hero h1 em, .lab-hero h1 em, .about-page h1 em, .result-heading h2 em, .chunk-map em {
+  font-family: 'Jua', sans-serif; font-style: normal; color: var(--green);
+  text-decoration: underline; text-decoration-color: var(--mint); text-decoration-thickness: 11px;
+  text-underline-offset: -5px; text-decoration-skip-ink: none;
+}
+
+.search-box { border: 2px solid var(--ink); border-radius: 24px; transform: rotate(-.12deg); }
+.search-button, .lab-search button { border: 2px solid var(--ink); background: var(--green); box-shadow: 4px 4px 0 var(--ink); font-weight: 700; }
+.examples button { border-color: #e2bf69; background: #fff0a8; color: #684b40; }
+.section-head h2, .anime-card h3, .match-copy h2, .result-heading h2 { font-family: 'Jua', sans-serif; font-weight: 400; }
+.section-head h2 { font-size: 31px; }
+.anime-card h3 { font-size: 29px; }
+
+.anime-card { border: 2px solid var(--ink); border-radius: 22px; box-shadow: 6px 7px 0 var(--ink), inset 0 -100px 90px rgba(45,20,13,.43); }
+.anime-card:nth-child(1) { transform: rotate(-1deg); }
+.anime-card:nth-child(2) { transform: rotate(1deg); }
+.anime-card:nth-child(3) { transform: rotate(-.6deg); }
+.anime-card:hover { transform: translateY(-7px) rotate(0); }
+
+.primary-result, .agent-trace { border: 2px solid var(--ink); box-shadow: 5px 6px 0 rgba(60,36,31,.14); }
+.result-grid { grid-template-columns: 1fr; }
+.primary-result { max-width: 850px; width:100%; margin:auto; }
+.anime-card .art, .poster { background-size: cover; background-position: center; }
+.character-match, .chips span, .trace-block code, .meta span { background: #fff0ad; }
+.confidence i, .pulse { background: var(--green); }
+.pipeline-item:before { background: #ffe184; }
+.followup, .lab-insight, .chunk-map { background: #9f3028; }
+.actions button.primary { box-shadow: 3px 3px 0 var(--ink); border-color: var(--ink); }
+.episode-badge.unresolved { border-left-color: #d39a24; background: #fff0b8; }
+.safety-banner { display:flex; justify-content:space-between; gap:12px; background:#fff0ad; border:1px solid #e5c45b; border-radius:11px; padding:13px 15px; margin:18px 0 22px; font-size:12px; }
+.safety-banner small { color:var(--muted); }
+.recap-section { padding:21px 2px; border-top:1px solid var(--line); }
+.recap-section>span { color:var(--green); font-size:9px; font-weight:700; letter-spacing:.13em; }
+.recap-section h3 { font-family:'Jua',sans-serif; font-size:21px; font-weight:400; margin:6px 0 11px; }
+.recap-section>p { color:#5d4c45; font-size:13px; line-height:1.8; margin:0; }
+.recap-people { display:flex; flex-wrap:wrap; gap:7px; }
+.recap-people b { background:#fff0ad; border-radius:20px; padding:7px 11px; font-size:11px; }
+.evidence-item .meta { justify-content:flex-start; align-items:center; gap:8px; margin:14px 0; }
+.evidence-item .meta span { display:inline-flex; align-items:center; min-height:34px; padding:8px 13px; border:1px solid #e4c96f; background:#fff0ad; border-radius:20px; font-size:12px; font-weight:600; }
+.recap-events { list-style:none; padding:0; margin:0; }
+.recap-events li { display:grid; grid-template-columns:55px 1fr; gap:10px; margin:0 0 14px; }
+.recap-events li>b { color:var(--green); font-size:10px; padding-top:3px; }
+.recap-events strong { font-size:12px; }
+.recap-events p { color:var(--muted); font-size:11px; line-height:1.55; margin:4px 0 0; }
+.tech-details { margin-top:16px; border-top:1px dashed #cdbd9e; padding-top:16px; }
+.tech-details summary { cursor:pointer; color:var(--muted); font-size:11px; }
+.alternative-label { grid-column:1/-1; color:var(--muted); font-size:11px; margin:12px 0 0; }
+.candidate { box-shadow:none; }
+
+@media (max-width: 800px) {
+  .hero h1 { font-size: 43px; }
+  .lab-hero h1, .about-page h1 { font-size: 39px; }
+  .anime-card:nth-child(n) { transform: none; }
+}

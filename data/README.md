@@ -20,3 +20,11 @@
 | 팬 위키 | 상세 회차 줄거리 | CC BY-SA — 출처 표기·동일 조건 |
 
 > 상세 비교는 `docs/data-sources.md`(데이터 탐색 결과)를 기준으로 갱신합니다.
+
+## UI 데모용 데이터
+
+- `curated/anime.json`: 작품 찾기·회차 찾기·복습 시연을 위해 직접 보강한 3개 작품 데이터
+- `curated/demo_catalog.json`: AniList·TMDB에서 수집한 화면 시연용 고정 스냅샷
+
+`demo_catalog.json`은 검색 품질의 정답 데이터가 아니라 포스터와 기본 작품 정보를 보여주기 위한
+시연 자료입니다. 상세 사건 검색에서는 `anime.json`의 보강 데이터를 우선합니다.
