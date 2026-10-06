@@ -4,7 +4,12 @@
 works: []
 
 embedding:
-  model: null        # 임베딩 모델 비교 후 확정
+  # 임베딩 모델 비교 후 확정. 아래는 data/collect.py embed가 쓰는 기본 후보 (한국어 질문 ↔ 영어 줄거리 검색용 다국어 모델)
+  model: intfloat/multilingual-e5-base
+  dim: 768                  # data/schema.sql의 vector(N)과 같아야 함
+  passage_prefix: "passage: "   # e5 계열은 청크·질문 앞에 구분 말을 붙임
+  query_prefix: "query: "
+  batch_size: 32
 
 chunking:
   strategy: memory_unit   # memory_unit(기억 단위) | fixed(고정 길이, 비교용)

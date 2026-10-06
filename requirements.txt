@@ -1,1 +1,9 @@
-# 데모 코드를 옮길 때 데모의 의존성으로 채웁니다.
+# 데이터 수집 (data/collect.py)
+requests>=2.31
+mwparserfromhell>=0.6
+psycopg[binary]>=3.2
+PyYAML>=6.0
+# 청크 임베딩 (data/collect.py embed, search)
+sentence-transformers>=3.0
+# 테스트
+pytest>=8.0
