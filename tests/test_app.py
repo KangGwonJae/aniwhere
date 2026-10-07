@@ -258,14 +258,14 @@ def test_find_stays_inside_recorded_episodes(db):
 
 def test_find_with_llm_answers_only_from_retrieved_candidates(db):
     clues = {"series_title": None, "title_guesses": ["Test Titan"], "query_en": "wizard7 appears",
-             "keywords": ["wizard7"], "names": ["dragon7"]}
+             "keywords": ["wizard7"], "names": []}
     llm = FakeLLM(find_clues=clues, find_judge={"status": "episode", "pick": 1, "also": [], "reason": "용과 싸웠어요.",
-                                                     "quote": "The hero fights dragon7.", "missing": []})
+                                                     "quote": "The hero meets wizard7 at the tower.", "missing": []})
     r = find_mod.find(db, "마법사를 탑에서 만났어", llm=llm)          # 벡터로는 못 찾고 키워드(wizard7)로 찾는 경우
     assert r["status"] == "episode" and (r["candidates"][0]["series_id"], r["candidates"][0]["abs_ep"]) == (A, 7)
     assert "「테스트 거인」 2기 2화 (전체 7화)" in r["answer"] and r["sources"][0]["url"]
     assert "SECRET" not in json.dumps(r, ensure_ascii=False)          # 응답에 줄거리 본문은 없음
-    quote = "The hero fights dragon7."
+    quote = "The hero meets wizard7 at the tower."
     for bad in ({"status": "episode", "pick": 99, "quote": quote}, {"status": "episode", "pick": "1", "quote": quote},
                 {}, {"status": "none"},
                 {"status": "episode", "pick": 1},                                        # 근거 문장을 못 댐

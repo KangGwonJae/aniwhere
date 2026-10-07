@@ -33,7 +33,7 @@ find:
   max_series: 4             # 회차까지 다시 검색하는 작품 후보 수
   min_score: 0.5            # 1위 유사도가 이보다 낮으면 근거가 약하다고 보고 단정하지 않음
   margin: 0.02              # 1위와 2위의 유사도 차이가 이보다 작으면 후보가 비슷하다고 보고 다시 물음 (LLM이 없을 때)
-  judge_chunks: 6           # LLM에게 보여 주는 후보 청크 수
+  judge_chunks: 8           # LLM에게 보여 주는 후보 회차 수
   judge_chunk_chars: 8000   # 후보 청크 하나에서 보여 주는 글자 수 (회차 줄거리는 길면 7~8천 자)
 
 # 04 이어보기 — 맞춤 복습 (aniwhere/agent/review.py)

@@ -13,7 +13,7 @@ from aniwhere.agent.llm import prompt
 from aniwhere.config import section
 from aniwhere.retrieval import catalog
 from aniwhere.retrieval.embedder import embed_query
-from aniwhere.retrieval.search import ALL_EPISODES, keyword_search, search_chunks
+from aniwhere.retrieval.search import ALL_EPISODES, chunks_upto, keyword_search, search_chunks
 
 RRF_K = 60                      # 여러 검색 결과의 순위를 합칠 때 쓰는 상수 (Reciprocal Rank Fusion)
 PROFILE_TYPES = ["character", "terminology", "summary"]    # 인물 생김새·설정은 줄거리가 아니라 여기에 적혀 있음
@@ -71,10 +71,23 @@ def _episodes(dense_lists, keyword_hits):
     return sorted(eps.values(), key=lambda e: (e["rrf"], len(e["scenes"]), e["score"] or 0), reverse=True)
 
 
-def _evidence_text(e, limit):
-    if e["chunk"]["type"] == "plot":
-        return e["chunk"]["text"][:limit]
-    return "\n".join(s["text"] for s in e["scenes"])[:limit]      # 키워드로만 찾은 회차: 맞은 장면들
+def _evidence(db, eps, watched, limit):
+    """후보 회차마다 LLM에게 보여 줄 글: 그 회차의 상세 줄거리. 키워드로 맞은 장면이 있으면 그 장면을 앞에 둠.
+
+    어떤 검색으로 찾았든(벡터·키워드) 같은 글을 보여 주려고 줄거리를 다시 읽습니다. 본 회차 조건은 그대로 적용됩니다.
+    """
+    plots = {}
+    for sid in {e["series_id"] for e in eps}:
+        rows = chunks_upto(db, sid, seen_ep=watched.get(sid, ALL_EPISODES), types=["plot"],
+                           only_eps=[e["abs_ep"] for e in eps if e["series_id"] == sid])
+        plots.update({(sid, c["abs_ep"]): c for c in rows})
+    out = []
+    for e in eps:
+        plot = plots.get((e["series_id"], e["abs_ep"]))
+        scenes = "\n".join(s["text"] for s in e["scenes"][:2])
+        text = "\n".join(x for x in (scenes, plot["text"][:limit] if plot else "") if x)
+        out.append((text, plot or e["chunk"]))
+    return out
 
 
 def _words(text):
@@ -153,7 +166,8 @@ def find(db, question, history=None, *, llm=None, user_id=records.LOCAL_USER) ->
 
     if llm:
         shown = eps[:cfg.get("judge_chunks", 6)]
-        items = [(cand(e), _evidence_text(e, cfg.get("judge_chunk_chars", 8000)), e["chunk"]) for e in shown] + \
+        texts = _evidence(db, shown, watched, cfg.get("judge_chunk_chars", 8000))
+        items = [(cand(e), text, chunk) for e, (text, chunk) in zip(shown, texts)] + \
                 [({"series_id": h["series_id"], "title": names[h["series_id"]]}, h["text"], h) for h in extras]
         j = llm.json(prompt("find_judge"), f"사용자의 묘사:\n{said}\n\n후보 자료:\n" + "\n\n".join(
             f"[{i}] {text}" for i, (_, text, _) in enumerate(items, 1)))
