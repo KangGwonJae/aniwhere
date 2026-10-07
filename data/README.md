@@ -34,12 +34,13 @@
 | 4 | `tmdb --limit N` | TMDB (JustWatch) | 한국어 제목·작품 소개·회차명·줄거리, 포스터·회차 이미지 주소, 상영 시간, 시즌별 국내 OTT | 시리즈당 1초 미만 |
 | 5 | `jikan --limit N` | MyAnimeList (Jikan) | 필러·총집편 여부 | 시즌 항목당 1초 이상 |
 | 6 | `characters --limit N` | AniList | 주요 캐릭터 이름·설명·이미지 주소 | 시즌 항목당 약 2초 |
-| 7-0 | `fandom-find --limit N` | Fandom | 인기작의 위키를 제목으로 추측해 찾고 `fandom_wikis.json`에 추가 | 작품당 2~8초 |
+| 7-0 | `fandom-find --limit N` | 위키데이터, Fandom 위키 목록 | 인기작의 위키를 찾아 `fandom_wikis.json`에 추가 (ID → 위키 목록의 제목 → 주소 추측 순) | 작품당 2~8초 |
 | 7 | `fandom` | Fandom 작품별 위키 | 회차별 상세 줄거리, 등장 순서, 원작 화수, 아크 | 위키당 수 초 (50문서씩 한 번에 받음) |
 | 8 | `chunks` | 위 결과 | 검색 청크 생성·갱신 | 몇 분 |
 | 9 | `embed --limit N` | 로컬 임베딩 모델 | 청크 임베딩, 벡터 인덱스 생성 | 청크 수에 비례 |
 | | `report` | - | 작품별 수집 리포트(`processed/report.md`) | 즉시 |
 | | `status --limit N` | - | 출처별 진행률(상위 N개 기준)과 쌓인 데이터 양. 수집 중에도 다른 터미널에서 확인 가능 | 즉시 |
+| | `migrate` | 수집 DB | 상세 줄거리가 제대로 있는 작품만 서비스용 DB로 옮김 (아래 "서비스용 DB") | 약 20초 |
 
 ```bash
 make data            # init seed anilist → tvmaze tmdb jikan characters (상위 300개) → fandom
@@ -53,7 +54,7 @@ make data LIMIT=1000 # 범위를 늘려 다시 실행 (이미 받은 작품은 �
 - 특정 작품만: `--series tmdb:65930`. 처음부터 다시 받기: `--refresh`. 새로 받지 않고 받아 둔 원본으로 다시 정리: `--reparse`.
 - 수집 중에는 10개마다 `[120/300, 남은 시간 약 6분]` 형태로 진행 상황이 찍힙니다.
 - 받은 API 원본은 `raw` 테이블에 저장되므로 같은 요청을 두 번 보내지 않습니다.
-- `fandom`은 회차 제목이 문서 이름인 위키(진격, 하이큐 등)에서 TVmaze 영어 제목으로 회차를 맞추므로 `tvmaze` 뒤에 실행합니다.
+- `fandom`은 위키 문서가 몇 화인지를 TVmaze의 영어 회차 제목과 방영일로 맞추므로 `tvmaze` 뒤에 실행합니다.
 
 ## 3. 테이블
 
@@ -100,6 +101,23 @@ AniList 설명의 스포일러 표시 구간(`~! … !~`)은 저장할 때 지�
 > 주의: 첫 등장 회차가 2화 이후인 캐릭터는 그 작품의 시청 기록이 없는 사용자에게 검색되지 않습니다.
 > "기억나는 캐릭터로 작품 찾기"에서 이 캐릭터들도 찾게 하려면, 검색 쪽에서 작품 확정 전 단계의 규칙을 따로 정해야 합니다.
 
+### 서비스용 DB
+
+수집 DB(`aniwhere`)는 1만 2천 개 시리즈를 다 담고 있어 대부분의 회차에 상세 줄거리가 없습니다. 서비스(검색·복습)에는
+**500자 이상 상세 줄거리가 있는 회차가 전체의 80% 이상인 작품**만 따로 옮긴 DB를 씁니다.
+
+```bash
+python data/collect.py migrate                              # → aniwhere_service
+python data/collect.py migrate --min-fill 0.9 --to 다른이름   # 기준·DB 이름 바꾸기
+```
+
+- 기준과 DB 이름의 기본값은 `config/settings.yaml`의 `service_db`에 있습니다.
+- 수집 DB는 읽기만 합니다. 서비스용 DB는 실행할 때마다 비우고 다시 채우므로, 수집·정제를 고친 뒤 다시 실행하면 됩니다.
+  (서비스용 DB에서 직접 고친 내용과 임베딩은 사라집니다. 임베딩은 수집 DB에서 `embed`를 하고 옮기면 같이 넘어갑니다.)
+- 옮기는 것: `series` `entries` `episodes` `characters` `streaming` `seasons` `voice_cast` `chunks` `fetch_log`,
+  그리고 그 작품들의 `wiki_pages`(원문 `wikitext` 칸 제외). `raw`(API 원본 캐시)는 옮기지 않습니다.
+- 서비스용 DB를 쓰려면 `.env`의 `DATABASE_URL`에서 DB 이름만 `aniwhere_service`로 바꿉니다.
+
 ### 임베딩
 
 모델과 차원은 `config/settings.yaml`의 `embedding`에서 정합니다. `schema.sql`의 `vector(768)`과 `dim`이 같아야 합니다.
@@ -107,9 +125,24 @@ AniList 설명의 스포일러 표시 구간(`~! … !~`)은 저장할 때 지�
 
 ## 4. 상세 줄거리(Fandom) 작품 추가
 
-`python data/collect.py fandom-find --limit 300`은 인기 상위 작품의 위키 주소를 제목으로 추측해(`attack-on-titan`, `attackontitan` …)
-회차 문서 수가 작품 회차 수와 비슷하면 `fandom_wikis.json`에 `"auto": true`로 추가합니다. 자동으로 찾은 위키는 수집할 때
-회차 제목이 TVmaze와 거의 안 맞으면(다른 작품의 위키) 저장하지 않습니다. 별명으로 된 위키(`fma`, `konosuba` 등)는 못 찾으므로 직접 적습니다.
+`python data/collect.py fandom-find --limit 300`은 인기 상위 작품의 위키를 세 가지 방법으로 찾아 `fandom_wikis.json`에
+`"auto": true`로 추가합니다: ① 위키데이터(AniList·MAL ID로) ② Fandom 애니 위키 목록(제목·별칭으로) ③ 제목으로 주소 추측
+(`attack-on-titan`, `attackontitan` …). ①②로 찾은 위키는 여러 작품이 같이 쓰는 위키여도 받고, ③은 회차 문서 수가 작품
+회차 수와 비슷할 때만 받습니다. 자동으로 찾은 위키는 수집할 때 회차 제목도 방영일도 TVmaze와 거의 안 맞으면(다른 작품의 위키)
+저장하지 않습니다.
+
+### 위키 문서가 몇 화인지 맞추는 방법
+
+`fandom` 단계는 회차 분류(`Episodes`)의 문서를 받고, 문서가 적으면 시즌별 하위 분류까지 내려갑니다. 그다음 문서마다 번호를 붙입니다.
+
+1. 문서 제목의 번호 (`Episode 49`, `Rebirth Episode 01`). 같은 번호가 여러 문서에 있으면 시즌마다 다시 세는 위키이므로 쓰지 않습니다.
+2. TVmaze 영어 회차 제목과 같은 문서.
+3. 인포박스의 방영일이 TVmaze 방영일과 같은 회차(하루 차이까지). 번역이 달라 제목이 안 맞아도 찾을 수 있습니다.
+   방영일로 찾은 번호가 1·2와 자주 어긋나면 해외 방영일만 적힌 위키로 보고 쓰지 않습니다.
+4. 인포박스의 이전·다음 회차 링크.
+5. 인포박스의 회차 번호. 같은 시즌의 다른 문서들과 번호 차이가 일정하면 그만큼 더합니다(2기 3화 = 전체 28화).
+
+4·5로 붙인 번호가 그 회차의 방영일과 2주 넘게 어긋나면 같은 위키의 다른 작품(외전, 속편)으로 보고 뺍니다.
 
 `fandom_wikis.json`에 시리즈 ID와 위키 주소를 적습니다. 회차 문서가 모인 분류 이름이 `Episodes`가 아니면 `category`를,
 한 위키에 여러 작품이 섞여 있으면 `include`·`exclude`(문서 제목 정규식)나 `infobox`(인포박스 값 조건)를 추가합니다.

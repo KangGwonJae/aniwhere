@@ -160,6 +160,53 @@ def download(url, name):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+PLACEHOLDER_RE = re.compile(r"(to be added|tba|tbd|coming soon|n/?a|none|\?+|under construction)[.!]?", re.I)
+EPISODE_N_RE = re.compile(r"(에피소드|episode|제)\s*\d+\s*(화|회)?", re.I)      # TMDB가 제목 대신 넣어 둔 '에피소드 3'
+
+
+def clean_chunk_body(text):
+    """청크 본문에 남은 마크업을 지움: AniList의 마크다운·스포일러 표시, 위키 문법, 줄 머리의 쉼표."""
+    text = re.sub(r"~!.*?!~", " ", text or "", flags=re.S)
+    text = text.replace("~!", " ").replace("!~", " ")
+    text = re.sub(r"!?\[([^\]\n]*)\]\((?:https?://|/)[^)\s]*\)", r"\1", text)      # [All Might](https://…) → All Might
+    text = re.sub(r"<ref[^>]*/>|<ref.*?</ref>|</?[a-z][^>\n]{0,80}>", " ", text, flags=re.S | re.I)
+    text = re.sub(r"\{\{[^{}]*\}\}", " ", text)
+    text = re.sub(r"\[\[(?:[^\]|]*\|)?([^\]]*)\]\]", r"\1", text)
+    text = re.sub(r"\{\{|\}\}|\[\[|\]\]|'{2,}|__|\*\*", "", text)
+    text = re.sub(r"(?m)^[ \t]*[,;:][ \t]*", "", text)
+    text = re.sub(r"[ \t]+", " ", text)
+    return re.sub(r"\n\s*\n+", "\n", text).strip()
+
+
+def tidy_chunks(rows):
+    """build_chunks가 만든 청크를 다듬음: 본문 정리, 내용이 없는 청크와 같은 내용이 되풀이되는 청크 제거."""
+    kept, by_body = [], {}
+    for chunk_id, kind, abs_ep, season, filler, text, sources in rows:
+        head, _, body = text.partition("\n")
+        if kind in ("summary", "streaming"):
+            kept.append((chunk_id, kind, abs_ep, season, filler, clean_chunk_body(text), sources))
+            continue
+        lines = [x for x in clean_chunk_body(body).split("\n")
+                 if not PLACEHOLDER_RE.fullmatch(x.strip()) and not (kind == "episode" and EPISODE_N_RE.fullmatch(x.strip()))]
+        body = "\n".join(lines)
+        if len(body) < (20 if kind == "episode" else 50):       # '센타로의 할머니.' 한 줄짜리, 'TBA.' 같은 자리채움
+            continue
+        head = re.sub(r" 〈" + EPISODE_N_RE.pattern + r"〉", "", head)
+        row = (chunk_id, kind, abs_ep, season, filler, f"{head}\n{body}", sources)
+        if kind == "character":               # 캐릭터는 설명이 같아도 다른 인물일 수 있고, 첫 등장 회차를 늦추면 안 됨
+            kept.append(row)
+            continue
+        # 같은 종류의 청크가 같은 본문이면 하나만 남김 (문서 하나가 여러 화에 붙은 경우 등).
+        # 스포일러를 막기 위해 가장 늦은 회차에 붙은 것을 남김
+        same = by_body.get((kind, body))
+        if same is None:
+            by_body[(kind, body)] = len(kept)
+            kept.append(row)
+        elif (abs_ep or 0) > (kept[same][2] or 0):
+            kept[same] = row
+    return kept
+
+
 def clean_html(text):
     """AniList·TVmaze 설명 → 일반 텍스트. AniList의 스포일러 표시 구간(~! … !~)은 통째로 지움."""
     if not text:
@@ -672,16 +719,55 @@ def step_jikan(db, args):
 
 # ───────────────────────── 6. Fandom ─────────────────────────
 
-PLOT_RE = re.compile(r"plot|summary|synopsis|overview|story|recap", re.I)
+PLOT_RE = re.compile(r"plot|summ[ae]ry|syn?[oy]?p[no]?sis|overview|story|recap", re.I)      # 흔한 오타(Sypnosis)까지
+# 줄거리가 아닌 구역. 줄거리 이름의 구역이 없을 때, 여기에 안 걸리는 가장 긴 글을 줄거리로 봄
+NOT_PLOT_RE = re.compile(
+    r"trivia|note|differ|reference|gallery|character|cast|credit|music|navigat|quote|staff|appearance|see also|external|"
+    r"link|source|song|soundtrack|video|image|screenshot|error|goof|mistake|production|reception|release|home media|dvd|"
+    r"preview|broadcast|rating|voice|change|adapt|comparison|censor|spell|item|jutsu|technique|battle|event|location|"
+    r"omake|script|transcript|chronolog", re.I)
+EVENT_RE = re.compile(r"event|battle|fight", re.I)                # 사건·전투 목록 구역
+RANGE_RE = re.compile(r"episodes?\s*(\d{1,4})\s*[-–~]\s*(\d{1,4})", re.I)    # 'Short Episodes 6-10': 문서 하나가 여러 화
+PART_RE = re.compile(r"^(part|segment|skit|scene|story|featured duel)\b", re.I)   # 한 화를 여러 구역으로 나눠 쓴 위키
+
+
+def _is_prose(text, at_least=500):
+    return len(text) >= at_least and text.count(". ") >= 3
 CHAR_RE = re.compile(r"characters?|appearances?", re.I)
 # 회차 번호가 들어 있는 인포박스 칸. 앞쪽이 '시리즈 전체 기준 번호'임이 확실한 이름
 EP_KEYS = ("number (overall)", "overall", "ep number", "episode number", "episode_number", "episodenumber",
-           "episode", "number", "#", "ep", "no")
+           "epnum", "ep_num", "ep num", "episode", "number", "#", "ep", "no")
 TITLE_KEYS = ("ep title", "episode title", "name of episode", "name", "title", "en title", "translation", "english")
 DATE_RE = re.compile(r"\b(19|20)\d\d\b")      # 방영일이 들어 있는 칸을 제목으로 잘못 읽지 않기 위함
 CHAPTER_KEYS = ("adapted from", "adaptedfrom", "adapted", "adaptation", "manga chapters", "chapters", "chapter",
                 "manga")
-EP_PAGE_RE = re.compile(r"Episode[ _]#?(\d{1,4})\s*(?:\(.*\))?", re.I)
+EP_PAGE_RE = re.compile(r"Episode[ _:]#?(\d{1,4})\s*(?:\(.*\))?", re.I)
+EP_TITLED_RE = re.compile(r"Episode[ _]#?(\d{1,4})\s*[:\-–]\s*\S.*", re.I)      # 'Episode 3: The Chef …'
+EP_SUFFIX_RE = re.compile(r".*\bEpisode[ _]#?(\d{1,4})", re.I)                   # 'Rebirth Episode 01'
+# 같은 위키 안에서 번호를 따로 세는 묶음(시즌·작품)을 알려 주는 인포박스 칸
+SEASON_KEYS = ("season", "partofseason", "season number", "seriesname", "series")
+DATE_KEY_RE = re.compile(r"air|date|release|broadcast|premiere", re.I)
+DUB_KEY_RE = re.compile(r"en|usa|\bus\b|dub|sub|date2|america", re.I)     # 해외·더빙 방영일 칸은 뒤로 미룸
+MONTHS = {m: i for i, m in enumerate(("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov",
+                                      "dec"), 1)}
+DATE_RES = [re.compile(rx, re.I) for rx in (
+    r"(?P<m>[a-z]{3,9})\.?\s+(?P<d>\d{1,2})(?:st|nd|rd|th)?,?\s+(?P<y>(?:19|20)\d\d)",      # October 5th, 2014
+    r"(?P<d>\d{1,2})(?:st|nd|rd|th)?\s+(?P<m>[a-z]{3,9})\.?,?\s+(?P<y>(?:19|20)\d\d)",      # 5 October 2014
+    r"(?P<y>(?:19|20)\d\d)\s+(?P<m>[a-z]{3,9})\s+(?P<d>\d{1,2})\b",                         # 2009 August 2
+    r"(?P<y>(?:19|20)\d\d)[-/.](?P<m>\d{1,2})[-/.](?P<d>\d{1,2})\b")]                        # 2014-10-05
+
+
+def parse_dates(text):
+    """글 안의 날짜를 나온 순서대로. 'October 5th, 2014', '5 October 2014', '2009 August 2', '2014-10-05'."""
+    found = []
+    for rx in DATE_RES:
+        for m in rx.finditer(text or ""):
+            month = int(m["m"]) if m["m"].isdigit() else MONTHS.get(m["m"][:3].lower())
+            try:
+                found.append((m.start(), dt.date(int(m["y"]), month, int(m["d"]))))
+            except (TypeError, ValueError):
+                pass
+    return list(dict.fromkeys(d for _, d in sorted(found)))
 
 
 def norm_title(s):
@@ -703,14 +789,51 @@ KIND_RULES = [(k, re.compile(rx, re.I)) for k, rx in (
     ("group", r"organi[sz]ation|group|team|clan|guild|squad|family|crew|affiliation|school|race|species|faction"))]
 
 
-def _parse_wiki(wikitext, is_infobox):
-    """위키 원문 → (인포박스 이름, 인포박스 {칸: 값}, 구역 {제목: {text, links}}). 그림·각주·갤러리는 뺌."""
+def _parse_wiki(wikitext, is_infobox, unwrap=False):
+    """위키 원문 → (인포박스 이름, 인포박스 {칸: 값}, 구역 {제목: {text, links}}). 그림·각주·갤러리는 뺌.
+
+    unwrap=True면 줄글이 틀(template) 안에 들어 있는 경우 꺼냅니다 ({{Full Synopsis|…}}, 인포박스의 description 칸).
+    """
     import mwparserfromhell as mwp
 
     text = re.sub(r"<gallery.*?</gallery>", "", wikitext, flags=re.S | re.I)
     text = re.sub(r"<ref[^>]*/>|<ref.*?</ref>", "", text, flags=re.S | re.I)
-    text = re.sub(r"<br\s*/?>", ", ", text, flags=re.I)
+    text = re.sub(r"<br\s*/?>", " ⏎ ", text, flags=re.I)        # 줄바꿈 표시. 인포박스 값에서는 쉼표, 본문에서는 줄바꿈으로 바꿈
     code = mwp.parse(text)
+    for t in code.filter_templates():         # 긴 줄거리를 스크롤 상자 틀 안에 넣어 둔 위키: 상자를 벗기고 글만 남김
+        if re.fullmatch(r"scroll ?box|scroll", str(t.name).strip(), re.I):
+            inner = max((str(p.value) for p in t.params), key=len, default="")
+            try:
+                code.replace(t, inner)
+            except ValueError:
+                pass
+    for t in code.filter_templates():
+        if re.fullmatch(r"nihongo\d?|nihongo[ -]?(title|foot)|tt|tooltip|w|wp|wikipedia|lang|ruby|abbr|small|big|nowrap|c|color",
+                        str(t.name).strip(), re.I):
+            shown = [str(x.value).strip() for x in t.params if not x.showkey and str(x.value).strip()]
+            try:
+                code.replace(t, shown[-1] if re.fullmatch(r"lang|color|c", str(t.name).strip(), re.I) and shown
+                             else shown[0] if shown else "")
+            except ValueError:
+                pass
+    code = mwp.parse(str(code))
+    if unwrap:
+        for t in code.filter_templates(recursive=False):
+            name = str(t.name).strip().lower().replace("_", " ")
+            if re.search(r"quote|list|table", name):
+                continue
+            prose = [p for p in t.params if not NOT_PLOT_RE.search(str(p.name)) and _is_prose(p.value.strip_code().strip(), 300)]
+            if not prose:
+                continue
+            inner = "\n\n".join(str(p.value).strip() for p in prose)
+            try:
+                if len(t.params) >= 3 and is_infobox(name, t):     # 인포박스는 그대로 두고 글만 뒤에 붙임
+                    code.insert_after(t, "\n" + inner + "\n")
+                else:
+                    code.replace(t, "\n" + inner + "\n")
+            except ValueError:
+                pass
+    code = mwp.parse(str(code))
     for link in code.filter_wikilinks():      # 그림·분류 링크는 본문이 아니므로 설명글째 지움
         if str(link.title).strip().lower().startswith(("file:", "image:", "category:")):
             try:
@@ -724,12 +847,14 @@ def _parse_wiki(wikitext, is_infobox):
         if len(t.params) >= 3 and is_infobox(name, t):
             box_name = name
             for p in t.params:
-                value = re.sub(r"\s+", " ", p.value.strip_code())
+                value = re.sub(r"\s+", " ", p.value.strip_code().replace("⏎", ","))
                 infobox[str(p.name).strip().lower()] = re.sub(r"(\s*,)+", ",", value).strip(" ,")[:2000]
             break
 
     def plain(node) -> str:
-        return re.sub(r"\n{3,}", "\n\n", node.strip_code(normalize=True, collapse=True)).strip()
+        text = re.sub(r"[ \t]*⏎[ \t]*", "\n", node.strip_code(normalize=True, collapse=True))
+        text = re.sub(r"(?m)^[ \t]*[,;:][ \t]*", "", text)             # 틀이 지워지고 남은 줄 머리의 쉼표
+        return re.sub(r"\n{3,}", "\n\n", text).strip()
 
     sections = {}
     for sec in code.get_sections(levels=[2], include_lead=True):
@@ -762,12 +887,40 @@ def parse_wiki_page(wikitext: str) -> dict:
             "links": list(dict.fromkeys(l for v in sections.values() for l in v["links"]))[:400]}
 
 
+def _is_episode_box(name, t):
+    """회차 인포박스인가. 이름이 제각각이라({{Konosuba Anime}}) 방영일·이전·다음 같은 칸이 둘 이상 있으면 인정."""
+    return "infobox" in name or "episode" in name or \
+        sum(bool(re.search(r"air|date|prev|next|episode|kanji|romaji|japanese", str(p.name), re.I)) for p in t.params) >= 2
+
+
 def parse_episode_wikitext(wikitext: str) -> dict:
-    """회차 문서 → 인포박스 필드 + 줄거리(가장 긴 구역) + 짧은 요약 + 등장인물."""
-    _, infobox, sections = _parse_wiki(wikitext, lambda n, t: "infobox" in n or "episode" in n)
+    """회차 문서 → 인포박스 필드 + 줄거리 + 짧은 요약 + 등장인물.
+
+    줄거리는 ① 이름이 줄거리인 구역(Plot, Summary, Synopsis …) 중 가장 긴 것. 그것이 500자보다 짧으면 ② 줄거리가 아닌
+    구역(Trivia, Characters …)만 빼고 나머지를 이어 붙인 것(Part A·B, 단편 묶음, Content, Description, 틀 안에 든 글),
+    ③ 구역 없이 머리말에 쓴 줄글 중 더 긴 쪽을 씁니다.
+    """
+    _, infobox, sections = _parse_wiki(wikitext, _is_episode_box, unwrap=True)
 
     plots = sorted((sections[n]["text"] for n in sections if PLOT_RE.search(n) and sections[n]["text"]),
                    key=len, reverse=True)
+    if not plots or len(plots[0]) < 500:
+        # 한 화를 여러 구역에 나눠 쓴 문서(단편 묶음, Part A·B, 짧은 Synopsis + Summary): 줄거리가 아닌 구역만 빼고 이어 붙임
+        pieces = [sections[n]["text"] for n in sections if n != "_lead" and sections[n]["text"] and (
+            PLOT_RE.search(n) or PART_RE.search(n) or (not NOT_PLOT_RE.search(n) and len(sections[n]["text"]) >= 100))]
+        found = "\n\n".join(pieces)
+        lead = sections.get("_lead", {}).get("text", "")
+        if _is_prose(lead) and len(lead) > len(found):       # 구역 없이 머리말에 줄거리를 쓴 문서
+            found = lead
+        if len(found) >= 40 and len(found) > (len(plots[0]) if plots else 0):      # 짧아도 위키에 있는 만큼은 가져옴
+            plots = [found]
+    # 줄거리가 전혀 없는 문서: 머리말(몇 화인지 소개하는 문장)과 사건·전투 목록이라도 짧은 요약으로 남김
+    note = ""
+    if not plots:
+        note = "\n".join(x for x in [sections.get("_lead", {}).get("text", "")] + [
+            f"{n}: " + re.sub(r"\s*\n\s*", "; ", sections[n]["text"]) for n in sections
+            if EVENT_RE.search(n) and sections[n]["text"]] if x)[:1500]
+        note = note if len(note) >= 40 else ""
     char_keys = sorted((n for n in sections if CHAR_RE.search(n)),
                        key=lambda n: 0 if re.search("order", n, re.I) else 1)
     ep_no = None
@@ -776,13 +929,18 @@ def parse_episode_wikitext(wikitext: str) -> dict:
         if m:
             ep_no = int(m.group(1))
             break
+    date_keys = sorted((k for k in infobox if DATE_KEY_RE.search(k)), key=lambda k: bool(DUB_KEY_RE.search(k)))
     return {
         "infobox": infobox, "episode_no": ep_no,
+        "airdates": list(dict.fromkeys(d for k in date_keys for d in parse_dates(infobox[k]))),
+        "season": next((infobox[k].lower() for k in SEASON_KEYS if infobox.get(k)), ""),
         "title": next((infobox[k] for k in TITLE_KEYS if infobox.get(k) and not DATE_RE.search(infobox[k])), None),
         "arc": infobox.get("arc") or None,
         "chapters": next((infobox[k] for k in CHAPTER_KEYS if infobox.get(k)), None),
         "plot": plots[0] if plots else "",
-        "synopsis": plots[-1] if len(plots) > 1 else "",
+        "synopsis": plots[-1] if len(plots) > 1 else note,
+        "span": next((int(m.group(2)) - int(m.group(1)) + 1 for k in EP_KEYS if (m := RANGE_RE.search(infobox.get(k, "")))
+                      and 0 < int(m.group(2)) - int(m.group(1)) < 10), 1),
         "characters": sections[char_keys[0]]["links"][:80] if char_keys else [],
     }
 
@@ -800,49 +958,171 @@ def _infobox_ok(value, want):
     return value.lower() == want.lower()
 
 
-def fandom_pages(db, wiki, category=None, titles=None):
-    """문서 원문을 50개씩 한 번에 받음 → [(제목, 원문)]. 분류 전체 또는 제목 목록."""
-    api, out = f"https://{wiki}.fandom.com/api.php", []
+def fandom_subcategories(db, wiki, category):
+    """분류 바로 아래의 하위 분류 이름들 ('Episodes' → 'Season 1 Episodes', 'Season 2 Episodes' …)."""
+    d = http(db, "GET", f"https://{wiki}.fandom.com/api.php", cache=("fandom", f"{wiki}/{category[:200]}/_subcats"),
+             params={"action": "query", "list": "categorymembers", "cmtitle": f"Category:{category}", "cmtype": "subcat",
+                     "cmlimit": 100, "format": "json", "formatversion": 2}) or {}
+    return [m["title"].split(":", 1)[1] for m in d.get("query", {}).get("categorymembers", [])]
+
+
+EP_CATEGORY_RE = re.compile(r"episode|session", re.I)
+NOT_EP_CATEGORY_RE = re.compile(r"galler|image|screenshot|music|song|character|chapter|video|credit|staff|cast|"
+                                r"appearance|stub|template|needing|candidates|missing|preview", re.I)
+
+
+def fandom_episode_categories(db, wiki):
+    """위키마다 다른 회차 분류 이름을 검색으로 찾음 ('K-ON!! Episodes', 'Sessions', 'Season 3 Episode' …)."""
+    d = http(db, "GET", f"https://{wiki}.fandom.com/api.php", cache=("fandom", f"{wiki}/_episode_categories"),
+             params={"action": "query", "list": "search", "srsearch": "episode OR episodes OR session OR sessions",
+                     "srnamespace": 14, "srlimit": 50, "format": "json", "formatversion": 2}) or {}
+    names = [x["title"].split(":", 1)[1] for x in d.get("query", {}).get("search", [])]
+    return [n for n in names if EP_CATEGORY_RE.search(n) and not NOT_EP_CATEGORY_RE.search(n)]
+
+
+def fandom_titled_pages(db, wiki, prefix="Episode", limit=1500):
+    """제목이 'Episode'로 시작하는 문서 전부 → [(제목, 원문)]. 회차 문서를 아무 분류에도 넣지 않은 위키를 위한 것."""
+    api, out, cont = f"https://{wiki}.fandom.com/api.php", [], {}
+    while len(out) < limit:
+        d = http(db, "GET", api, cache=("fandom", f"{wiki}/_titled/{prefix}/{json.dumps(cont, sort_keys=True)}"), params={
+            "action": "query", "generator": "allpages", "gapprefix": prefix, "gapnamespace": 0, "gaplimit": 50,
+            "gapfilterredir": "nonredirects", "prop": "revisions", "rvprop": "content", "rvslots": "main",
+            "format": "json", "formatversion": 2, **cont}) or {}
+        out += [(pg["title"], pg["revisions"][0]["slots"]["main"]["content"])
+                for pg in d.get("query", {}).get("pages", []) if pg.get("revisions")]
+        cont = {k: v for k, v in (d.get("continue") or {}).items() if k != "continue"}
+        if not cont:
+            break
+    return out
+
+
+def fandom_pages(db, wiki, category=None, titles=None, expect=0, all_ns=False):
+    """문서 원문을 50개씩 한 번에 받음 → [(제목, 원문)]. 분류 전체 또는 제목 목록.
+
+    분류 바로 아래의 문서가 expect(작품 회차 수)의 절반도 안 되면 시즌별로 나눠 둔 위키로 보고 하위 분류를 두 단계까지 내려갑니다.
+    all_ns=True면 일반 문서가 아닌 이름공간(회차 전용 'Episode:01' 등)의 문서만 받습니다.
+    """
+    api, out = f"https://{wiki}.fandom.com/api.php", {}
     base = {"action": "query", "prop": "revisions", "rvprop": "content", "rvslots": "main", "redirects": 1,
             "format": "json", "formatversion": 2}
-    if titles:
-        batches = [{"titles": "|".join(titles[i:i + 50])} for i in range(0, len(titles), 50)]
-    else:
-        batches = [{"generator": "categorymembers", "gcmtitle": f"Category:{category}", "gcmnamespace": 0,
-                    "gcmlimit": 50}]
-    for batch in batches:
+
+    def fetch(batch, label):
         cont = {}
         while True:
-            key = f"{wiki}/{batch.get('titles', category)[:200]}/{json.dumps(cont, sort_keys=True)}"
+            key = f"{wiki}/{label[:200]}/{json.dumps(cont, sort_keys=True)}"
             d = http(db, "GET", api, params={**base, **batch, **cont}, cache=("fandom", key)) or {}
             for p in d.get("query", {}).get("pages", []):
                 revs = p.get("revisions") or []
-                if revs:
-                    out.append((p["title"], revs[0]["slots"]["main"]["content"]))
+                if revs and (not all_ns or p.get("ns", 0) >= 100 and p["ns"] % 2 == 0):
+                    out.setdefault(p["title"], revs[0]["slots"]["main"]["content"])
             cont = d.get("continue") or {}
             if not cont:
                 break
-    return out
+
+    if titles:
+        for i in range(0, len(titles), 50):
+            fetch({"titles": "|".join(titles[i:i + 50])}, "|".join(titles[i:i + 50]))
+        return list(out.items())
+    todo, seen = [(category, 0)], {category}
+    while todo:
+        cat, depth = todo.pop(0)
+        if all_ns:
+            fetch({"generator": "categorymembers", "gcmtitle": f"Category:{cat}", "gcmtype": "page", "gcmlimit": 50},
+                  f"{cat}/_all_ns")
+        else:
+            fetch({"generator": "categorymembers", "gcmtitle": f"Category:{cat}", "gcmnamespace": 0, "gcmlimit": 50}, cat)
+        if depth < 2 and len(out) < 0.5 * expect:
+            for sub in fandom_subcategories(db, wiki, cat):
+                if sub not in seen and len(seen) < 40:
+                    seen.add(sub)
+                    todo.append((sub, depth + 1))
+    return list(out.items())
 
 
 NEXT_KEYS = ("next", "nextepisode", "next episode", "n")
 PREV_KEYS = ("previous", "prev", "previousepisode", "previous episode", "lastepisode", "p")
 
 
-def number_pages(pages, by_title):
+def date_lookup(by_date, dates, latest=False):
+    """문서의 방영일 → 전체 회차 번호. 같은 날이 없으면 하루 차이(심야 방송의 날짜 표기 차이)까지 봄."""
+    for d in sorted(dates or [], reverse=latest):     # 첫 방영일이 가장 이름. 뒤의 날짜는 재방송·해외 방영일
+        if d in by_date:                      # 여러 화가 방영된 날(None)이면 어느 화인지 가릴 수 없으므로 여기서 멈춤
+            return by_date[d]
+        near = {by_date[x] for x in (d - dt.timedelta(days=1), d + dt.timedelta(days=1)) if by_date.get(x)}
+        if len(near) == 1:
+            return near.pop()
+    return None
+
+
+def _page_group(title, p):
+    """번호를 따로 세는 묶음. 인포박스의 시즌 칸 + 문서 제목에서 회차 번호를 뺀 나머지 ('Sword Art Online II')."""
+    rest = "" if EP_TITLED_RE.fullmatch(title) else re.sub(r"(episode|ep\.?)[ _]*#?\d+", "", title, flags=re.I)
+    return (p.get("season") or "", rest.strip(" -:_").lower() if rest != title else "")
+
+
+def number_pages(pages, by_title, by_date=None, aired=None):
     """[(문서 제목, 파싱 결과)] → {문서 제목: 전체 회차 번호}.
 
-    ① 문서 제목 'Episode N', 이미 받은 영어 회차 제목과 대조 → ② 인포박스의 이전·다음 회차 링크를 따라 이어 붙임
-    → ③ 그래도 남은 문서는 인포박스 번호. 단 인포박스 번호가 ①의 결과와 자주 어긋나면
-    (시즌마다 1화부터 다시 세는 위키) ③은 쓰지 않습니다.
+    ① 문서 제목 'Episode N' → ② 이미 받은 영어 회차 제목과 같은 문서 → ③ 방영일이 같은 회차
+    (by_date = {방영일: 회차}, 여러 화가 방영된 날은 None) → ④ 인포박스의 이전·다음 회차 링크를 따라 이어 붙임
+    → ⑤ 그래도 남은 문서는 인포박스 번호. 같은 묶음(시즌)에서 이미 번호가 정해진 문서들과 인포박스 번호의 차이가
+    일정하면 그 차이만큼 더하고(2기 3화 = 전체 28화), 묶음 정보가 없으면 위키 전체에서 번호가 맞을 때만 씁니다.
+    ④⑤로 붙인 번호는 방영일(aired = {회차: 방영일})과 2주 넘게 어긋나면 같은 위키의 다른 작품으로 보고 뺍니다.
+
+    ①과 ③은 위키마다 믿을 수 있는지 먼저 확인합니다. 같은 'Episode N'이 여러 문서에 있으면 시즌마다 다시 세는
+    위키이므로 ①을 버립니다. 방영일로 찾은 번호는 같은 시즌 안에서 문서에 적힌 번호와 차이가 일정하면 ②보다 먼저 믿고,
+    그렇지 않으면서 ①·②와 자주 어긋나면 해외 방영일만 적힌 위키이므로 버립니다.
     """
-    numbers, by_norm = {}, {}
+    by_date = by_date or {}
+    by_norm, local = {}, {}
     for title, p in pages:
         by_norm.setdefault(norm_title(title), title)
-        m = EP_PAGE_RE.fullmatch(title)
-        n = (int(m.group(1)) if m else None) or by_title.get(norm_title(p["title"])) or by_title.get(norm_title(title))
+        m = EP_PAGE_RE.fullmatch(title) or EP_TITLED_RE.fullmatch(title)
+        if not m and (m := EP_SUFFIX_RE.fullmatch(title)) and p["episode_no"] not in (None, int(m.group(1))):
+            m = None                          # 'Power - Episode 1' (인포박스 번호 290): 제목 끝의 번호는 이야기 안의 순번
+        local[title] = int(m.group(1)) if m else None
+
+    def by_dates(latest):
+        return {t: date_lookup(by_date, p.get("airdates"), latest) for t, p in pages}
+
+    def usual_offsets(dated):
+        """묶음(시즌)마다 '방영일로 찾은 번호 - 문서에 적힌 번호'로 가장 흔한 값. 문서 3개 이상인 묶음만."""
+        offsets = {}
+        for t, p in pages:
+            n = local[t] or p["episode_no"]
+            if n and dated[t]:
+                offsets.setdefault(_page_group(t, p), []).append(dated[t] - n)
+        return {g: (max(set(o), key=o.count), o) for g, o in offsets.items() if len(o) >= 3}
+
+    def steady(dated):
+        """방영일로 찾은 번호가 믿을 만한가: 같은 묶음 안에서 그 차이가 일정한 문서의 비율."""
+        groups = usual_offsets(dated).values()
+        total = sum(len(o) for _, o in groups)
+        return sum(o.count(usual) for usual, o in groups) / total if total >= 6 else None
+
+    # 방영일이 둘 이상 적힌 문서는 이른 날짜를 쓰되, 늦은 날짜가 더 잘 맞는 위키(선행 방영일을 함께 적음)는 늦은 날짜를 씀
+    dated = max((by_dates(False), by_dates(True)), key=lambda d: steady(d) or 0)
+    cand = {t: (local[t], by_title.get(norm_title(p["title"])) or by_title.get(norm_title(t)), dated[t]) for t, p in pages}
+
+    def agree(i, j):                          # 두 방법이 모두 번호를 낸 문서 중 같은 번호인 비율 (3개 미만이면 판단 안 함)
+        both = [(c[i], c[j]) for c in cand.values() if c[i] and c[j]]
+        return sum(x == y for x, y in both) / len(both) if len(both) >= 3 else None
+
+    by_page_title = [c[0] for c in cand.values() if c[0]]
+    title_ok = sum(by_page_title.count(n) > 1 for n in by_page_title) < 0.2 * len(by_page_title)
+    # 시즌별 번호와 아귀가 맞는 위키에서는, 그 차이가 묶음의 흔한 값과 같은 문서에 한해 제목이 같은 문서보다 방영일을 먼저 믿음
+    usual = usual_offsets(dated) if (steady(dated) or 0) >= 0.8 else {}
+    fits = {t for t, p in pages if dated[t] and (local[t] or p["episode_no"]) and _page_group(t, p) in usual
+            and dated[t] - (local[t] or p["episode_no"]) == usual[_page_group(t, p)][0]}
+    date_sure = bool(usual)
+    date_ok = date_sure or all(a is None or a >= 0.8 for a in (agree(2, 1), agree(2, 0) if title_ok else None))
+    numbers, named = {}, [c[1] for c in cand.values() if c[1]]
+    for title, (n_title, n_name, n_date) in cand.items():
+        by_fit = n_date if title in fits and not (n_name and n_name != n_date and n_date in named) else None
+        n = (n_title if title_ok else None) or by_fit or n_name or (n_date if date_ok else None)
         if n:
             numbers[title] = n
+    sure = set(numbers)
 
     def follow_links():
         changed = True
@@ -859,13 +1139,33 @@ def number_pages(pages, by_title):
                         changed = True
 
     follow_links()
+    groups = {}
+    for title, p in pages:
+        groups.setdefault(_page_group(title, p), []).append((title, p))
     both = [(numbers[t], p["episode_no"]) for t, p in pages if t in numbers and p["episode_no"]]
-    agree = sum(a == b for a, b in both)
-    if not both or agree >= 0.8 * len(both):
-        for title, p in pages:
+    whole_wiki = not both or sum(a == b for a, b in both) >= 0.8 * len(both)
+    for members in groups.values():
+        offsets = [numbers[t] - p["episode_no"] for t, p in members if t in numbers and p["episode_no"]]
+        if offsets:
+            offset = max(set(offsets), key=offsets.count)
+            if offsets.count(offset) < 0.7 * len(offsets):     # 위키에 번호가 잘못 적힌 문서가 몇 개 섞여도 됨
+                continue
+        elif whole_wiki:
+            offset = 0
+        else:
+            continue
+        for title, p in members:
             if title not in numbers and p["episode_no"]:
-                numbers[title] = p["episode_no"]
-        follow_links()
+                numbers[title] = p["episode_no"] + offset
+    follow_links()
+    if aired:                                 # 방영일이 대체로 맞는 위키에서만 날짜로 걸러냄
+        gap = {t: min(abs((d - aired[numbers[t]]).days) for d in p["airdates"])
+               for t, p in pages if numbers.get(t) in aired and p.get("airdates")}
+        hits = sum(g <= 1 for g in gap.values())
+        if gap and (hits >= 0.6 * len(gap) or hits >= max(6, 0.5 * sum(map(bool, by_date.values())))):
+            for t, g in gap.items():
+                if g > 14 and t not in sure:
+                    del numbers[t]
     return numbers
 
 
@@ -880,29 +1180,84 @@ def step_fandom(db, args):
             cache=("fandom", f"{f['wiki']}/_rights")) or {}
         license_ = (info.get("query", {}).get("rightsinfo", {}).get("text") or "").strip()
         entries = entries_of(db, s["series_id"])
-        by_title = {norm_title(r["title_en"]): r["abs_ep"] for r in db.execute(
+        title_of = {r["abs_ep"]: norm_title(r["title_en"]) for r in db.execute(
             "SELECT abs_ep, title_en FROM episodes WHERE series_id=%s AND title_en IS NOT NULL", (s["series_id"],))}
-        title_of = {n: t for t, n in by_title.items()}
+        names = list(title_of.values())
+        # 여러 회차가 같은 제목이거나 'Episode 3' 같은 제목이면 제목으로는 회차를 가릴 수 없음
+        named = [(t, n) for n, t in sorted(title_of.items(), reverse=True)
+                 if t and not re.fullmatch(r"(episode|ep|stage|chapter)?\d+", t)]
+        by_title = {t: n for t, n in named if names.count(t) == 1}
+        repeated_title = {t: n for t, n in named if names.count(t) > 1}      # 같은 제목의 회차가 여럿이면 앞 회차
+        aired = {r["abs_ep"]: r["airdate"] for r in db.execute(
+            "SELECT abs_ep, airdate FROM episodes WHERE series_id=%s AND airdate IS NOT NULL", (s["series_id"],))}
+        days = list(aired.values())
+        by_date = {d: n if days.count(d) == 1 else None for n, d in aired.items()}     # 여러 화가 방영된 날은 None
+        first_found = None        # 회차 분류에서 바로 찾은 문서들 (모자라서 더 찾아본 경우에만 채움)
         if f.get("pattern"):      # 회차 분류가 없는 위키: 'Episode 1' … 'Episode N' 문서를 직접 받음
-            last = max(s["total_episodes"] or 0, max(by_title.values(), default=0))
+            last = max(s["total_episodes"] or 0, max(title_of, default=0))
             raw_pages = fandom_pages(db, f["wiki"], titles=[f["pattern"].format(n=n) for n in range(1, last + 1)])
         else:
-            raw_pages = fandom_pages(db, f["wiki"], f.get("category", "Episodes"))
+            total, seen_titles = s["total_episodes"] or 0, set()
+            raw_pages = fandom_pages(db, f["wiki"], f.get("category", "Episodes"), expect=total)
+            # 회차 문서가 모자라면 위키가 다른 이름으로 둔 회차 분류와, 이미 받아 둔 위키 전체 문서 중 회차 문서까지 봄
+            # (어느 문서가 이 작품의 몇 화인지는 아래에서 제목·방영일로 가려냄)
+            if len(raw_pages) < 0.9 * total:
+                first_found = {t for t, _ in raw_pages}
+                seen_titles = {t for t, _ in raw_pages}
+                for cat in fandom_episode_categories(db, f["wiki"])[:15]:
+                    if cat != f.get("category", "Episodes"):
+                        raw_pages += [x for x in fandom_pages(db, f["wiki"], cat) if x[0] not in seen_titles]
+                        seen_titles = {t for t, _ in raw_pages}
+                if len(raw_pages) < 0.5 * total:
+                    raw_pages += fandom_pages(db, f["wiki"], f.get("category", "Episodes"), all_ns=True)
+                    seen_titles = {t for t, _ in raw_pages}
+                if len(raw_pages) < 0.9 * total:      # 분류에 안 넣은 'Episode 51' 같은 문서
+                    raw_pages += [x for x in fandom_titled_pages(db, f["wiki"]) if x[0] not in seen_titles]
+                    seen_titles = {t for t, _ in raw_pages}
+                raw_pages += [(r["title"], r["wikitext"]) for r in db.execute(
+                    "SELECT title, wikitext FROM wiki_pages WHERE wiki=%s AND kind='episode' AND NOT (title = ANY(%s))",
+                    (f["wiki"], list(seen_titles)))]
         pages = []
         for title, wikitext in raw_pages:
             if (f.get("include") and not re.search(f["include"], title)) or \
-               (f.get("exclude") and re.search(f["exclude"], title)):
+               (f.get("exclude") and re.search(f["exclude"], title)) or re.match(r"(List of|Episode List)\b|Episodes?$", title, re.I):
                 continue
             p = parse_episode_wikitext(wikitext)
             if all(_infobox_ok(p["infobox"].get(k, ""), v) for k, v in f.get("infobox", {}).items()):
                 pages.append((title, p))
-        numbers = number_pages(pages, by_title)
-        got = with_plot = unnumbered = dup = title_ok = 0
-        seen, rows = set(), []
+        if first_found is None:
+            numbers = number_pages(pages, by_title, by_date, aired)
+        else:
+            # 더 찾아본 문서에는 다른 작품·게임의 'Episode N'도 섞여 있으므로, 회차 분류의 문서끼리 먼저 번호를 정하고
+            # 더 찾아본 문서는 아직 비어 있는 회차에만 붙임
+            numbers = number_pages([x for x in pages if x[0] in first_found], by_title, by_date, aired)
+            taken = set(numbers.values())
+            for title, n in number_pages(pages, by_title, by_date, aired).items():
+                if title not in first_found and n not in taken:
+                    numbers[title] = n
+                    taken.add(n)
+
+        # 제목이 여러 회차에 쓰여 위에서 가리지 못한 문서: 다른 방법으로도 번호가 안 붙었으면 그 제목의 앞 회차에 붙임
         for title, p in pages:
+            n = repeated_title.get(norm_title(p["title"])) or repeated_title.get(norm_title(title))
+            if title not in numbers and n and n not in numbers.values():
+                numbers[title] = n
+
+        def date_ok(item):                    # 문서의 방영일이 그 회차의 방영일과 맞는가 (하루 차이까지)
+            day = aired.get(numbers.get(item[0]))
+            return bool(day) and any(abs((d - day).days) <= 1 for d in item[1]["airdates"])
+
+        dated = [x for x in pages if x[1]["airdates"] and aired.get(numbers.get(x[0]))]
+        date_hits = sum(date_ok(x) for x in dated)
+        got = with_plot = unnumbered = dup = title_ok = 0
+        # 방영 중인 작품도 다른 출처가 아는 마지막 회차까지만 받음 (같은 위키의 다른 작품이 뒤 번호로 붙는 것을 막음)
+        last_known = max(s["total_episodes"] or 0, max(title_of, default=0), max(aired, default=0))
+        seen, rows = set(), []
+        # 같은 번호가 겹치면 방영일이 맞는 문서, 그다음 줄거리가 있는 문서를 씀
+        for title, p in sorted(pages, key=lambda x: (not date_ok(x), len(x[1]["plot"]) < 500)):
             abs_ep = numbers.get(title)
             hit = owner_of(entries, abs_ep)
-            if not hit:
+            if not hit or abs_ep > last_known:
                 unnumbered += 1
                 continue
             if abs_ep in seen:
@@ -913,11 +1268,22 @@ def step_fandom(db, args):
             ep_title = re.sub(r"\s*\((?:episode|anime)\)$", "", ep_title, flags=re.I)
             rows.append((title, p, abs_ep, hit, ep_title))
             title_ok += _same_title(ep_title, title_of.get(abs_ep))
+        for title, p, abs_ep, hit, ep_title in list(rows):      # 문서 하나가 여러 화(단편 5개 묶음)를 다루는 위키
+            for n in range(abs_ep + 1, abs_ep + p.get("span", 1)):
+                more = owner_of(entries, n)
+                if more and n <= last_known and n not in seen:
+                    seen.add(n)
+                    rows.append((title, p, n, more, ep_title))
         # 자동으로 찾은 위키인데 회차 제목이 거의 안 맞으면 다른 작품의 위키이거나 번호 체계가 다른 것 → 저장하지 않음
         named = sum(1 for r in rows if not EP_PAGE_RE.fullmatch(r[4]))     # 회차 제목을 읽을 수 있었던 문서
-        if f.get("auto") and len(by_title) >= 6 and named >= 6 and title_ok < 0.1 * named:
+        # (번역이 달라 제목이 안 맞는 위키가 많으므로, 방영일이 맞으면 같은 작품으로 봄)
+        if f.get("auto") and len(by_title) >= 6 and named >= 6 and title_ok < 0.1 * named \
+                and date_hits < 0.3 * max(6, min(len(dated), sum(map(bool, by_date.values())))):
             return "empty", (f"자동으로 찾은 위키 {f['wiki']}의 회차 제목이 TVmaze와 맞지 않음 "
-                             f"({title_ok}/{named}화) → 저장 안 함. 직접 확인 필요")
+                             f"({title_ok}/{named}화, 방영일 일치 {date_hits}/{len(dated)}) → 저장 안 함. 직접 확인 필요")
+        # 다시 정리할 때 예전에 다른 회차에 붙었던 문서가 남지 않도록 먼저 비움
+        db.execute("""UPDATE episodes SET fandom_url=NULL, fandom_title=NULL, arc=NULL, chapters=NULL, characters=NULL,
+                        synopsis_en=NULL, plot=NULL WHERE series_id=%s AND fandom_url IS NOT NULL""", (s["series_id"],))
         for title, p, abs_ep, hit, ep_title in rows:
             upsert_episode(db, s["series_id"], *hit, fandom_title=ep_title, arc=p["arc"],
                            fandom_url=f"{base}/wiki/{title.replace(' ', '_')}",
@@ -925,9 +1291,13 @@ def step_fandom(db, args):
                            synopsis_en=p["synopsis"] or None, plot=p["plot"] or None)
             got += 1
             with_plot += len(p["plot"]) >= 500
+        # 예전에 위키 문서만으로 만들어졌다가 이제 아무 정보도 남지 않은 회차 행은 지움
+        db.execute("""DELETE FROM episodes WHERE series_id=%s AND fandom_url IS NULL AND title_en IS NULL AND title_ko IS NULL
+                        AND airdate IS NULL AND overview_ko IS NULL AND tmdb_number IS NULL AND filler IS NULL""",
+                   (s["series_id"],))
         link_character_debuts(db, s["series_id"])
         detail = (f"{got}화 (상세 줄거리 {with_plot}화), 회차 번호를 못 찾은 문서 {unnumbered}개, 번호 중복 {dup}개, "
-                  f"TVmaze 제목과 일치 {title_ok}화, 라이선스 {license_ or '확인 필요'}")
+                  f"TVmaze 제목과 일치 {title_ok}화, 방영일 일치 {date_hits}화, 라이선스 {license_ or '확인 필요'}")
         return ("ok" if got else "empty"), detail
 
     ids = list(cfg)
@@ -1079,16 +1449,17 @@ def step_fandom_find(db, args):
                 continue
             tried.add(slug)
             info = probe_wiki(db, slug)
-            if not info or not info["cats"]:
+            if not info or not (info["cats"] or how != "주소 추측"):
                 continue
-            cat, pages = max(info["cats"].items(), key=lambda kv: kv[1])
+            cat, pages = max(info["cats"].items(), key=lambda kv: kv[1]) if info["cats"] else ("Episodes", 0)
             total = s["total_episodes"]
             shared = any(w["wiki"] == slug for w in doc["wikis"].values())
-            if pages > 2 * total + 12 or shared:
-                if how != "주소 추측":
-                    print(f"  ? {s['title']}: {slug}.fandom.com에 회차 문서 {pages}개 (작품은 {total}화) "
-                          "→ 여러 작품이 같이 쓰는 위키. 직접 확인 후 include 조건과 함께 추가하세요")
-            elif pages >= max(4, 0.5 * total):
+            if how != "주소 추측":
+                # 위키데이터·위키 목록이 짝지어 준 위키: 회차 분류가 시즌별 하위 분류로 나뉘었거나(문서 수가 적게 보임)
+                # 여러 작품이 같이 쓰는 위키여도 받음. 어느 문서가 이 작품의 회차인지는 fandom 단계가 방영일로 가려냄
+                found = (slug, cat, pages, how)
+                break
+            if pages <= 2 * total + 12 and not shared and pages >= max(4, 0.5 * total):
                 found = (slug, cat, pages, how)
                 break
         if found:
@@ -1315,7 +1686,7 @@ def build_chunks(db, s):
                ", ".join(st["flatrate"]) + f" (확인일 {st['checked_at']})"
         rows.append((f"{sid}:streaming:s{st['tmdb_season']}", "streaming", None, st["tmdb_season"], None, text,
                      [_src("justwatch", st["link"])]))
-    return rows + wiki_chunks(db, s, name)
+    return tidy_chunks(rows + wiki_chunks(db, s, name))
 
 
 def step_chunks(db, args):
@@ -1527,23 +1898,94 @@ def step_init(db, args):
     print("  테이블 생성 완료")
 
 
-def ensure_database():
-    """DATABASE_URL의 데이터베이스가 아직 없으면 만듦 (init 단계에서만)."""
-    info = psycopg.conninfo.conninfo_to_dict(DB_URL)
+def ensure_database(url=None):
+    """DATABASE_URL(또는 url)의 데이터베이스가 아직 없으면 만듦 (init·migrate 단계에서만)."""
+    url = url or DB_URL
+    info = psycopg.conninfo.conninfo_to_dict(url)
     try:
-        psycopg.connect(DB_URL).close()
+        psycopg.connect(url).close()
     except psycopg.OperationalError as e:
         if "does not exist" not in str(e):
             raise
-        with psycopg.connect(psycopg.conninfo.make_conninfo(DB_URL, dbname="postgres"), autocommit=True) as admin:
+        with psycopg.connect(psycopg.conninfo.make_conninfo(url, dbname="postgres"), autocommit=True) as admin:
             admin.execute(psycopg.sql.SQL("CREATE DATABASE {}").format(psycopg.sql.Identifier(info["dbname"])))
         print(f"  데이터베이스 {info['dbname']} 생성")
+
+
+# ───────────────────────── 서비스용 DB ─────────────────────────
+
+# 시리즈 단위로 옮기는 테이블 (참조 순서). raw(API 원본 캐시)는 옮기지 않음
+SERVICE_TABLES = ("series", "entries", "episodes", "characters", "streaming", "seasons", "voice_cast", "chunks",
+                  "fetch_log")
+IN_SERVICE = "t.series_id IN (SELECT series_id FROM migrate_ids)"
+
+
+def service_config():
+    import yaml
+    return (yaml.safe_load((REPO / "config" / "settings.yaml").read_text(encoding="utf-8")) or {}).get("service_db") or {}
+
+
+def _copy_rows(src, dst, table, where, skip=()):
+    """src의 table에서 where에 맞는 행을 dst의 같은 테이블로 복사. 칸 순서가 달라도 되도록 칸 이름을 적어서 옮김."""
+    sql = psycopg.sql
+    cols = sql.SQL(", ").join(sql.Identifier(r["column_name"]) for r in dst.execute(
+        """SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = %s
+           ORDER BY ordinal_position""", (table,)) if r["column_name"] not in skip)
+    with src.cursor() as out, dst.cursor() as into:
+        with out.copy(sql.SQL("COPY (SELECT {} FROM {} t WHERE {}) TO STDOUT").format(
+                cols, sql.Identifier(table), where)) as reader, \
+             into.copy(sql.SQL("COPY {} ({}) FROM STDIN").format(sql.Identifier(table), cols)) as writer:
+            for data in reader:
+                writer.write(data)
+        return into.rowcount
+
+
+def step_migrate(db, args):
+    """상세 줄거리가 제대로 있는 시리즈만 서비스용 DB로 옮김. 수집 DB는 읽기만 하고, 서비스용 DB는 매번 새로 채움.
+
+    기준: 500자 이상 상세 줄거리(plot)가 있는 회차 ÷ 전체 회차 ≥ --min-fill (기본 config의 service_db.min_plot_fill).
+    """
+    cfg = service_config()
+    name = args.to or cfg.get("name")
+    fill = args.min_fill if args.min_fill is not None else cfg.get("min_plot_fill", READY)
+    if not name:
+        raise SystemExit("옮길 DB 이름을 --to 또는 config/settings.yaml의 service_db.name에 정하세요")
+    if name == db.info.dbname:
+        raise SystemExit(f"--to가 수집 DB({name})와 같습니다. 다른 이름을 쓰세요")
+    url = psycopg.conninfo.make_conninfo(DB_URL, dbname=name)
+    ensure_database(url)
+    sql = psycopg.sql
+    with psycopg.connect(url, row_factory=dict_row, autocommit=True) as dst:
+        dst.execute((DATA / "schema.sql").read_text(encoding="utf-8"))
+        # 양쪽 다 한 트랜잭션: 수집이 돌고 있어도 같은 시점의 데이터를 읽고, 중간에 실패하면 서비스용 DB는 이전 상태로 남음
+        with db.transaction(), dst.transaction():
+            db.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+            db.execute("""CREATE TEMP TABLE migrate_ids ON COMMIT DROP AS
+                          SELECT s.series_id FROM series s JOIN episodes e USING (series_id) GROUP BY s.series_id
+                          HAVING count(*) FILTER (WHERE length(e.plot) >= 500)
+                                 >= %s * greatest(s.total_episodes, count(*))""", (fill,))
+            ids = {r["series_id"] for r in db.execute("SELECT series_id FROM migrate_ids")}
+            total = db.execute("SELECT count(*) n FROM series").fetchone()["n"]
+            print(f"  상세 줄거리 채움률 {fill:.0%} 이상: {len(ids):,}개 / 전체 {total:,}개 시리즈 → {name}")
+            dst.execute("TRUNCATE series, wiki_pages CASCADE")
+            for table in SERVICE_TABLES:
+                print(f"  {table}: {_copy_rows(db, dst, table, sql.SQL(IN_SERVICE)):,}행", flush=True)
+            # 위키 문서는 chunks 단계가 캐릭터·용어 청크를 다시 만들 때 필요. 원문(wikitext)은 수집 DB에만 둠
+            wikis = sorted({f["wiki"] for sid, f in fandom_config().items() if sid in ids})
+            n = _copy_rows(db, dst, "wiki_pages", sql.SQL("t.wiki = ANY({})").format(sql.Literal(wikis)),
+                           skip=("wikitext",))
+            print(f"  wiki_pages: {n:,}행 (위키 {len(wikis):,}개, 원문 제외)", flush=True)
+        if dst.execute("SELECT 1 FROM chunks WHERE embedding IS NOT NULL LIMIT 1").fetchone():
+            dst.execute("CREATE INDEX IF NOT EXISTS chunks_embedding_idx ON chunks USING hnsw (embedding vector_cosine_ops)")
+        dst.execute("ANALYZE")
+        size = dst.execute("SELECT pg_size_pretty(pg_database_size(current_database())) s").fetchone()["s"]
+    print(f"  완료: {name} ({size}). 이 DB를 쓰려면 .env의 DATABASE_URL에서 DB 이름을 {name}(으)로 바꾸세요")
 
 
 STEPS = {"init": step_init, "seed": step_seed, "anilist": step_anilist, "tvmaze": step_tvmaze,
          "tmdb": step_tmdb, "jikan": step_jikan, "characters": step_characters, "fandom-find": step_fandom_find, "fandom": step_fandom, "wiki": step_wiki,
          "chunks": step_chunks, "embed": step_embed, "report": step_report, "status": step_status,
-         "search": step_search}
+         "search": step_search, "migrate": step_migrate}
 
 
 def main():
@@ -1558,6 +2000,8 @@ def main():
     ap.add_argument("--reparse", action="store_true", help="새로 받지 않고, 이미 받은 원본으로 다시 정리")
     ap.add_argument("--watched", type=int, help="search: 본 회차 (전체 회차 번호, 필수)")
     ap.add_argument("-k", type=int, default=5, help="search: 결과 개수")
+    ap.add_argument("--to", help="migrate: 서비스용 DB 이름 (기본 config의 service_db.name)")
+    ap.add_argument("--min-fill", type=float, help="migrate: 상세 줄거리 채움률 기준 0~1 (기본 config의 service_db.min_plot_fill)")
     args = ap.parse_args()
     args.query = None
     if args.steps[0] == "search":

@@ -160,10 +160,10 @@ def fake_http(db, method, url, *, params=None, body=None, headers=None, cache=No
         chars = [{"role": "MAIN", "node": {"id": 36421 + body["variables"]["id"] % 2, "gender": "Male", "age": "14",
                                            "name": {"full": "Izuku Midoriya", "native": "緑谷出久"},
                                            "image": {"large": "https://example.com/i.jpg"},
-                                           "description": "Green curly hair and freckles."}},
+                                           "description": "A boy with green curly hair and freckles who dreams of becoming a hero."}},
                  {"role": "SUPPORTING", "node": {"id": 99, "gender": "Female", "name": {"full": "Shimura Nana",
                                                                                      "native": "志村菜奈"},
-                                                 "image": None, "description": "Seventh user of One For All."}}]
+                                                 "image": None, "description": "The seventh user of One For All and the mentor of Toshinori Yagi."}}]
         return {"data": {"Media": {"characters": {"pageInfo": {"hasNextPage": False}, "edges": chars}}}}
     if "tvmaze.com/lookup" in url:
         return {"id": 13615}
@@ -211,7 +211,7 @@ def fake_http(db, method, url, *, params=None, body=None, headers=None, cache=No
         if p.get("meta") == "siteinfo":
             return {"query": {"rightsinfo": {"text": "CC-BY-SA"}}}
         pages = [{"title": f"Episode {n}", "revisions": [{"slots": {"main": {"content": WIKI.replace(
-            "ep number = 49", f"ep number = {n}").replace("adolescence", "adolescence " + "long plot text " * 60)}}}]}
+            "ep number = 49", f"ep number = {n}").replace("adolescence", "adolescence " + f"long plot text of episode {n} " * 60)}}}]}
             for n in range(1, 61)]
         pages.append({"title": "Episode 1 (Vigilantes)", "revisions": [{"slots": {"main": {"content": WIKI}}}]})
         pages.append({"title": "List of Episodes", "revisions": [{"slots": {"main": {"content": "'''List'''"}}}]})
@@ -357,6 +357,62 @@ def test_per_season_infobox_numbers_are_not_trusted():
     assert collect.number_pages(pages, by_title) == {"A": 1, "B": 2, "C": 13, "D": 14}
 
 
+def test_parse_dates_reads_common_wiki_formats():
+    d = collect.dt.date
+    assert collect.parse_dates("October 5th, 2014") == [d(2014, 10, 5)]
+    assert collect.parse_dates("2009 August 2 (online stream), 2010 June 13") == [d(2009, 8, 2), d(2010, 6, 13)]
+    assert collect.parse_dates("5 Oct 2014 / 2014-10-12") == [d(2014, 10, 5), d(2014, 10, 12)]
+    assert collect.parse_dates("TBA, Spring 2027") == []
+
+
+def test_airdate_numbers_pages_and_season_offset_fills_the_rest():
+    """제목 번역이 달라도 방영일로 회차를 찾고, 날짜가 없는 문서는 같은 시즌의 번호 차이로 채운다. 다른 작품은 붙지 않는다."""
+    d = collect.dt.date
+    page = lambda title, no, season, day=None: (title, {"title": "x", "episode_no": no, "infobox": {}, "season": season,
+                                                         "airdates": [day] if day else []})
+    by_date = {d(2020, 1, 5) + collect.dt.timedelta(weeks=i): 13 + i for i in range(3)}      # 2기 1~3화 = 전체 13~15화
+    pages = [page("S2 Episode 01", 1, "2", d(2020, 1, 5)), page("S2 Episode 02", 2, "2", d(2020, 1, 13)),   # 하루 차이
+             page("S2 Episode 03", 3, "2"), page("Spin-off Episode 02", 2, "spin-off", d(2024, 4, 5))]
+    assert collect.number_pages(pages, {}, by_date) == {"S2 Episode 01": 13, "S2 Episode 02": 14, "S2 Episode 03": 15}
+
+
+def test_title_number_that_disagrees_with_infobox_is_not_used():
+    """'Power - Episode 1'의 1은 이야기 안의 순번이고 인포박스의 290이 회차 번호. 여러 화가 방영된 날은 날짜로 가리지 않는다."""
+    d = collect.dt.date
+    page = lambda title, no, days: (title, {"title": title, "episode_no": no, "infobox": {}, "airdates": days})
+    by_date = {d(2007, 2, 15): None, d(2009, 10, 28): 133, d(2012, 11, 22): 290}       # 2007-02-15에는 1화와 2화가 방영
+    pages = [page("Homecoming", 1, [d(2007, 2, 15), d(2009, 10, 28)]), page("Power - Episode 1", 290, [d(2012, 11, 22)])]
+    assert collect.number_pages(pages, {"homecoming": 1}, by_date) == {"Homecoming": 1, "Power - Episode 1": 290}
+    assert collect.date_lookup(by_date, [d(2007, 2, 15), d(2009, 10, 28)]) is None
+
+
+def test_chunks_are_cleaned_and_empty_or_repeated_ones_dropped():
+    """본문에 마크업이 남지 않고, 자리채움·한 줄짜리·되풀이되는 청크는 빠진다. 되풀이되면 늦은 회차의 것을 남긴다(스포일러)."""
+    long = "Bam faces the test alone while Rak attacks him and the others watch from afar. " * 2
+    rows = [("c1", "character", None, None, None, "작품 캐릭터 A [MAIN]\n__Quirk:__ [All Might](https://anilist.co/character/1) ~!dies!~ " + long, []),
+            ("e1", "event", 3, 1, None, "작품 1기 3화 (전체 3화) 〈에피소드 3〉 장면\n, " + long, []),
+            ("e2", "event", 4, 1, None, "작품 1기 4화 (전체 4화) 장면\n" + long, []),
+            ("e3", "event", 5, 1, None, "작품 1기 5화 (전체 5화) 장면\nTBA.", []),
+            ("p1", "episode", 5, 1, None, "작품 1기 5화 (전체 5화)\n에피소드 5", [])]
+    out = {r[0]: r for r in collect.tidy_chunks(rows)}
+    assert set(out) == {"c1", "e2"}                       # e1과 e2는 같은 본문 → 늦은 회차(e2), e3·p1은 내용 없음
+    assert "Quirk: All Might" in out["c1"][5] and "dies" not in out["c1"][5] and "](" not in out["c1"][5]
+    assert out["e2"][5].split("\n")[1].startswith("Bam faces")
+
+
+def test_wiki_markup_keeps_the_subject_and_line_breaks():
+    p = collect.parse_episode_wikitext("{{Infobox episode|chapters=[[Chapter 1]]<br>[[Chapter 2]]|a=1|b=2}}\n==Summary==\n"
+                                       "{{Nihongo|\'\'\'Jujutsu\'\'\'|呪術|Jujutsu}}, also known as sorcery.<br>\n<br>\nIt is used by sorcerers.")
+    assert p["chapters"] == "Chapter 1, Chapter 2"
+    assert p["plot"].startswith("Jujutsu, also known as sorcery.") and "\n," not in p["plot"] and "It is used" in p["plot"]
+
+
+def test_plot_inside_scroll_box_is_kept():
+    text = "{{Episode|name=A|season=1|episode=2}}\n==Detailed Summary==\n{{Scroll Box|height=400px|content=\n" \
+           "Bam faces the test alone. [[Rak]] attacks him.}}\n==Gallery==\n"
+    assert "Bam faces the test alone. Rak attacks him." in collect.parse_episode_wikitext(text)["plot"]
+
+
 def test_wiki_pages_become_gated_chunks(db):
     """위키 문서는 처음 가리킨 회차부터 보이고, 내력(History) 구역과 애니에 안 나온 문서는 청크가 되지 않는다."""
     conn, _ = db
@@ -367,3 +423,27 @@ def test_wiki_pages_become_gated_chunks(db):
         ("Float", "terminology", 30), ("Nana Shimura", "character", 30)]
     text = " ".join(r["text"] for r in rows)
     assert "black hair" in text and "killed by" not in text and "dies before" not in text and "Mangaonly" not in text
+
+
+def test_migrate_moves_only_series_with_plot(db):
+    """서비스용 DB에는 상세 줄거리가 기준 이상인 시리즈만 가고, 옮긴 뒤에도 스포일러 차단이 그대로 동작한다."""
+    conn, _ = db
+    name = conn.info.dbname + "_service"
+    before = {t: q(conn, f"SELECT count(*) n FROM {t}")[0]["n"] for t in ("series", "episodes", "chunks")}
+    collect.step_migrate(conn, argparse.Namespace(to=name, min_fill=0.9))
+    collect.step_migrate(conn, argparse.Namespace(to=name, min_fill=0.9))      # 다시 실행해도 같은 결과
+    url = psycopg.conninfo.make_conninfo(collect.DB_URL, dbname=name)
+    with psycopg.connect(url, row_factory=psycopg.rows.dict_row, autocommit=True) as dst:
+        assert [r["series_id"] for r in q(dst, "SELECT series_id FROM series")] == [MHA]      # 줄거리 없는 OTHER는 빠짐
+        for t in ("entries", "episodes", "characters", "streaming", "chunks"):
+            assert q(dst, f"SELECT count(*) n FROM {t}")[0]["n"] == \
+                   q(conn, f"SELECT count(*) n FROM {t} WHERE series_id=%s", MHA)[0]["n"] > 0, t
+        pages = q(dst, "SELECT count(*) n, count(wikitext) raw FROM wiki_pages")[0]
+        assert pages["n"] == q(conn, "SELECT count(*) n FROM wiki_pages")[0]["n"] and pages["raw"] == 0
+        assert q(dst, "SELECT count(*) n FROM raw")[0]["n"] == 0
+        vec = [random.Random(1).uniform(-1, 1) for _ in range(768)]
+        rows = collect.search_chunks(dst, vec, watched={MHA: 13}, k=50)
+        assert rows and all(r["abs_ep"] is None or r["abs_ep"] <= 13 for r in rows)
+    with pytest.raises(SystemExit):      # 수집 DB 자신으로는 옮기지 않음
+        collect.step_migrate(conn, argparse.Namespace(to=conn.info.dbname, min_fill=0.9))
+    assert before == {t: q(conn, f"SELECT count(*) n FROM {t}")[0]["n"] for t in before}      # 수집 DB는 그대로

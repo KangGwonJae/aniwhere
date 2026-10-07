@@ -3,6 +3,11 @@
 # 회차까지 지원하는 작품 — docs/data-sources.md의 "작품 × 출처" 표로 확정
 works: []
 
+# 서비스용 DB — 상세 줄거리가 제대로 있는 작품만 수집 DB에서 옮김 (python data/collect.py migrate)
+service_db:
+  name: aniwhere_service
+  min_plot_fill: 0.8        # 500자 이상 상세 줄거리가 있는 회차 ÷ 전체 회차가 이 이상인 작품만
+
 embedding:
   # 임베딩 모델 비교 후 확정. 아래는 data/collect.py embed가 쓰는 기본 후보 (한국어 질문 ↔ 영어 줄거리 검색용 다국어 모델)
   model: intfloat/multilingual-e5-base
