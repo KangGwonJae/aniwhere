@@ -45,7 +45,7 @@ AniWhere — "당신의 덕질 어디서든지".
 ## Git 규칙
 
 - `main`에 직접 push 금지. 브랜치를 만들고 PR로만 merge한다.
-- 브랜치 이름: `종류/이름-주제` — 예: `feat/taeho-kitsu-collect`, `fix/uijin-search-ui`, `docs/kwonjae-readme`
+- 브랜치 이름: `종류/이름-주제` — 예: `feat/taeho-kitsu-collect`, `fix/uijin-search-ui`, `docs/gwonjae-readme`
   - 종류: `feat`(기능), `fix`(버그), `data`(데이터), `docs`(문서), `exp`(실험), `chore`(설정)
 - merge는 **Merge commit** 방식만 쓴다(squash 금지). 과제 요구사항인 merge log를 남기기 위해서.
 - PR 하나에는 한 가지 목적만. PR 본문은 `.github/pull_request_template.md`를 채운다.
