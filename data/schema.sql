@@ -109,13 +109,13 @@ CREATE TABLE IF NOT EXISTS streaming (
 CREATE TABLE IF NOT EXISTS chunks (
     chunk_id     text PRIMARY KEY,
     series_id    text REFERENCES series ON DELETE CASCADE,
-    type         text NOT NULL,                 -- summary / character / episode / event / streaming
+    type         text NOT NULL,                 -- summary / character / terminology / episode / plot / event / streaming
     abs_ep       integer,                       -- NULL = 회차와 무관 (항상 검색 대상)
     tmdb_season  integer,
     filler       boolean,
     text         text NOT NULL,
     sources      jsonb NOT NULL DEFAULT '[]',
-    embedding    vector(768)
+    embedding    vector(1024)
 );
 CREATE INDEX IF NOT EXISTS chunks_filter_idx ON chunks (series_id, abs_ep);
 -- 벡터 인덱스(chunks_embedding_idx)는 embed 단계가 임베딩을 채운 뒤 만듭니다.

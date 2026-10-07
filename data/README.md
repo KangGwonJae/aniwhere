@@ -84,7 +84,8 @@ make data LIMIT=1000 # 범위를 늘려 다시 실행 (이미 받은 작품은 �
 | summary | 시즌 항목별 설명·별칭·장르 | 1기는 NULL(항상), 2기 이후는 앞 시즌 마지막 회차 |
 | character | 캐릭터 설명 | Fandom 등장 순서에서 첫 등장 회차를 찾았으면 그 회차(1화 등장은 NULL). 못 찾았으면 첫 등장 시즌 기준(1기는 NULL, 아니면 앞 시즌 마지막 회차) |
 | episode | 회차 요약 (한국어 + 영어) | 그 회차 |
-| event | Fandom 상세 줄거리를 약 700자씩 나눈 장면 | 그 회차 |
+| plot | Fandom 상세 줄거리 한 화 통째 | 그 회차 |
+| event | 같은 줄거리를 약 700자씩 나눈 장면 | 그 회차 |
 | streaming | 시즌별 국내 OTT | NULL(항상) |
 
 검색은 `collect.search_chunks(db, 질문_벡터, watched={시리즈 ID: 본 회차}, …)`를 씁니다. `watched`는 필수 인자이고,
@@ -120,8 +121,18 @@ python data/collect.py migrate --min-fill 0.9 --to 다른이름   # 기준·DB �
 
 ### 임베딩
 
-모델과 차원은 `config/settings.yaml`의 `embedding`에서 정합니다. `schema.sql`의 `vector(768)`과 `dim`이 같아야 합니다.
+모델과 차원은 `config/settings.yaml`의 `embedding`에서 정합니다(지금은 `BAAI/bge-m3`, 1024차원. 처음 실행할 때
+모델 약 2.3GB를 내려받습니다). `schema.sql`의 `vector(1024)`와 `dim`이 같아야 합니다. 이미 만든 DB의 차원을 바꾸려면
+`ALTER TABLE chunks ALTER COLUMN embedding TYPE vector(1024);`를 실행합니다(임베딩이 비어 있어야 함).
 청크 텍스트가 바뀌면 그 청크의 임베딩만 비워지므로 `embed`를 다시 실행하면 바뀐 것만 계산합니다.
+
+```bash
+python data/collect.py embed --chunk-types plot                     # 회차 통째 줄거리만 임베딩
+python data/collect.py search "질문" --series tmdb:65930 --watched 49 --chunk-types plot
+```
+
+상세 줄거리는 청크로 만들기 전에 줄거리가 아닌 줄을 지웁니다(`clean_plot`): 위키 탭 표시(`|-|Netflix=`), 일본어·로마자
+원문, 이름·소제목만 있는 50자 미만 줄.
 
 ## 4. 상세 줄거리(Fandom) 작품 추가
 
@@ -143,6 +154,11 @@ python data/collect.py migrate --min-fill 0.9 --to 다른이름   # 기준·DB �
 5. 인포박스의 회차 번호. 같은 시즌의 다른 문서들과 번호 차이가 일정하면 그만큼 더합니다(2기 3화 = 전체 28화).
 
 4·5로 붙인 번호가 그 회차의 방영일과 2주 넘게 어긋나면 같은 위키의 다른 작품(외전, 속편)으로 보고 뺍니다.
+
+한 위키를 여러 시리즈가 같이 쓰면(본편과 외전, 원작과 리메이크) 같은 문서를 둘 이상이 가져갈 수 있습니다. 문서 하나는
+한 작품의 한 회차이므로, 모든 시리즈를 정리한 뒤 겹친 문서는 근거가 가장 강한 시리즈에만 남기고 나머지에서는 지웁니다.
+근거 순서: 방영일이 맞음 → 회차 제목이 맞음 → 사람이 고른 위키 → 인기도. 뺀 회차 수는 `fetch_log.detail`에 남습니다.
+`--series`로 한 작품만 다시 정리해도 같은 위키를 쓰는 시리즈는 함께 정리합니다.
 
 `fandom_wikis.json`에 시리즈 ID와 위키 주소를 적습니다. 회차 문서가 모인 분류 이름이 `Episodes`가 아니면 `category`를,
 한 위키에 여러 작품이 섞여 있으면 `include`·`exclude`(문서 제목 정규식)나 `infobox`(인포박스 값 조건)를 추가합니다.

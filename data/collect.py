@@ -160,7 +160,9 @@ def download(url, name):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-PLACEHOLDER_RE = re.compile(r"(to be added|tba|tbd|coming soon|n/?a|none|\?+|under construction)[.!]?", re.I)
+PLACEHOLDER_RE = re.compile(r"(to be added|tba|tbd|wip|missing|coming soon|n/?a|none|[?.]+|under construction|"
+                            r"summarize the episode here|need translation\b.*|"
+                            r"here's where you put the description of the plot\b.*)[.!]?", re.I | re.S)
 EPISODE_N_RE = re.compile(r"(에피소드|episode|제)\s*\d+\s*(화|회)?", re.I)      # TMDB가 제목 대신 넣어 둔 '에피소드 3'
 
 
@@ -914,6 +916,7 @@ def parse_episode_wikitext(wikitext: str) -> dict:
             found = lead
         if len(found) >= 40 and len(found) > (len(plots[0]) if plots else 0):      # 짧아도 위키에 있는 만큼은 가져옴
             plots = [found]
+    plots = [x for x in plots if not PLACEHOLDER_RE.fullmatch(x.strip())]      # 'TBA', 'Summarize the episode here.'
     # 줄거리가 전혀 없는 문서: 머리말(몇 화인지 소개하는 문장)과 사건·전투 목록이라도 짧은 요약으로 남김
     note = ""
     if not plots:
@@ -1169,8 +1172,26 @@ def number_pages(pages, by_title, by_date=None, aired=None):
     return numbers
 
 
+def shared_page_losers(claims):
+    """여러 시리즈가 같은 위키 문서를 가져갔을 때 문서를 내놓아야 하는 쪽: {시리즈 ID: [문서 제목]}.
+
+    claims = {(위키, 문서 제목): {시리즈 ID: (방영일 일치, 회차 제목 일치, 사람이 고른 위키, 인기도)}}.
+    문서 하나는 한 작품의 한 회차이므로 근거가 가장 강한 시리즈에만 남깁니다. 근거 순서는 값의 순서와 같습니다
+    (번호만 맞아서 붙은 외전·속편보다 방영일·제목이 맞는 쪽, 그래도 같으면 사람이 고른 위키, 인기 많은 쪽).
+    """
+    losers = {}
+    for (_, title), who in claims.items():
+        if len(who) > 1:
+            keep = max(who, key=lambda sid: who[sid])
+            for sid in who:
+                if sid != keep:
+                    losers.setdefault(sid, []).append(title)
+    return losers
+
+
 def step_fandom(db, args):
     cfg = json.loads((DATA / "fandom_wikis.json").read_text(encoding="utf-8"))["wikis"]
+    claims = {}       # (위키, 문서 제목) → 그 문서를 가져간 시리즈와 근거. 위 shared_page_losers 참고
 
     def one(s):
         f = cfg[s["series_id"]]
@@ -1291,6 +1312,10 @@ def step_fandom(db, args):
                            synopsis_en=p["synopsis"] or None, plot=p["plot"] or None)
             got += 1
             with_plot += len(p["plot"]) >= 500
+            proof = (date_ok((title, p)), _same_title(ep_title, title_of.get(abs_ep)), not f.get("auto"),
+                     s["popularity"] or 0)
+            mine = claims.setdefault((f["wiki"], title), {})
+            mine[s["series_id"]] = max(proof, mine.get(s["series_id"], proof))
         # 예전에 위키 문서만으로 만들어졌다가 이제 아무 정보도 남지 않은 회차 행은 지움
         db.execute("""DELETE FROM episodes WHERE series_id=%s AND fandom_url IS NULL AND title_en IS NULL AND title_ko IS NULL
                         AND airdate IS NULL AND overview_ko IS NULL AND tmdb_number IS NULL AND filler IS NULL""",
@@ -1305,10 +1330,30 @@ def step_fandom(db, args):
     if set(ids) - known:
         print(f"  ! fandom_wikis.json의 시리즈 ID가 DB에 없음: {sorted(set(ids) - known)}")
     # 위키 목록은 사람이 고른 것이라 인기순 제한 없이, 받은 원문(raw 캐시)으로 매번 다시 정리함
-    limit, args.limit = args.limit, None
-    rows = [r for r in targets(db, "fandom", args, redo=True) if r["series_id"] in ids]
-    args.limit = limit
+    # 특정 시리즈만 다시 받을 때도 같은 위키를 쓰는 시리즈는 함께 정리함 (겹친 문서의 주인을 다시 가려야 하므로)
+    together = {sid for sid in ids if args.series in cfg and cfg[sid]["wiki"] == cfg[args.series]["wiki"]}
+    limit, only, args.limit, args.series = args.limit, args.series, None, None
+    rows = [r for r in targets(db, "fandom", args, redo=True)
+            if r["series_id"] in ids and (not only or r["series_id"] in together | {only})]
+    args.limit, args.series = limit, only
     run_each(db, "fandom", rows, one)
+
+    released = 0
+    for sid, titles in shared_page_losers(claims).items():
+        urls = [f"https://{cfg[sid]['wiki']}.fandom.com/wiki/{t.replace(' ', '_')}" for t in titles]
+        with db.transaction():
+            n = db.execute("""UPDATE episodes SET fandom_url=NULL, fandom_title=NULL, arc=NULL, chapters=NULL,
+                                characters=NULL, synopsis_en=NULL, plot=NULL
+                              WHERE series_id=%s AND fandom_url = ANY(%s)""", (sid, urls)).rowcount
+            db.execute("""DELETE FROM episodes WHERE series_id=%s AND fandom_url IS NULL AND title_en IS NULL
+                            AND title_ko IS NULL AND airdate IS NULL AND overview_ko IS NULL AND tmdb_number IS NULL
+                            AND filler IS NULL""", (sid,))
+            link_character_debuts(db, sid)
+            db.execute("UPDATE fetch_log SET detail = detail || %s WHERE series_id=%s AND source='fandom'",
+                       (f", 같은 위키의 다른 작품 문서라서 뺀 회차 {n}화", sid))
+        released += n
+    if released:
+        print(f"  여러 시리즈가 같이 가져간 문서 정리: {released:,}화를 근거가 약한 쪽에서 뺌")
 
 
 # ───────────────────────── 6-1. Fandom 위키 자동 찾기 ─────────────────────────
@@ -1598,6 +1643,33 @@ def wiki_chunks(db, s, name):
 
 # ───────────────────────── 7. 청크 ─────────────────────────
 
+TAB_RE = re.compile(r"\|-\|[ \t]*([^=\n]{0,60})=[ \t]*")        # <tabber>의 탭 표시: |-|Netflix=, |-|Official Page (JPN)=
+FIRST_TAB_RE = re.compile(r"\s*([A-Za-z][^=\n]{0,60})=[ \t]*")    # 첫 탭은 '|-|' 없이 'Japanese=…'로 시작
+JA_RE = re.compile(r"[\u3040-\u30ff\u3400-\u9fff]")
+SENTENCE_END_RE = re.compile(r"[.!?…][\s\"'”’)\]]*$")
+
+
+def clean_plot(text):
+    """줄거리에서 줄거리가 아닌 것을 지움: 위키 탭 표시, 일본어·로마자 원문, 이름·소제목만 있는 짧은 줄.
+
+    한 화의 공식 소개를 제공처·언어별 탭으로 나눠 둔 위키가 있습니다. 탭 이름은 지우고 영어 탭의 내용은 남깁니다.
+    """
+    text = text or ""
+    if "|-|" in text:
+        first = FIRST_TAB_RE.match(text)
+        parts = TAB_RE.split(text[first.end():] if first else text)
+        tabs = zip([first.group(1) if first else ""] + parts[1::2], parts[::2])
+        text = "\n".join(body for label, body in tabs if "romaji" not in label.lower())
+    lines = []
+    for line in (x.strip() for x in text.split("\n")):
+        if len(JA_RE.findall(line)) > 0.3 * len(re.sub(r"\s", "", line)):
+            continue
+        if len(line) < 50 and not SENTENCE_END_RE.search(line):      # 'Sakata Gintoki', 'Turn 3: Yuma', 'Netflix'
+            continue
+        lines.append(line)
+    return "\n".join(lines)
+
+
 def split_paragraphs(text, target=700):
     """문단을 이어 붙여 약 target자 단위로 나눔. 한 문단이 너무 길면 문장 단위로 다시 나눔."""
     paras = []
@@ -1674,11 +1746,15 @@ def build_chunks(db, s):
                    ([_src("fandom", ep["fandom_url"])] if ep["synopsis_en"] else [])
             rows.append((f"{sid}:ep:{ep['abs_ep']}", "episode", ep["abs_ep"], ep["tmdb_season"],
                          ep["filler"], text, srcs))
-        if ep["plot"]:
-            for i, para in enumerate(split_paragraphs(ep["plot"]), 1):
+        plot = clean_plot(ep["plot"])
+        if plot:
+            head += f" 〈{title}〉" if title else ""
+            # 같은 줄거리를 두 가지 크기로: 회차 통째(plot)와 약 700자 조각(event)
+            rows.append((f"{sid}:plot:{ep['abs_ep']}", "plot", ep["abs_ep"], ep["tmdb_season"], ep["filler"],
+                         f"{head} 줄거리\n{plot}", [_src("fandom", ep["fandom_url"])]))
+            for i, para in enumerate(split_paragraphs(plot), 1):
                 rows.append((f"{sid}:event:{ep['abs_ep']}:{i}", "event", ep["abs_ep"], ep["tmdb_season"],
-                             ep["filler"], f"{head}" + (f" 〈{title}〉" if title else "") + f" 장면\n{para}",
-                             [_src("fandom", ep["fandom_url"])]))
+                             ep["filler"], f"{head} 장면\n{para}", [_src("fandom", ep["fandom_url"])]))
     for st in db.execute("SELECT * FROM streaming WHERE series_id=%s", (sid,)):
         if not st["flatrate"]:
             continue
@@ -1692,6 +1768,9 @@ def build_chunks(db, s):
 def step_chunks(db, args):
     def one(s):
         sid = s["series_id"]
+        # 작품 목록의 회차 수는 방영 중이거나 최근 끝난 작품에서 실제보다 적을 수 있어, 받은 마지막 회차에 맞춤
+        db.execute("""UPDATE series SET total_episodes = greatest(total_episodes,
+                        (SELECT max(abs_ep) FROM episodes WHERE series_id=%s)) WHERE series_id=%s""", (sid, sid))
         link_character_debuts(db, sid)
         rows = build_chunks(db, s)
         db.execute("DELETE FROM chunks WHERE series_id=%s AND NOT (chunk_id = ANY(%s))", (sid, [r[0] for r in rows]))
@@ -1730,8 +1809,16 @@ def embed_texts(texts, kind):
     if _model is None:
         from sentence_transformers import SentenceTransformer
         _model = SentenceTransformer(cfg["model"])
+        if cfg.get("max_seq_length"):
+            _model.max_seq_length = cfg["max_seq_length"]
+        if cfg.get("fp16") and _model.device.type != "cpu":
+            _model.half()
     prefix = cfg.get(f"{kind}_prefix") or ""
-    return _model.encode([prefix + t for t in texts], batch_size=cfg.get("batch_size", 32),
+    # 긴 글은 메모리를 길이의 제곱만큼 쓰므로, 가장 긴 글에 맞춰 한 번에 넣는 개수를 줄임
+    size = cfg.get("batch_size", 32)
+    if cfg.get("max_batch_chars") and texts:
+        size = max(1, min(size, cfg["max_batch_chars"] // max(len(t) for t in texts)))
+    return _model.encode([prefix + t for t in texts], batch_size=size,
                          normalize_embeddings=True, show_progress_bar=False)
 
 
@@ -1743,13 +1830,16 @@ def step_embed(db, args):
         raise SystemExit(f"chunks.embedding은 {dim}차원인데 config의 embedding.dim은 {cfg.get('dim')}입니다. "
                          "schema.sql의 vector(N)과 맞추세요")
     series = [r["series_id"] for r in targets(db, "embed", args, redo=True)]
-    todo = db.execute("SELECT count(*) n FROM chunks WHERE embedding IS NULL AND series_id = ANY(%s)",
-                      (series,)).fetchone()["n"]
-    print(f"  모델 {cfg['model']}, 임베딩할 청크 {todo:,}개")
+    only = args.chunk_types          # None이면 모든 종류
+    todo = db.execute("""SELECT count(*) n FROM chunks WHERE embedding IS NULL AND series_id = ANY(%s)
+                           AND (%s::text[] IS NULL OR type = ANY(%s))""", (series, only, only)).fetchone()["n"]
+    print(f"  모델 {cfg['model']}, 임베딩할 청크 {todo:,}개" + (f" (종류: {', '.join(only)})" if only else ""))
     done, started = 0, time.time()
     while True:
+        # 짧은 것부터: 길이가 비슷한 것끼리 묶여야 빠르고, 긴 글 묶음이 메모리를 넘기지 않음
         batch = db.execute("""SELECT chunk_id, text FROM chunks WHERE embedding IS NULL AND series_id = ANY(%s)
-                              LIMIT 256""", (series,)).fetchall()
+                                AND (%s::text[] IS NULL OR type = ANY(%s))
+                              ORDER BY length(text) LIMIT 256""", (series, only, only)).fetchall()
         if not batch:
             break
         vecs = embed_texts([r["text"] for r in batch], "passage")
@@ -1795,7 +1885,7 @@ def step_search(db, args):
         raise SystemExit("--watched N (본 회차)는 필수입니다. 아직 안 본 작품이면 0")
     watched = {args.series: args.watched} if args.series else {}
     vec = embed_texts([args.query], "query")[0]
-    for r in search_chunks(db, vec, watched=watched, series_id=args.series, k=args.k):
+    for r in search_chunks(db, vec, watched=watched, series_id=args.series, types=args.chunk_types, k=args.k):
         where = f"전체 {r['abs_ep']}화" if r["abs_ep"] else "회차 무관"
         print(f"  {r['score']:.3f} [{r['type']}] {r['series_id']} {where}\n      "
               + r["text"][:220].replace("\n", " / "))
@@ -1998,6 +2088,7 @@ def main():
     ap.add_argument("--types", nargs="+", default=["TV", "ONA"], help="seed: 포함할 형식 (기본 TV ONA)")
     ap.add_argument("--refresh", action="store_true", help="이미 받은 것도 다시 받기")
     ap.add_argument("--reparse", action="store_true", help="새로 받지 않고, 이미 받은 원본으로 다시 정리")
+    ap.add_argument("--chunk-types", nargs="+", metavar="종류", help="embed·search: 이 종류의 청크만 (예: plot)")
     ap.add_argument("--watched", type=int, help="search: 본 회차 (전체 회차 번호, 필수)")
     ap.add_argument("-k", type=int, default=5, help="search: 결과 개수")
     ap.add_argument("--to", help="migrate: 서비스용 DB 이름 (기본 config의 service_db.name)")

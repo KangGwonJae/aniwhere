@@ -8,6 +8,7 @@ import random
 import sys
 from pathlib import Path
 
+import numpy as np
 import psycopg
 import psycopg.conninfo
 import pytest
@@ -113,9 +114,9 @@ def test_split_paragraphs():
 
 def test_search_requires_watched():
     with pytest.raises(TypeError):
-        collect.search_chunks(None, [0.0] * 768)                  # 본 회차 없이는 호출 자체가 안 됨
+        collect.search_chunks(None, [0.0] * 1024)                  # 본 회차 없이는 호출 자체가 안 됨
     with pytest.raises(TypeError):
-        collect.search_chunks(None, [0.0] * 768, watched=None)
+        collect.search_chunks(None, [0.0] * 1024, watched=None)
 
 
 # ───────────────────────── 실제 PostgreSQL ─────────────────────────
@@ -246,7 +247,7 @@ def db(tmp_path_factory):
     rng = random.Random(0)
     for r in conn.execute("SELECT chunk_id FROM chunks").fetchall():
         conn.execute("UPDATE chunks SET embedding = %s::vector WHERE chunk_id = %s",
-                     (str([rng.uniform(-1, 1) for _ in range(768)]), r["chunk_id"]))
+                     (str([rng.uniform(-1, 1) for _ in range(1024)]), r["chunk_id"]))
     yield conn, args
     conn.close()
     mp.undo()
@@ -279,7 +280,7 @@ def test_pipeline_links_every_source_to_abs_ep(db):
     summary = q(conn, "SELECT text FROM chunks WHERE chunk_id=%s", f"{MHA}:summary:anilist:21459")[0]["text"]
     assert "한국어 작품 소개" in summary
     types = {r["type"]: r["n"] for r in q(conn, "SELECT type, count(*) n FROM chunks GROUP BY 1")}
-    assert types["episode"] == 63 and types["streaming"] == 3 and types["character"] == 6 and types["terminology"] == 1 and types["event"] >= 60
+    assert types["episode"] == 63 and types["streaming"] == 3 and types["character"] == 6 and types["terminology"] == 1 and types["event"] >= 60 and types["plot"] == 60
     detail = q(conn, "SELECT detail FROM fetch_log WHERE series_id=%s AND source='fandom'", MHA)[0]["detail"]
     assert detail.startswith("60화 (상세 줄거리 60화)") and "CC-BY-SA" in detail
 
@@ -301,7 +302,7 @@ def test_embedding_kept_until_text_changes(db):
     conn.execute("UPDATE episodes SET summary_en='changed' WHERE series_id=%s AND abs_ep=1", (MHA,))
     collect.STEPS["chunks"](conn, args)
     assert q(conn, "SELECT count(*) FILTER (WHERE embedding IS NULL) n FROM chunks")[0]["n"] == 1
-    conn.execute("UPDATE chunks SET embedding = array_fill(0.1, ARRAY[768])::vector WHERE embedding IS NULL")
+    conn.execute("UPDATE chunks SET embedding = array_fill(0.1, ARRAY[1024])::vector WHERE embedding IS NULL")
 
 
 @pytest.mark.parametrize("watched", [0, 1, 13, 14, 38, 49, 63])
@@ -311,7 +312,7 @@ def test_no_chunk_after_watched_episode(db, watched):
     rng = random.Random(watched)
     total = q(conn, "SELECT count(*) n FROM chunks")[0]["n"]
     for _ in range(5):
-        vec = [rng.uniform(-1, 1) for _ in range(768)]
+        vec = [rng.uniform(-1, 1) for _ in range(1024)]
         rows = collect.search_chunks(conn, vec, watched={MHA: watched}, k=total)   # 걸러진 전체를 다 받아 봄
         assert rows and all(r["abs_ep"] is None or r["abs_ep"] <= watched for r in rows)
         allowed = q(conn, "SELECT count(*) n FROM chunks WHERE abs_ep IS NULL OR "
@@ -321,19 +322,36 @@ def test_no_chunk_after_watched_episode(db, watched):
 
 def test_later_season_summary_and_characters_are_hidden(db):
     conn, _ = db
-    hidden = {r["chunk_id"] for r in collect.search_chunks(conn, [0.1] * 768, watched={MHA: 12}, k=1000)}
+    hidden = {r["chunk_id"] for r in collect.search_chunks(conn, [0.1] * 1024, watched={MHA: 12}, k=1000)}
     assert f"{MHA}:summary:anilist:21459" in hidden          # 1기 소개는 항상 보임
     assert f"{MHA}:summary:anilist:21856" not in hidden      # 2기 소개는 1기(13화)를 다 본 뒤부터
-    after = {r["chunk_id"] for r in collect.search_chunks(conn, [0.1] * 768, watched={MHA: 13}, k=1000)}
+    after = {r["chunk_id"] for r in collect.search_chunks(conn, [0.1] * 1024, watched={MHA: 13}, k=1000)}
     assert f"{MHA}:summary:anilist:21856" in after
 
 
 def test_series_without_record_shows_only_episode_free_chunks(db):
     conn, _ = db
-    rows = collect.search_chunks(conn, [0.1] * 768, watched={}, k=1000)
+    rows = collect.search_chunks(conn, [0.1] * 1024, watched={}, k=1000)
     assert rows and all(r["abs_ep"] is None for r in rows)
-    rows = collect.search_chunks(conn, [0.1] * 768, watched={MHA: 49}, series_id=MHA, types=["event"], k=1000)
+    rows = collect.search_chunks(conn, [0.1] * 1024, watched={MHA: 49}, series_id=MHA, types=["event"], k=1000)
     assert rows and {r["type"] for r in rows} == {"event"} and max(r["abs_ep"] for r in rows) == 49
+
+
+def test_embed_can_be_limited_to_one_chunk_type(db, monkeypatch):
+    """회차 통째 줄거리(plot) 청크는 그 회차의 장면을 모두 담고, embed --chunk-types로 그 종류만 임베딩할 수 있다."""
+    conn, _ = db
+    whole = q(conn, "SELECT abs_ep, text FROM chunks WHERE chunk_id=%s", f"{MHA}:plot:49")[0]
+    assert whole["abs_ep"] == 49 and whole["text"].split("\n")[0].endswith("줄거리")
+    assert "pillar of hope" in whole["text"] and "United States of Smash" in whole["text"]
+    conn.execute("UPDATE chunks SET embedding = NULL")
+    monkeypatch.setattr(collect, "embed_texts", lambda texts, kind: [np.full(1024, 0.1) for _ in texts])
+    collect.step_embed(conn, argparse.Namespace(limit=None, series=None, chunk_types=["plot"]))
+    done = {r["type"] for r in q(conn, "SELECT DISTINCT type FROM chunks WHERE embedding IS NOT NULL")}
+    assert done == {"plot"} and not q(conn, "SELECT 1 FROM chunks WHERE type='plot' AND embedding IS NULL")
+    rows = collect.search_chunks(conn, [0.1] * 1024, watched={MHA: 49}, k=1000)
+    assert {r["type"] for r in rows} == {"plot"} and max(r["abs_ep"] for r in rows) == 49
+    conn.execute("DROP INDEX chunks_embedding_idx")       # 다른 테스트는 인덱스 없이 전체를 훑어 개수를 셈
+    conn.execute("UPDATE chunks SET embedding = array_fill(0.1, ARRAY[1024])::vector WHERE embedding IS NULL")
 
 
 def test_character_debut_episode_from_fandom(db):
@@ -344,8 +362,8 @@ def test_character_debut_episode_from_fandom(db):
     conn.execute("UPDATE episodes SET characters = '{}' WHERE series_id=%s AND abs_ep < 30", (MHA,))
     collect.STEPS["chunks"](conn, argparse.Namespace(limit=None, series=MHA))
     assert q(conn, "SELECT abs_ep FROM chunks WHERE chunk_id=%s", f"{MHA}:char:99")[0]["abs_ep"] == 30
-    conn.execute("UPDATE chunks SET embedding = array_fill(0.1, ARRAY[768])::vector WHERE embedding IS NULL")
-    ids = lambda w: {r["chunk_id"] for r in collect.search_chunks(conn, [0.1] * 768, watched={MHA: w}, k=1000)}
+    conn.execute("UPDATE chunks SET embedding = array_fill(0.1, ARRAY[1024])::vector WHERE embedding IS NULL")
+    ids = lambda w: {r["chunk_id"] for r in collect.search_chunks(conn, [0.1] * 1024, watched={MHA: w}, k=1000)}
     assert f"{MHA}:char:99" not in ids(29) and f"{MHA}:char:99" in ids(30)
 
 
@@ -400,6 +418,19 @@ def test_chunks_are_cleaned_and_empty_or_repeated_ones_dropped():
     assert out["e2"][5].split("\n")[1].startswith("Bam faces")
 
 
+def test_plot_noise_is_removed():
+    """줄거리에서 위키 탭 표시, 일본어·로마자 원문, 이름만 있는 줄은 빠지고 영어 탭의 내용과 짧은 문장은 남는다."""
+    tabbed = ("Japanese=上空一万メートルを飛ぶ飛行機がハイジャックされた。\n\n|-|Romaji=Joukuu ichiman meetoru wo tobu hikouki.\n"
+              "|-|English=A plane flying at ten thousand meters is hijacked.\nSiesta names him her assistant.")
+    assert collect.clean_plot(tabbed) == "A plane flying at ten thousand meters is hijacked.\nSiesta names him her assistant."
+    sites = "|-|Netflix=\nSakamoto enjoys a quiet life.\n|-|JPN=\n最強の殺し屋がいた、その名も坂本太郎。"
+    assert collect.clean_plot(sites) == "Sakamoto enjoys a quiet life."
+    listed = 'Sakata Gintoki\nTurn 3: Yuma\nThe duel begins.\nYugi: "Grandpa, I\'m going!"\n' + "Kagura (神楽) eats. " * 5
+    assert collect.clean_plot(listed).split("\n") == ["The duel begins.", 'Yugi: "Grandpa, I\'m going!"',
+                                                      ("Kagura (神楽) eats. " * 5).strip()]
+    assert collect.clean_plot(None) == ""
+
+
 def test_wiki_markup_keeps_the_subject_and_line_breaks():
     p = collect.parse_episode_wikitext("{{Infobox episode|chapters=[[Chapter 1]]<br>[[Chapter 2]]|a=1|b=2}}\n==Summary==\n"
                                        "{{Nihongo|\'\'\'Jujutsu\'\'\'|呪術|Jujutsu}}, also known as sorcery.<br>\n<br>\nIt is used by sorcerers.")
@@ -411,6 +442,13 @@ def test_plot_inside_scroll_box_is_kept():
     text = "{{Episode|name=A|season=1|episode=2}}\n==Detailed Summary==\n{{Scroll Box|height=400px|content=\n" \
            "Bam faces the test alone. [[Rak]] attacks him.}}\n==Gallery==\n"
     assert "Bam faces the test alone. Rak attacks him." in collect.parse_episode_wikitext(text)["plot"]
+
+
+def test_placeholder_plot_is_not_stored():
+    """위키가 줄거리 자리에 넣어 둔 자리채움 문구는 줄거리로 저장하지 않는다."""
+    for filler in ("TBA", "To be added.", "Summarize the episode here.", "Missing", "Need translation of regular Japanese summary."):
+        p = collect.parse_episode_wikitext("{{Episode|name=A|episode=2}}\n==Summary==\n" + filler + "\n==Gallery==\n")
+        assert p["plot"] == "" and filler not in p["synopsis"], filler
 
 
 def test_wiki_pages_become_gated_chunks(db):
@@ -425,11 +463,23 @@ def test_wiki_pages_become_gated_chunks(db):
     assert "black hair" in text and "killed by" not in text and "dies before" not in text and "Mangaonly" not in text
 
 
+def test_shared_wiki_page_stays_with_best_evidence():
+    """한 위키 문서를 여러 시리즈가 가져가면 방영일·제목이 맞는 쪽 > 사람이 고른 위키 > 인기 많은 쪽에만 남는다."""
+    claims = {
+        ("w", "Episode 1"): {"main": (True, True, False, 900), "spinoff": (False, False, False, 10)},
+        ("w", "Episode 2"): {"main": (False, False, False, 900), "remake": (True, False, False, 50)},
+        ("w", "Episode 3"): {"main": (False, False, False, 900), "spinoff": (False, False, False, 10)},
+        ("w", "Episode 4"): {"main": (False, False, True, 900)},
+    }
+    assert collect.shared_page_losers(claims) == {"spinoff": ["Episode 1", "Episode 3"], "main": ["Episode 2"]}
+
+
 def test_migrate_moves_only_series_with_plot(db):
     """서비스용 DB에는 상세 줄거리가 기준 이상인 시리즈만 가고, 옮긴 뒤에도 스포일러 차단이 그대로 동작한다."""
     conn, _ = db
     name = conn.info.dbname + "_service"
     before = {t: q(conn, f"SELECT count(*) n FROM {t}")[0]["n"] for t in ("series", "episodes", "chunks")}
+    conn.execute(f'DROP DATABASE IF EXISTS "{name}"')      # 예전 실행이 남긴 DB는 임베딩 차원이 다를 수 있음
     collect.step_migrate(conn, argparse.Namespace(to=name, min_fill=0.9))
     collect.step_migrate(conn, argparse.Namespace(to=name, min_fill=0.9))      # 다시 실행해도 같은 결과
     url = psycopg.conninfo.make_conninfo(collect.DB_URL, dbname=name)
@@ -441,7 +491,7 @@ def test_migrate_moves_only_series_with_plot(db):
         pages = q(dst, "SELECT count(*) n, count(wikitext) raw FROM wiki_pages")[0]
         assert pages["n"] == q(conn, "SELECT count(*) n FROM wiki_pages")[0]["n"] and pages["raw"] == 0
         assert q(dst, "SELECT count(*) n FROM raw")[0]["n"] == 0
-        vec = [random.Random(1).uniform(-1, 1) for _ in range(768)]
+        vec = [random.Random(1).uniform(-1, 1) for _ in range(1024)]
         rows = collect.search_chunks(dst, vec, watched={MHA: 13}, k=50)
         assert rows and all(r["abs_ep"] is None or r["abs_ep"] <= 13 for r in rows)
     with pytest.raises(SystemExit):      # 수집 DB 자신으로는 옮기지 않음
