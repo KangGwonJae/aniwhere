@@ -18,7 +18,7 @@ index:
 	$(COLLECT) embed --limit $(LIMIT)
 
 run:
-	@echo "TODO: 데모 실행 명령 연결"
+	.venv/bin/streamlit run aniwhere/app/demo.py
 
 test:
 	.venv/bin/python -m pytest tests
