@@ -17,6 +17,9 @@ data/index/*
 *.sqlite
 *.sqlite3
 *.db
+# 서비스용 DB 덤프 (make db-dump). 클라우드로 공유
+data/dump/
+*.dump
 
 # 평가 결과 중 대용량 임시 파일
 eval/results/*.tmp
