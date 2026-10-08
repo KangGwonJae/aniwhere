@@ -28,9 +28,13 @@ def _by_episode(chunks, prefer):
 def _context(db, series_id, seen_ep, mode, question, budget):
     """[(청크, LLM에 보여 줄 글자 수)]"""
     if mode == "ask":
-        hits = search_chunks(db, embed_query(question), watched={series_id: seen_ep}, series_id=series_id)
-        hits = sorted(hits, key=lambda c: c["abs_ep"] or 0)
-        return [(c, budget // max(len(hits), 1)) for c in hits]
+        # 작게 찾고 크게 읽기: 질문과 맞는 장면을 찾고, 가장 잘 맞은 세 회차는 상세 줄거리 전체를 읽음
+        hits = search_chunks(db, embed_query(question), watched={series_id: seen_ep}, series_id=series_id, k=8)
+        top = list(dict.fromkeys(c["abs_ep"] for c in hits if c["abs_ep"]))[:3]
+        plots = chunks_upto(db, series_id, seen_ep=seen_ep, types=["plot"], only_eps=top) if top else []
+        rest = [c for c in hits if c["abs_ep"] not in {p["abs_ep"] for p in plots}]
+        chunks = sorted(plots + rest, key=lambda c: (c["abs_ep"] or 0, c["chunk_id"]))
+        return [(c, budget // max(len(chunks), 1)) for c in chunks]
     if mode == "last":
         # 마지막으로 본 화는 상세 줄거리 통째로, 바로 앞 두 화는 짧은 요약으로 (어떤 흐름에서 이어졌는지)
         chunks = _by_episode(chunks_upto(db, series_id, seen_ep=seen_ep, from_ep=max(1, seen_ep - 2),
