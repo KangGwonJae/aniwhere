@@ -1,0 +1,2503 @@
+{
+  "date": "2026-10-08",
+  "questions_file": "questions.jsonl",
+  "questions": 75,
+  "episodes": 320,
+  "embedding": "BAAI/bge-m3",
+  "chunks": {
+    "paragraph": {
+      "count": 4640,
+      "avg_chars": 581
+    },
+    "overlap": {
+      "count": 4640,
+      "avg_chars": 831
+    },
+    "semantic": {
+      "count": 4640,
+      "avg_chars": 581
+    },
+    "fixed": {
+      "count": 3751,
+      "avg_chars": 710
+    },
+    "plot": {
+      "count": 320,
+      "avg_chars": 7891
+    }
+  },
+  "summary": {
+    "전체": {
+      "paragraph": {
+        "n": 75,
+        "작품 안 1위": 0.6266666666666667,
+        "작품 안 3위 안": 0.7866666666666666,
+        "작품 안 8위 안": 0.8533333333333334,
+        "작품 안 MRR": 0.7187109904390607,
+        "3작품 전체: 작품 1위": 0.8933333333333333,
+        "3작품 전체: 회차 8위 안": 0.8533333333333334
+      },
+      "overlap": {
+        "n": 75,
+        "작품 안 1위": 0.4666666666666667,
+        "작품 안 3위 안": 0.6666666666666666,
+        "작품 안 8위 안": 0.8133333333333334,
+        "작품 안 MRR": 0.5923760722508873,
+        "3작품 전체: 작품 1위": 0.8933333333333333,
+        "3작품 전체: 회차 8위 안": 0.76
+      },
+      "semantic": {
+        "n": 75,
+        "작품 안 1위": 0.48,
+        "작품 안 3위 안": 0.68,
+        "작품 안 8위 안": 0.76,
+        "작품 안 MRR": 0.5970494578889297,
+        "3작품 전체: 작품 1위": 0.88,
+        "3작품 전체: 회차 8위 안": 0.7066666666666667
+      },
+      "fixed": {
+        "n": 75,
+        "작품 안 1위": 0.4266666666666667,
+        "작품 안 3위 안": 0.6533333333333333,
+        "작품 안 8위 안": 0.7866666666666666,
+        "작품 안 MRR": 0.5601703925086221,
+        "3작품 전체: 작품 1위": 0.92,
+        "3작품 전체: 회차 8위 안": 0.7466666666666667
+      },
+      "plot": {
+        "n": 75,
+        "작품 안 1위": 0.2,
+        "작품 안 3위 안": 0.37333333333333335,
+        "작품 안 8위 안": 0.5333333333333333,
+        "작품 안 MRR": 0.3312081777321969,
+        "3작품 전체: 작품 1위": 0.8533333333333334,
+        "3작품 전체: 회차 8위 안": 0.48
+      }
+    },
+    "이름을 말한 질문": {
+      "paragraph": {
+        "n": 39,
+        "작품 안 1위": 0.6923076923076923,
+        "작품 안 3위 안": 0.8205128205128205,
+        "작품 안 8위 안": 0.8974358974358975,
+        "작품 안 MRR": 0.7753510378510378,
+        "3작품 전체: 작품 1위": 1.0,
+        "3작품 전체: 회차 8위 안": 0.8974358974358975
+      },
+      "overlap": {
+        "n": 39,
+        "작품 안 1위": 0.5384615384615384,
+        "작품 안 3위 안": 0.7948717948717948,
+        "작품 안 8위 안": 0.9230769230769231,
+        "작품 안 MRR": 0.6747065132934699,
+        "3작품 전체: 작품 1위": 0.9487179487179487,
+        "3작품 전체: 회차 8위 안": 0.8974358974358975
+      },
+      "semantic": {
+        "n": 39,
+        "작품 안 1위": 0.5897435897435898,
+        "작품 안 3위 안": 0.7948717948717948,
+        "작품 안 8위 안": 0.8974358974358975,
+        "작품 안 MRR": 0.7069174415328261,
+        "3작품 전체: 작품 1위": 0.9743589743589743,
+        "3작품 전체: 회차 8위 안": 0.8717948717948718
+      },
+      "fixed": {
+        "n": 39,
+        "작품 안 1위": 0.5641025641025641,
+        "작품 안 3위 안": 0.7435897435897436,
+        "작품 안 8위 안": 0.8717948717948718,
+        "작품 안 MRR": 0.6682028666340407,
+        "3작품 전체: 작품 1위": 0.9743589743589743,
+        "3작품 전체: 회차 8위 안": 0.8461538461538461
+      },
+      "plot": {
+        "n": 39,
+        "작품 안 1위": 0.2564102564102564,
+        "작품 안 3위 안": 0.4358974358974359,
+        "작품 안 8위 안": 0.6410256410256411,
+        "작품 안 MRR": 0.3939500314500314,
+        "3작품 전체: 작품 1위": 0.8974358974358975,
+        "3작품 전체: 회차 8위 안": 0.5641025641025641
+      }
+    },
+    "이름 없이 묘사한 질문": {
+      "paragraph": {
+        "n": 36,
+        "작품 안 1위": 0.5555555555555556,
+        "작품 안 3위 안": 0.75,
+        "작품 안 8위 안": 0.8055555555555556,
+        "작품 안 MRR": 0.6573509390760853,
+        "3작품 전체: 작품 1위": 0.7777777777777778,
+        "3작품 전체: 회차 8위 안": 0.8055555555555556
+      },
+      "overlap": {
+        "n": 36,
+        "작품 안 1위": 0.3888888888888889,
+        "작품 안 3위 안": 0.5277777777777778,
+        "작품 안 8위 안": 0.6944444444444444,
+        "작품 안 MRR": 0.5031847611214225,
+        "3작품 전체: 작품 1위": 0.8333333333333334,
+        "3작품 전체: 회차 8위 안": 0.6111111111111112
+      },
+      "semantic": {
+        "n": 36,
+        "작품 안 1위": 0.3611111111111111,
+        "작품 안 3위 안": 0.5555555555555556,
+        "작품 안 8위 안": 0.6111111111111112,
+        "작품 안 MRR": 0.47802580894137503,
+        "3작품 전체: 작품 1위": 0.7777777777777778,
+        "3작품 전체: 회차 8위 안": 0.5277777777777778
+      },
+      "fixed": {
+        "n": 36,
+        "작품 안 1위": 0.2777777777777778,
+        "작품 안 3위 안": 0.5555555555555556,
+        "작품 안 8위 안": 0.6944444444444444,
+        "작품 안 MRR": 0.4431352122060852,
+        "3작품 전체: 작품 1위": 0.8611111111111112,
+        "3작품 전체: 회차 8위 안": 0.6388888888888888
+      },
+      "plot": {
+        "n": 36,
+        "작품 안 1위": 0.1388888888888889,
+        "작품 안 3위 안": 0.3055555555555556,
+        "작품 안 8위 안": 0.4166666666666667,
+        "작품 안 MRR": 0.26323783620454283,
+        "3작품 전체: 작품 1위": 0.8055555555555556,
+        "3작품 전체: 회차 8위 안": 0.3888888888888889
+      }
+    },
+    "근거가 paragraph 경계에 걸린 질문": {
+      "paragraph": {
+        "n": 0,
+        "작품 안 1위": 0.0,
+        "작품 안 3위 안": 0.0,
+        "작품 안 8위 안": 0.0,
+        "작품 안 MRR": 0.0,
+        "3작품 전체: 작품 1위": 0.0,
+        "3작품 전체: 회차 8위 안": 0.0
+      },
+      "overlap": {
+        "n": 0,
+        "작품 안 1위": 0.0,
+        "작품 안 3위 안": 0.0,
+        "작품 안 8위 안": 0.0,
+        "작품 안 MRR": 0.0,
+        "3작품 전체: 작품 1위": 0.0,
+        "3작품 전체: 회차 8위 안": 0.0
+      },
+      "semantic": {
+        "n": 0,
+        "작품 안 1위": 0.0,
+        "작품 안 3위 안": 0.0,
+        "작품 안 8위 안": 0.0,
+        "작품 안 MRR": 0.0,
+        "3작품 전체: 작품 1위": 0.0,
+        "3작품 전체: 회차 8위 안": 0.0
+      },
+      "fixed": {
+        "n": 0,
+        "작품 안 1위": 0.0,
+        "작품 안 3위 안": 0.0,
+        "작품 안 8위 안": 0.0,
+        "작품 안 MRR": 0.0,
+        "3작품 전체: 작품 1위": 0.0,
+        "3작품 전체: 회차 8위 안": 0.0
+      },
+      "plot": {
+        "n": 0,
+        "작품 안 1위": 0.0,
+        "작품 안 3위 안": 0.0,
+        "작품 안 8위 안": 0.0,
+        "작품 안 MRR": 0.0,
+        "3작품 전체: 작품 1위": 0.0,
+        "3작품 전체: 회차 8위 안": 0.0
+      }
+    }
+  },
+  "paired_vs_paragraph": {
+    "overlap": {
+      "이김": 12,
+      "짐": 26,
+      "같음": 37
+    },
+    "semantic": {
+      "이김": 9,
+      "짐": 28,
+      "같음": 38
+    },
+    "fixed": {
+      "이김": 11,
+      "짐": 31,
+      "같음": 33
+    },
+    "plot": {
+      "이김": 11,
+      "짐": 49,
+      "같음": 15
+    }
+  },
+  "rows": {
+    "paragraph": [
+      {
+        "id": "manual:1",
+        "in_series": 3,
+        "global": 3,
+        "series": 1
+      },
+      {
+        "id": "manual:2",
+        "in_series": 5,
+        "global": 5,
+        "series": 1
+      },
+      {
+        "id": "manual:3",
+        "in_series": 12,
+        "global": 44,
+        "series": 1
+      },
+      {
+        "id": "manual:4",
+        "in_series": 4,
+        "global": 4,
+        "series": 1
+      },
+      {
+        "id": "manual:5",
+        "in_series": 16,
+        "global": 16,
+        "series": 1
+      },
+      {
+        "id": "manual:6",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "manual:7",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:7:2:named",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:7:2:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:8:3:named",
+        "in_series": 4,
+        "global": 4,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:8:3:unnamed",
+        "in_series": 12,
+        "global": 12,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:10:1:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:10:1:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:13:7:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:13:7:unnamed",
+        "in_series": 3,
+        "global": 3,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:20:6:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:20:6:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:42:11:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:42:11:unnamed",
+        "in_series": 1,
+        "global": 2,
+        "series": 2
+      },
+      {
+        "id": "tmdb:1429:event:47:13:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:47:13:unnamed",
+        "in_series": 1,
+        "global": 3,
+        "series": 2
+      },
+      {
+        "id": "tmdb:1429:event:51:10:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:51:10:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:65:8:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:65:8:unnamed",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:69:16:named",
+        "in_series": 15,
+        "global": 35,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:69:16:unnamed",
+        "in_series": 57,
+        "global": 280,
+        "series": 3
+      },
+      {
+        "id": "tmdb:1429:event:75:1:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:75:1:unnamed",
+        "in_series": 3,
+        "global": 3,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:84:9:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:84:9:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:4:1:named",
+        "in_series": 10,
+        "global": 63,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:4:1:unnamed",
+        "in_series": 9,
+        "global": 13,
+        "series": 2
+      },
+      {
+        "id": "tmdb:85937:event:8:13:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:8:13:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:15:13:named",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:15:13:unnamed",
+        "in_series": 15,
+        "global": 16,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:26:25:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:26:25:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:38:4:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:38:4:unnamed",
+        "in_series": 3,
+        "global": 4,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:41:11:named",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:41:11:unnamed",
+        "in_series": 18,
+        "global": 30,
+        "series": 2
+      },
+      {
+        "id": "tmdb:85937:event:58:8:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:58:8:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:60:14:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:60:14:unnamed",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:61:12:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:61:12:unnamed",
+        "in_series": 1,
+        "global": 8,
+        "series": 3
+      },
+      {
+        "id": "tmdb:85937:event:62:8:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:62:8:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:16:7:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:16:7:unnamed",
+        "in_series": 3,
+        "global": 3,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:17:9:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:17:9:unnamed",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:25:6:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:25:6:unnamed",
+        "in_series": 5,
+        "global": 5,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:49:5:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:49:5:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:53:6:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:53:6:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:96:8:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:96:8:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:128:5:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:128:5:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:141:13:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:141:13:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:145:2:named",
+        "in_series": 7,
+        "global": 7,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:145:2:unnamed",
+        "in_series": 54,
+        "global": 59,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:147:13:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:147:13:unnamed",
+        "in_series": 1,
+        "global": 2,
+        "series": 2
+      },
+      {
+        "id": "tmdb:65930:event:159:19:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:159:19:unnamed",
+        "in_series": 35,
+        "global": 39,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:164:11:named",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:164:11:unnamed",
+        "in_series": 1,
+        "global": 5,
+        "series": 2
+      }
+    ],
+    "overlap": [
+      {
+        "id": "manual:1",
+        "in_series": 4,
+        "global": 4,
+        "series": 1
+      },
+      {
+        "id": "manual:2",
+        "in_series": 3,
+        "global": 3,
+        "series": 1
+      },
+      {
+        "id": "manual:3",
+        "in_series": 6,
+        "global": 23,
+        "series": 1
+      },
+      {
+        "id": "manual:4",
+        "in_series": 19,
+        "global": 19,
+        "series": 1
+      },
+      {
+        "id": "manual:5",
+        "in_series": 23,
+        "global": 25,
+        "series": 1
+      },
+      {
+        "id": "manual:6",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "manual:7",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:7:2:named",
+        "in_series": 2,
+        "global": 3,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:7:2:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:8:3:named",
+        "in_series": 5,
+        "global": 5,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:8:3:unnamed",
+        "in_series": 9,
+        "global": 9,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:10:1:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:10:1:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:13:7:named",
+        "in_series": 3,
+        "global": 3,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:13:7:unnamed",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:20:6:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:20:6:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:42:11:named",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:42:11:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:47:13:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:47:13:unnamed",
+        "in_series": 5,
+        "global": 36,
+        "series": 2
+      },
+      {
+        "id": "tmdb:1429:event:51:10:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:51:10:unnamed",
+        "in_series": 4,
+        "global": 4,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:65:8:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:65:8:unnamed",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:69:16:named",
+        "in_series": 16,
+        "global": 40,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:69:16:unnamed",
+        "in_series": 36,
+        "global": 242,
+        "series": 3
+      },
+      {
+        "id": "tmdb:1429:event:75:1:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:75:1:unnamed",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:84:9:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:84:9:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:4:1:named",
+        "in_series": 11,
+        "global": 54,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:4:1:unnamed",
+        "in_series": 7,
+        "global": 11,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:8:13:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:8:13:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:15:13:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:15:13:unnamed",
+        "in_series": 12,
+        "global": 15,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:26:25:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:26:25:unnamed",
+        "in_series": 5,
+        "global": 20,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:38:4:named",
+        "in_series": 3,
+        "global": 3,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:38:4:unnamed",
+        "in_series": 19,
+        "global": 28,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:41:11:named",
+        "in_series": 2,
+        "global": 4,
+        "series": 2
+      },
+      {
+        "id": "tmdb:85937:event:41:11:unnamed",
+        "in_series": 52,
+        "global": 148,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:58:8:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:58:8:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:60:14:named",
+        "in_series": 3,
+        "global": 4,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:60:14:unnamed",
+        "in_series": 17,
+        "global": 27,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:61:12:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:61:12:unnamed",
+        "in_series": 1,
+        "global": 2,
+        "series": 2
+      },
+      {
+        "id": "tmdb:85937:event:62:8:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:62:8:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:16:7:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:16:7:unnamed",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:17:9:named",
+        "in_series": 4,
+        "global": 5,
+        "series": 2
+      },
+      {
+        "id": "tmdb:65930:event:17:9:unnamed",
+        "in_series": 4,
+        "global": 8,
+        "series": 2
+      },
+      {
+        "id": "tmdb:65930:event:25:6:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:25:6:unnamed",
+        "in_series": 7,
+        "global": 7,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:49:5:named",
+        "in_series": 4,
+        "global": 4,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:49:5:unnamed",
+        "in_series": 3,
+        "global": 3,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:53:6:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:53:6:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:96:8:named",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:96:8:unnamed",
+        "in_series": 12,
+        "global": 20,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:128:5:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:128:5:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:141:13:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:141:13:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:145:2:named",
+        "in_series": 3,
+        "global": 3,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:145:2:unnamed",
+        "in_series": 52,
+        "global": 57,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:147:13:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:147:13:unnamed",
+        "in_series": 1,
+        "global": 2,
+        "series": 2
+      },
+      {
+        "id": "tmdb:65930:event:159:19:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:159:19:unnamed",
+        "in_series": 48,
+        "global": 68,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:164:11:named",
+        "in_series": 3,
+        "global": 3,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:164:11:unnamed",
+        "in_series": 15,
+        "global": 45,
+        "series": 2
+      }
+    ],
+    "semantic": [
+      {
+        "id": "manual:1",
+        "in_series": 4,
+        "global": 4,
+        "series": 1
+      },
+      {
+        "id": "manual:2",
+        "in_series": 5,
+        "global": 5,
+        "series": 1
+      },
+      {
+        "id": "manual:3",
+        "in_series": 15,
+        "global": 37,
+        "series": 1
+      },
+      {
+        "id": "manual:4",
+        "in_series": 16,
+        "global": 16,
+        "series": 1
+      },
+      {
+        "id": "manual:5",
+        "in_series": 3,
+        "global": 3,
+        "series": 1
+      },
+      {
+        "id": "manual:6",
+        "in_series": 1,
+        "global": 2,
+        "series": 2
+      },
+      {
+        "id": "manual:7",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:7:2:named",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:7:2:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:8:3:named",
+        "in_series": 7,
+        "global": 7,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:8:3:unnamed",
+        "in_series": 17,
+        "global": 18,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:10:1:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:10:1:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:13:7:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:13:7:unnamed",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:20:6:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:20:6:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:42:11:named",
+        "in_series": 6,
+        "global": 8,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:42:11:unnamed",
+        "in_series": 3,
+        "global": 4,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:47:13:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:47:13:unnamed",
+        "in_series": 1,
+        "global": 5,
+        "series": 3
+      },
+      {
+        "id": "tmdb:1429:event:51:10:named",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:51:10:unnamed",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:65:8:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:65:8:unnamed",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:69:16:named",
+        "in_series": 18,
+        "global": 48,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:69:16:unnamed",
+        "in_series": 57,
+        "global": 274,
+        "series": 3
+      },
+      {
+        "id": "tmdb:1429:event:75:1:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:75:1:unnamed",
+        "in_series": 4,
+        "global": 4,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:84:9:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:84:9:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:4:1:named",
+        "in_series": 3,
+        "global": 16,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:4:1:unnamed",
+        "in_series": 7,
+        "global": 10,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:8:13:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:8:13:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:15:13:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:15:13:unnamed",
+        "in_series": 11,
+        "global": 15,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:26:25:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:26:25:unnamed",
+        "in_series": 37,
+        "global": 113,
+        "series": 2
+      },
+      {
+        "id": "tmdb:85937:event:38:4:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:38:4:unnamed",
+        "in_series": 21,
+        "global": 34,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:41:11:named",
+        "in_series": 2,
+        "global": 4,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:41:11:unnamed",
+        "in_series": 51,
+        "global": 155,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:58:8:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:58:8:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:60:14:named",
+        "in_series": 3,
+        "global": 5,
+        "series": 2
+      },
+      {
+        "id": "tmdb:85937:event:60:14:unnamed",
+        "in_series": 18,
+        "global": 32,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:61:12:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:61:12:unnamed",
+        "in_series": 2,
+        "global": 15,
+        "series": 3
+      },
+      {
+        "id": "tmdb:85937:event:62:8:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:62:8:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:16:7:named",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:16:7:unnamed",
+        "in_series": 14,
+        "global": 15,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:17:9:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:17:9:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:25:6:named",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:25:6:unnamed",
+        "in_series": 20,
+        "global": 21,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:49:5:named",
+        "in_series": 9,
+        "global": 9,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:49:5:unnamed",
+        "in_series": 19,
+        "global": 22,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:53:6:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:53:6:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:96:8:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:96:8:unnamed",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:128:5:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:128:5:unnamed",
+        "in_series": 3,
+        "global": 9,
+        "series": 2
+      },
+      {
+        "id": "tmdb:65930:event:141:13:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:141:13:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:145:2:named",
+        "in_series": 13,
+        "global": 13,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:145:2:unnamed",
+        "in_series": 92,
+        "global": 119,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:147:13:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:147:13:unnamed",
+        "in_series": 1,
+        "global": 2,
+        "series": 2
+      },
+      {
+        "id": "tmdb:65930:event:159:19:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:159:19:unnamed",
+        "in_series": 31,
+        "global": 33,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:164:11:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:164:11:unnamed",
+        "in_series": 19,
+        "global": 57,
+        "series": 2
+      }
+    ],
+    "fixed": [
+      {
+        "id": "manual:1",
+        "in_series": 4,
+        "global": 4,
+        "series": 1
+      },
+      {
+        "id": "manual:2",
+        "in_series": 3,
+        "global": 3,
+        "series": 1
+      },
+      {
+        "id": "manual:3",
+        "in_series": 5,
+        "global": 8,
+        "series": 1
+      },
+      {
+        "id": "manual:4",
+        "in_series": 19,
+        "global": 19,
+        "series": 1
+      },
+      {
+        "id": "manual:5",
+        "in_series": 13,
+        "global": 13,
+        "series": 1
+      },
+      {
+        "id": "manual:6",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "manual:7",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:7:2:named",
+        "in_series": 2,
+        "global": 10,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:7:2:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:8:3:named",
+        "in_series": 8,
+        "global": 8,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:8:3:unnamed",
+        "in_series": 20,
+        "global": 22,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:10:1:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:10:1:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:13:7:named",
+        "in_series": 3,
+        "global": 3,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:13:7:unnamed",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:20:6:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:20:6:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:42:11:named",
+        "in_series": 19,
+        "global": 53,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:42:11:unnamed",
+        "in_series": 6,
+        "global": 26,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:47:13:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:47:13:unnamed",
+        "in_series": 12,
+        "global": 61,
+        "series": 3
+      },
+      {
+        "id": "tmdb:1429:event:51:10:named",
+        "in_series": 7,
+        "global": 7,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:51:10:unnamed",
+        "in_series": 5,
+        "global": 5,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:65:8:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:65:8:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:69:16:named",
+        "in_series": 30,
+        "global": 85,
+        "series": 2
+      },
+      {
+        "id": "tmdb:1429:event:69:16:unnamed",
+        "in_series": 48,
+        "global": 255,
+        "series": 3
+      },
+      {
+        "id": "tmdb:1429:event:75:1:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:75:1:unnamed",
+        "in_series": 4,
+        "global": 4,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:84:9:named",
+        "in_series": 3,
+        "global": 3,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:84:9:unnamed",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:4:1:named",
+        "in_series": 16,
+        "global": 86,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:4:1:unnamed",
+        "in_series": 5,
+        "global": 9,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:8:13:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:8:13:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:15:13:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:15:13:unnamed",
+        "in_series": 11,
+        "global": 17,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:26:25:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:26:25:unnamed",
+        "in_series": 12,
+        "global": 42,
+        "series": 2
+      },
+      {
+        "id": "tmdb:85937:event:38:4:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:38:4:unnamed",
+        "in_series": 23,
+        "global": 33,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:41:11:named",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:41:11:unnamed",
+        "in_series": 37,
+        "global": 88,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:58:8:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:58:8:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:60:14:named",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:60:14:unnamed",
+        "in_series": 4,
+        "global": 6,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:61:12:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:61:12:unnamed",
+        "in_series": 2,
+        "global": 3,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:62:8:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:62:8:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:16:7:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:16:7:unnamed",
+        "in_series": 3,
+        "global": 3,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:17:9:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:17:9:unnamed",
+        "in_series": 3,
+        "global": 4,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:25:6:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:25:6:unnamed",
+        "in_series": 3,
+        "global": 3,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:49:5:named",
+        "in_series": 5,
+        "global": 5,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:49:5:unnamed",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:53:6:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:53:6:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:96:8:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:96:8:unnamed",
+        "in_series": 3,
+        "global": 3,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:128:5:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:128:5:unnamed",
+        "in_series": 2,
+        "global": 7,
+        "series": 3
+      },
+      {
+        "id": "tmdb:65930:event:141:13:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:141:13:unnamed",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:145:2:named",
+        "in_series": 12,
+        "global": 12,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:145:2:unnamed",
+        "in_series": 82,
+        "global": 99,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:147:13:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:147:13:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:159:19:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:159:19:unnamed",
+        "in_series": 17,
+        "global": 23,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:164:11:named",
+        "in_series": 3,
+        "global": 3,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:164:11:unnamed",
+        "in_series": 33,
+        "global": 82,
+        "series": 2
+      }
+    ],
+    "plot": [
+      {
+        "id": "manual:1",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "manual:2",
+        "in_series": 4,
+        "global": 4,
+        "series": 1
+      },
+      {
+        "id": "manual:3",
+        "in_series": 11,
+        "global": 21,
+        "series": 1
+      },
+      {
+        "id": "manual:4",
+        "in_series": 20,
+        "global": 21,
+        "series": 1
+      },
+      {
+        "id": "manual:5",
+        "in_series": 12,
+        "global": 12,
+        "series": 1
+      },
+      {
+        "id": "manual:6",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "manual:7",
+        "in_series": 9,
+        "global": 10,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:7:2:named",
+        "in_series": 2,
+        "global": 7,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:7:2:unnamed",
+        "in_series": 14,
+        "global": 20,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:8:3:named",
+        "in_series": 16,
+        "global": 16,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:8:3:unnamed",
+        "in_series": 23,
+        "global": 23,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:10:1:named",
+        "in_series": 10,
+        "global": 43,
+        "series": 2
+      },
+      {
+        "id": "tmdb:1429:event:10:1:unnamed",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:13:7:named",
+        "in_series": 3,
+        "global": 3,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:13:7:unnamed",
+        "in_series": 3,
+        "global": 3,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:20:6:named",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:20:6:unnamed",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:42:11:named",
+        "in_series": 40,
+        "global": 123,
+        "series": 2
+      },
+      {
+        "id": "tmdb:1429:event:42:11:unnamed",
+        "in_series": 76,
+        "global": 262,
+        "series": 3
+      },
+      {
+        "id": "tmdb:1429:event:47:13:named",
+        "in_series": 7,
+        "global": 10,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:47:13:unnamed",
+        "in_series": 65,
+        "global": 196,
+        "series": 3
+      },
+      {
+        "id": "tmdb:1429:event:51:10:named",
+        "in_series": 12,
+        "global": 12,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:51:10:unnamed",
+        "in_series": 14,
+        "global": 14,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:65:8:named",
+        "in_series": 7,
+        "global": 7,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:65:8:unnamed",
+        "in_series": 54,
+        "global": 76,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:69:16:named",
+        "in_series": 4,
+        "global": 16,
+        "series": 3
+      },
+      {
+        "id": "tmdb:1429:event:69:16:unnamed",
+        "in_series": 17,
+        "global": 126,
+        "series": 3
+      },
+      {
+        "id": "tmdb:1429:event:75:1:named",
+        "in_series": 3,
+        "global": 3,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:75:1:unnamed",
+        "in_series": 12,
+        "global": 12,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:84:9:named",
+        "in_series": 44,
+        "global": 44,
+        "series": 1
+      },
+      {
+        "id": "tmdb:1429:event:84:9:unnamed",
+        "in_series": 14,
+        "global": 20,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:4:1:named",
+        "in_series": 2,
+        "global": 3,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:4:1:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:8:13:named",
+        "in_series": 16,
+        "global": 16,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:8:13:unnamed",
+        "in_series": 14,
+        "global": 14,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:15:13:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:15:13:unnamed",
+        "in_series": 5,
+        "global": 6,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:26:25:named",
+        "in_series": 4,
+        "global": 4,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:26:25:unnamed",
+        "in_series": 2,
+        "global": 2,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:38:4:named",
+        "in_series": 12,
+        "global": 12,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:38:4:unnamed",
+        "in_series": 5,
+        "global": 7,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:41:11:named",
+        "in_series": 3,
+        "global": 5,
+        "series": 2
+      },
+      {
+        "id": "tmdb:85937:event:41:11:unnamed",
+        "in_series": 12,
+        "global": 15,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:58:8:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:58:8:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:60:14:named",
+        "in_series": 12,
+        "global": 16,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:60:14:unnamed",
+        "in_series": 26,
+        "global": 35,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:61:12:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:61:12:unnamed",
+        "in_series": 3,
+        "global": 10,
+        "series": 3
+      },
+      {
+        "id": "tmdb:85937:event:62:8:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:85937:event:62:8:unnamed",
+        "in_series": 4,
+        "global": 4,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:16:7:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:16:7:unnamed",
+        "in_series": 3,
+        "global": 3,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:17:9:named",
+        "in_series": 22,
+        "global": 45,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:17:9:unnamed",
+        "in_series": 11,
+        "global": 13,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:25:6:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:25:6:unnamed",
+        "in_series": 10,
+        "global": 11,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:49:5:named",
+        "in_series": 5,
+        "global": 5,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:49:5:unnamed",
+        "in_series": 14,
+        "global": 23,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:53:6:named",
+        "in_series": 3,
+        "global": 3,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:53:6:unnamed",
+        "in_series": 29,
+        "global": 30,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:96:8:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:96:8:unnamed",
+        "in_series": 1,
+        "global": 3,
+        "series": 3
+      },
+      {
+        "id": "tmdb:65930:event:128:5:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:128:5:unnamed",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:141:13:named",
+        "in_series": 7,
+        "global": 7,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:141:13:unnamed",
+        "in_series": 6,
+        "global": 6,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:145:2:named",
+        "in_series": 9,
+        "global": 9,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:145:2:unnamed",
+        "in_series": 73,
+        "global": 100,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:147:13:named",
+        "in_series": 1,
+        "global": 1,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:147:13:unnamed",
+        "in_series": 9,
+        "global": 11,
+        "series": 2
+      },
+      {
+        "id": "tmdb:65930:event:159:19:named",
+        "in_series": 8,
+        "global": 9,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:159:19:unnamed",
+        "in_series": 81,
+        "global": 123,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:164:11:named",
+        "in_series": 16,
+        "global": 16,
+        "series": 1
+      },
+      {
+        "id": "tmdb:65930:event:164:11:unnamed",
+        "in_series": 28,
+        "global": 66,
+        "series": 2
+      }
+    ]
+  }
+}
