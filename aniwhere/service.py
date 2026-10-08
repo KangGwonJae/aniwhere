@@ -33,6 +33,14 @@ def db():
     return _db
 
 
+def warm_up():
+    """임베딩 모델과 DB 연결을 미리 준비. 서버를 띄울 때 한 번 부르면 첫 질문이 모델 로딩(약 7초)을 기다리지 않습니다."""
+    from aniwhere.retrieval.embedder import embed_query
+    embed_query("준비")
+    catalog.mentioned_series(db(), "준비")
+    get_llm()
+
+
 def _plain(value):
     """날짜·시각을 문자열로 바꿔 JSON으로 보낼 수 있게 함."""
     if isinstance(value, dict):

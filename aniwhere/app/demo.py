@@ -15,6 +15,15 @@ from aniwhere.agent.review import MODES  # noqa: E402
 
 st.set_page_config(page_title="AniWhere 기능 확인", layout="wide")
 st.title("AniWhere 기능 확인")
+
+
+@st.cache_resource(show_spinner="임베딩 모델을 불러오는 중… (처음 한 번)")
+def warm_up():
+    service.warm_up()
+    return True
+
+
+warm_up()
 if not get_llm():
     st.warning("OPENAI_API_KEY가 없어 LLM 없이 검색 결과만 보여 줍니다. `.env`에 키를 넣고 다시 실행하세요.")
 
