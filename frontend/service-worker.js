@@ -6,7 +6,8 @@ const APP_SHELL = [
   './app.js',
   './manifest.webmanifest',
   './assets/app-icon.svg',
-  './assets/my-hero-academia.jpg'
+  './assets/my-hero-academia.jpg',
+  './assets/spoiler-stop-dio.png'
 ];
 
 self.addEventListener('install', event => {

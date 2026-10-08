@@ -31,23 +31,34 @@
   <main>
     <section class="view chat-view active" id="chat-view">
       <aside class="context-rail">
-        <div class="rail-heading"><small>지금 대화 중</small><h2>나의 히어로<br>아카데미아</h2></div>
-        <div class="watch-context">
-          <img src="assets/my-hero-academia.jpg" alt="나의 히어로 아카데미아 포스터">
-          <div><b>시즌 3 · 11화</b><span>마지막 기록 12일 전</span></div>
+        <div class="empty-context" id="empty-context">
+          <span class="empty-symbol">✦</span>
+          <small>처음 오셨군요</small>
+          <h2>아직 선택한<br>작품이 없어요.</h2>
+          <p>기억나는 장면을 말하거나, 예시 기록으로 앱을 둘러보세요.</p>
+          <button class="load-sample" data-load-sample>샘플 시청 기록 불러오기</button>
         </div>
-        <div class="spoiler-lock"><i>⌾</i><div><b>스포일러 보호 중</b><span>12화 이후 청크는 검색 전에 제외</span></div></div>
-        <div class="rail-actions">
-          <button data-action="recap">3분 복습</button>
-          <button data-action="providers">시청처 보기</button>
-          <button data-action="dictionary">인물·용어</button>
+        <div class="record-context" id="record-context" hidden>
+          <div class="loaded-record"><span>✓</span><div><b>최근 시청 기록을 불러왔어요</b><small>12일 만에 다시 방문</small></div></div>
+          <div class="rail-heading"><small>지금 대화 중</small><h2>나의 히어로<br>아카데미아</h2></div>
+          <div class="watch-context">
+            <img src="assets/my-hero-academia.jpg" alt="나의 히어로 아카데미아 포스터">
+            <div><b>시즌 3 · 11화</b><span>마지막 기록 12일 전</span></div>
+          </div>
+          <button class="change-title" data-clear-record>다른 작품 선택</button>
+          <div class="spoiler-lock"><i>⌾</i><div><b>스포일러 보호 중</b><span>12화 이후 청크는 검색 전에 제외</span></div></div>
+          <div class="rail-actions">
+            <button data-action="recap">3분 복습</button>
+            <button data-action="providers">시청처 보기</button>
+            <button data-action="dictionary">인물·용어</button>
+          </div>
         </div>
         <p class="prototype-label">UI PROTOTYPE<br><span>가짜 응답 데이터 사용</span></p>
       </aside>
 
       <div class="chat-workspace">
         <header class="chat-heading">
-          <div><span class="agent-dot">✦</span><small>ANIWHERE AGENT</small><h1>기억나는 만큼만<br>말해주세요.</h1></div>
+          <div><span class="agent-dot">✦</span><small id="chat-kicker">ANIWHERE AGENT · FIRST VISIT</small><h1 id="chat-title">오늘은 어떤 애니<br>이야기를 해볼까요?</h1></div>
           <button class="new-chat" id="new-chat">＋ 새 대화</button>
         </header>
 
@@ -78,6 +89,8 @@
 
     <section class="view library-view" id="library-view">
       <header class="page-title"><small>MY WATCH HISTORY</small><h1>내 시청 기록</h1><p>내 서재에 저장한 작품과 회차입니다. 이 기록이 복습과 스포일러 차단 범위를 정합니다.</p></header>
+      <article class="empty-library" id="empty-library" hidden><span>✦</span><h2>아직 시청 기록이 없어요.</h2><p>Agent와 시청 지점을 찾거나, 샘플 기록을 불러와 화면을 확인해보세요.</p><div><button data-view="chat">작품 찾으러 가기</button><button class="outline" data-load-sample>샘플 기록 불러오기</button></div></article>
+      <div id="library-content">
       <div class="library-tabs"><button class="active">시청 중 <b>3</b></button><button>보고 싶어요 <b>5</b></button><button>완료 <b>12</b></button></div>
       <div class="library-grid">
         <article class="watch-card featured">
@@ -90,6 +103,7 @@
       <article class="season-alert">
         <div class="alert-icon">N</div><div><small>확장 프로토타입 · FEATURE 10</small><h2>새 시즌이 시작됐어요.</h2><p>저장된 시청 기록을 바탕으로 직전 시즌 복습을 먼저 제안해요.</p></div><button data-action="season-alert">새 시즌 확인</button>
       </article>
+      </div>
     </section>
 
     <section class="view discover-view" id="discover-view">
@@ -116,6 +130,18 @@
 
   <div class="drawer" id="drawer" aria-hidden="true"><button class="drawer-backdrop" data-close aria-label="닫기"></button><section class="drawer-panel"><header><div><small id="drawer-kicker">ANIWHERE</small><h2 id="drawer-title">상세 정보</h2></div><button data-close aria-label="닫기">×</button></header><div id="drawer-content"></div></section></div>
   <div class="toast" id="toast" role="status"></div>
+  <div class="spoiler-cutin" id="spoiler-cutin" hidden role="dialog" aria-modal="true" aria-labelledby="cutin-title">
+    <div class="cutin-freeze"></div>
+    <section class="cutin-panel dio-panel">
+      <img class="dio-cutin-image" src="assets/spoiler-stop-dio.png" alt="더 월드를 외치며 시간을 멈추는 만화 컷인">
+      <div class="dio-warning">
+        <small>ANIWHERE · SPOILER STOP</small>
+        <div><h2 id="cutin-title">시간이여, 멈춰라!</h2><p>여기부터는 아직 보지 않은 이야기예요.</p></div>
+        <button type="button" id="cutin-return">안전한 회차로 돌아가기 ↵</button>
+      </div>
+      <div class="cutin-sfx" aria-hidden="true">두둥</div>
+    </section>
+  </div>
   <aside class="install-guide" id="install-guide" hidden>
     <div><b>AniWhere를 앱처럼 사용하세요</b><span id="install-copy">브라우저 메뉴에서 앱을 설치할 수 있어요.</span></div>
     <button type="button" id="install-guide-action">설치</button>

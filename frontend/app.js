@@ -10,10 +10,15 @@ const installButton = $('#install-app');
 const installGuide = $('#install-guide');
 const installGuideAction = $('#install-guide-action');
 const installGuideClose = $('#install-guide-close');
+const spoilerCutin = $('#spoiler-cutin');
+const cutinReturn = $('#cutin-return');
 let installPrompt = null;
+let spoilerObserver = null;
 let mode = 'episode';
 let busy = false;
 let step = 0;
+const RECORD_KEY = 'aniwhere-demo-watch-record';
+let hasRecord = localStorage.getItem(RECORD_KEY) === '1';
 
 const mock = {
   record: { series_id: 'tmdb:65930', title: '나의 히어로 아카데미아', seen_ep: 49, season: 3, episode: 11, rating: null },
@@ -60,9 +65,9 @@ function resetChat(nextMode = mode) {
   mode = nextMode; step = 0; busy = false; messages.replaceChildren(); setSuggestions();
   $$('.mode-chips button').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
   const intros = {
-    episode: ['어디까지 봤는지 함께 찾아볼게요. 마지막으로 기억나는 장면을 말해주세요.', ['올마이트가 마지막에 손가락을 가리켰어', '학교 축제 전까지 봤어']],
+    episode: [hasRecord ? '저장된 작품에서 어디까지 봤는지 함께 찾아볼게요. 마지막으로 기억나는 장면을 말해주세요.' : '어떤 작품인지 몰라도 괜찮아요. 마지막으로 기억나는 장면을 말해주세요.', ['올마이트가 마지막에 손가락을 가리켰어', '학교 축제 전까지 봤어']],
     title: ['제목이 기억나지 않아도 괜찮아요. 인물의 생김새, 능력, 장면을 말해주세요.', ['키 작은 아저씨가 칼 들고 날아다녀', '노란 머리에 번개를 쓰는 겁 많은 아이']],
-    recap: ['저장된 기록은 시즌 3 · 11화예요. 어떤 방식으로 복습할까요?', ['전체 이야기', '인물 관계', '마지막 화 상황']],
+    recap: hasRecord ? ['저장된 기록은 시즌 3 · 11화예요. 어떤 방식으로 복습할까요?', ['전체 이야기', '인물 관계', '마지막 화 상황']] : ['스포일러 없이 복습하려면 어디까지 봤는지 먼저 알아야 해요. 기억나는 마지막 장면을 말해주세요.', ['올마이트가 손가락을 가리켰어', '샘플 기록 불러오기']],
     providers: ['어떤 작품의 시청처를 찾을까요? 현재 기록된 작품을 바로 확인할 수도 있어요.', ['나의 히어로 아카데미아', '진격의 거인', '귀멸의 칼날']]
   };
   addMessage('agent', intros[mode][0]); setSuggestions(intros[mode][1]);
@@ -70,12 +75,13 @@ function resetChat(nextMode = mode) {
 
 function send(value) {
   const text = value.trim(); if (!text || busy) return;
-  if (text === '3분 복습') { openRecap('직전 내용'); return; }
+  if (text === '샘플 기록 불러오기') { setRecordState(true); resetChat('recap'); showToast('나의 히어로 아카데미아 샘플 기록을 불러왔어요.'); return; }
+  if (text === '3분 복습') { if (hasRecord) openRecap('직전 내용'); else showToast('복습할 시청 지점을 먼저 찾아주세요.'); return; }
   if (text === '시청처 보기') { openProviders(); return; }
   addMessage('user', text); question.value = '';
   if (mode === 'episode') {
     if (step === 0) { step = 1; reply('시즌 3 · 11화일 가능성이 가장 높아요. 여기까지 본 것으로 기록할까요?', ['여기까지 봤어요', '조금 더 확인할래요'], '<div class="result-card"><small>회차 후보 · 높은 일치</small><h3>시즌 3 · 11화</h3><p>올마이트와 올 포 원의 결전 후 손가락을 가리키는 장면</p></div>'); return; }
-    if (/여기까지|기록|봤어요/.test(text)) { step = 2; reply('시즌 3 · 11화까지 본 것으로 저장했어요. 이후 내용은 검색 전에 제외할게요.', ['3분 복습', '시청처 보기'], '', ['시청 기록 저장 중…', '스포일러 기준을 49화로 설정 중…']); return; }
+    if (/여기까지|기록|봤어요/.test(text)) { step = 2; setRecordState(true); reply('시즌 3 · 11화까지 본 것으로 저장했어요. 이후 내용은 검색 전에 제외할게요.', ['3분 복습', '시청처 보기'], '', ['시청 기록 저장 중…', '스포일러 기준을 49화로 설정 중…']); return; }
     reply('비슷한 전투 장면이 있어요. 그 장면에서 올마이트의 모습이 평소와 달랐나요?', ['힘이 빠진 모습이었어요', '잘 기억나지 않아요']); return;
   }
   if (mode === 'title') { reply('가장 가까운 작품은 「진격의 거인」이에요. 말씀하신 인물은 리바일 가능성이 높아요.', ['이 작품이 맞아요', '다른 후보도 볼래요'], '<div class="result-card"><small>작품 후보 1</small><h3>진격의 거인</h3><p>리바이 · 입체기동장치 · 쌍날 검</p></div>', ['인물·외형 단서 분석 중…', '작품 후보를 비교 중…']); return; }
@@ -85,10 +91,41 @@ function send(value) {
 
 function openDrawer(kicker, title, html) { $('#drawer-kicker').textContent = kicker; $('#drawer-title').textContent = title; $('#drawer-content').innerHTML = html; drawer.classList.add('open'); drawer.setAttribute('aria-hidden','false'); }
 function closeDrawer() { drawer.classList.remove('open'); drawer.setAttribute('aria-hidden','true'); }
-function openRecap(selected = '전체 이야기') { openDrawer('FEATURE 09 · EP49까지', `스포일러 없는 ${selected}`, `<div class="drawer-card"><h3>처음의 약속</h3><p>무개성이던 미도리야는 위험에 뛰어드는 용기를 인정받아 올마이트의 힘을 이어받았어요.</p></div><div class="drawer-card"><h3>유에이에서의 성장</h3><p>친구들과 훈련하고 위기를 겪으며 힘을 다루는 방법과 함께 싸우는 법을 배웠어요.</p></div><div class="drawer-card"><h3>마지막으로 본 상황</h3><p>올마이트가 올 포 원과의 결전을 마치고 다음 세대에게 메시지를 남겼어요.</p></div><div class="drawer-card safe"><h3>⌾ 보호 범위</h3><p>전체 49화까지만 사용한 UI 예시입니다. 실제 회차 필터와 출처는 백엔드 연결이 필요합니다.</p></div>`); }
+function openRecap(selected = '전체 이야기') {
+  openDrawer('FEATURE 09 · EP49까지', `스포일러 없는 ${selected}`, `<div class="drawer-card"><h3>처음의 약속</h3><p>무개성이던 미도리야는 위험에 뛰어드는 용기를 인정받아 올마이트의 힘을 이어받았어요.</p></div><div class="drawer-card"><h3>유에이에서의 성장</h3><p>친구들과 훈련하고 위기를 겪으며 힘을 다루는 방법과 함께 싸우는 법을 배웠어요.</p></div><div class="drawer-card"><h3>마지막으로 본 상황</h3><p>올마이트가 올 포 원과의 결전을 마치고 다음 세대에게 메시지를 남겼어요.</p></div><div class="drawer-card safe"><h3>⌾ 보호 범위</h3><p>전체 49화까지만 사용했어요. 이 아래는 실제 내용을 받지 않은 보호 구간입니다.</p></div><div class="spoiler-gate" data-spoiler-gate><span>49화</span><i></i><b>TIME STOP</b><i></i><span>50화</span></div><div class="protected-preview" aria-label="미시청 내용 보호 구간"><div><i></i><b></b><span></span><span></span><span></span></div><div><i></i><b></b><span></span><span></span><span></span></div><p>실제 스포일러 내용은 다운로드하지 않았어요.</p></div>`);
+  watchSpoilerGate();
+}
+
+function watchSpoilerGate() {
+  spoilerObserver?.disconnect();
+  const gate = $('[data-spoiler-gate]');
+  if (!gate) return;
+  spoilerObserver = new IntersectionObserver(entries => {
+    if (!entries.some(entry => entry.isIntersecting)) return;
+    spoilerObserver.disconnect();
+    showSpoilerCutin();
+  }, { root: $('.drawer-panel'), threshold: .65 });
+  spoilerObserver.observe(gate);
+}
+
+function showSpoilerCutin() {
+  spoilerCutin.hidden = false;
+  document.body.classList.add('time-stopped');
+  requestAnimationFrame(() => spoilerCutin.classList.add('active'));
+  cutinReturn.focus({ preventScroll: true });
+}
+
+function closeSpoilerCutin() {
+  spoilerCutin.classList.remove('active');
+  document.body.classList.remove('time-stopped');
+  setTimeout(() => {
+    spoilerCutin.hidden = true;
+    $('.drawer-panel')?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, 240);
+}
 function openProviders() { openDrawer('FEATURE 07', '시청처 안내', `<div class="drawer-card"><h3>나의 히어로 아카데미아 · 시즌 3</h3><div class="providers"><span>Laftel</span><span>Netflix</span></div><p>국내 제공처 기준이며 실제 편성은 서비스에서 다시 확인해주세요.</p><small>정보 제공: JustWatch · 확인일 2026-10-05</small></div>`); }
 function openDictionary() { openDrawer('PROTOTYPE · FEATURE 08', '49화까지의 인물·용어', mock.characters.map(([n,d]) => `<div class="drawer-card"><h3>${n}</h3><p>${d}</p></div>`).join('') + '<div class="drawer-card"><h3>원 포 올</h3><p>힘을 축적해 다음 계승자에게 전달하는 특별한 개성이에요.</p></div>'); }
-function openRecord() { openDrawer('FEATURE 13', '시청 기록 수정', `<form class="record-form" id="record-form"><label>상태<select><option>시청 중</option><option>보고 싶어요</option><option>완료</option></select></label><label>시즌<input type="number" value="3" min="1"></label><label>회차<input type="number" value="11" min="1"></label><label>평점 (선택)<input type="number" min="0" max="5" step="0.5" placeholder="0–5"></label><button>기록 저장</button></form>`); $('#record-form').addEventListener('submit', e => { e.preventDefault(); closeDrawer(); showToast('시즌 3 · 11화 기록을 저장했어요. (프로토타입)'); }); }
+function openRecord() { openDrawer('FEATURE 13', '시청 기록 수정', `<form class="record-form" id="record-form"><label>상태<select><option>시청 중</option><option>보고 싶어요</option><option>완료</option></select></label><label>시즌<input type="number" value="3" min="1"></label><label>회차<input type="number" value="11" min="1"></label><label>평점 (선택)<input type="number" min="0" max="5" step="0.5" placeholder="0–5"></label><button>기록 저장</button></form>`); $('#record-form').addEventListener('submit', e => { e.preventDefault(); setRecordState(true); closeDrawer(); showToast('시즌 3 · 11화 기록을 저장했어요. (프로토타입)'); }); }
 function openSimilar() { openDrawer('확장 프로토타입 · FEATURE 02', '“진격의 거인 같은 거”', `<div class="drawer-card"><h3>강철의 연금술사</h3><p>거대한 세계의 비밀, 군과 권력의 음모, 뒤집히는 진실이 가까워요.</p></div><div class="drawer-card"><h3>86 -에이티식스-</h3><p>전쟁 속에서 감춰진 사회 구조와 인물들의 선택을 따라가요.</p></div><div class="drawer-card"><h3>메이드 인 어비스</h3><p>미지의 세계를 탐험할수록 새로운 진실이 드러나는 작품이에요.</p></div>`); }
 function openWatchOrder() { openDrawer('확장 프로토타입 · FEATURE 03', '나의 히어로 아카데미아 시청 순서', `<div class="order-list"><div class="order-item"><b>1</b><div><strong>TV 애니 1기</strong><br><span>먼저 보기 · 필수</span></div><em>13화</em></div><div class="order-item"><b>2</b><div><strong>TV 애니 2기</strong><br><span>이어서 보기 · 필수</span></div><em>25화</em></div><div class="order-item"><b>3</b><div><strong>극장판: 두 명의 히어로</strong><br><span>2기 이후 추천 · 건너뛰어도 본편 이해 가능</span></div><em>영화</em></div><div class="order-item"><b>4</b><div><strong>TV 애니 3기</strong><br><span>현재 시청 중</span></div><em>EP11</em></div></div><div class="drawer-card"><p>방영 순·시간 순 전환은 실제 AniList 관계 정보 연결 후 제공할 예정입니다.</p></div>`); }
 function openHookGuide() { openDrawer('확장 프로토타입 · FEATURE 04', '몇 화부터 재밌어져요?', `<div class="drawer-card"><h3>나의 히어로 아카데미아</h3><p><strong>3화까지</strong> 세계관과 주인공의 출발을 설명하고, <strong>4화부터</strong> 학교 입학 과정이 본격적으로 시작돼요.</p></div><div class="drawer-card safe"><h3>스포일러 없는 안내</h3><p>구체적인 사건이나 승패는 숨기고, 이야기의 속도와 분위기가 바뀌는 지점만 알려줘요.</p></div>`); }
@@ -99,11 +136,28 @@ function showToast(text) { toast.textContent = text; toast.classList.add('show')
 
 $$('[data-view]').forEach(button => button.addEventListener('click', () => { const view = button.dataset.view; $$('.view').forEach(v => v.classList.toggle('active', v.id === `${view}-view`)); $$('.topbar nav button').forEach(b => b.classList.toggle('active', b.dataset.view === view)); window.scrollTo({top:0,behavior:'smooth'}); }));
 $$('[data-mode]').forEach(button => button.addEventListener('click', () => resetChat(button.dataset.mode)));
-$$('[data-action]').forEach(button => button.addEventListener('click', () => { const action = button.dataset.action; if (action === 'recap') openRecap(); else if (action === 'providers') openProviders(); else if (action === 'dictionary') openDictionary(); else if (action === 'edit-record') openRecord(); else if (action === 'similar') openSimilar(); else if (action === 'watch-order') openWatchOrder(); else if (action === 'hook-guide') openHookGuide(); else if (action === 'season-alert') openSeasonAlert(); else if (action === 'manga-link') openMangaLink(); else if (action === 'share-copy') openShareCopy(); else if (action === 'find-episode') { $('[data-view="chat"]').click(); resetChat('episode'); } else if (action === 'interview') { $('[data-view="chat"]').click(); resetChat('title'); addMessage('user','취향에 맞는 작품을 추천받고 싶어요'); reply('좋아하는 영화·드라마·웹툰을 하나만 알려주세요. 이 기능은 현재 프로토타입 데이터로 보여드려요.', ['진격의 거인 같은 반전물', '성장하는 주인공']); } }));
+$$('[data-action]').forEach(button => button.addEventListener('click', () => { const action = button.dataset.action; const needsRecord = ['recap','dictionary','watch-order','hook-guide','manga-link','season-alert','edit-record']; if (!hasRecord && needsRecord.includes(action)) { showToast('먼저 작품을 찾거나 샘플 시청 기록을 불러와주세요.'); return; } if (action === 'recap') openRecap(); else if (action === 'providers') openProviders(); else if (action === 'dictionary') openDictionary(); else if (action === 'edit-record') openRecord(); else if (action === 'similar') openSimilar(); else if (action === 'watch-order') openWatchOrder(); else if (action === 'hook-guide') openHookGuide(); else if (action === 'season-alert') openSeasonAlert(); else if (action === 'manga-link') openMangaLink(); else if (action === 'share-copy') openShareCopy(); else if (action === 'find-episode') { $('[data-view="chat"]').click(); resetChat('episode'); } else if (action === 'interview') { $('[data-view="chat"]').click(); resetChat('title'); addMessage('user','취향에 맞는 작품을 추천받고 싶어요'); reply('좋아하는 영화·드라마·웹툰을 하나만 알려주세요. 이 기능은 현재 프로토타입 데이터로 보여드려요.', ['진격의 거인 같은 반전물', '성장하는 주인공']); } }));
 $$('[data-close]').forEach(b => b.addEventListener('click', closeDrawer));
 $('#new-chat').addEventListener('click', () => resetChat(mode));
 composer.addEventListener('submit', e => { e.preventDefault(); send(question.value); });
 question.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); composer.requestSubmit(); } });
+
+function setRecordState(next) {
+  hasRecord = next;
+  if (next) localStorage.setItem(RECORD_KEY, '1'); else localStorage.removeItem(RECORD_KEY);
+  $('#empty-context').hidden = next;
+  $('#record-context').hidden = !next;
+  $('#empty-library').hidden = next;
+  $('#library-content').hidden = !next;
+  $('#chat-kicker').textContent = next ? 'ANIWHERE AGENT · WELCOME BACK' : 'ANIWHERE AGENT · FIRST VISIT';
+  $('#chat-title').innerHTML = next ? '12일 만이네요.<br>어디까지 기억나요?' : '오늘은 어떤 애니<br>이야기를 해볼까요?';
+}
+
+$$('[data-load-sample]').forEach(button => button.addEventListener('click', () => { setRecordState(true); $('[data-view="chat"]').click(); resetChat('episode'); showToast('나의 히어로 아카데미아 샘플 기록을 불러왔어요.'); }));
+$$('[data-clear-record]').forEach(button => button.addEventListener('click', () => { setRecordState(false); resetChat('episode'); showToast('작품 선택을 해제했어요.'); }));
+cutinReturn.addEventListener('click', closeSpoilerCutin);
+document.addEventListener('keydown', event => { if (event.key === 'Escape' && !spoilerCutin.hidden) closeSpoilerCutin(); });
+setRecordState(hasRecord);
 resetChat('episode');
 
 function isStandalone() { return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true; }
