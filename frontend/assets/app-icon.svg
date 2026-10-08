@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="AniWhere">
+  <rect width="512" height="512" rx="112" fill="#0f1520"/>
+  <path d="M256 66c14 70 50 106 120 120-70 14-106 50-120 120-14-70-50-106-120-120 70-14 106-50 120-120Z" fill="#8394ff"/>
+  <path d="M139 363c0-29 24-53 53-53h128c29 0 53 24 53 53v28c0 29-24 53-53 53H192c-29 0-53-24-53-53v-28Z" fill="#182131" stroke="#72d8f2" stroke-width="14"/>
+  <circle cx="205" cy="377" r="13" fill="#72d8f2"/>
+  <circle cx="256" cy="377" r="13" fill="#72d8f2"/>
+  <circle cx="307" cy="377" r="13" fill="#72d8f2"/>
+</svg>

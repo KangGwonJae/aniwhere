@@ -1,0 +1,21 @@
+{
+  "name": "AniWhere - 나의 애니 기억 에이전트",
+  "short_name": "AniWhere",
+  "description": "기억나는 장면으로 작품과 시청 지점을 찾고, 스포일러 없이 복습하는 앱",
+  "lang": "ko-KR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f1520",
+  "theme_color": "#0f1520",
+  "categories": ["entertainment", "lifestyle"],
+  "icons": [
+    {
+      "src": "assets/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
