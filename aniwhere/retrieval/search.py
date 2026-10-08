@@ -30,8 +30,14 @@ def search_chunks(db, query_vector, *, watched: dict[str, int], unrecorded: int 
     types = list(types or cfg.get("chunk_types") or []) or None
     vec = str([float(x) for x in query_vector])
     with db.transaction():
-        db.execute("SET LOCAL hnsw.iterative_scan = strict_order")   # 필터 때문에 k개가 안 채워지는 일을 막음
-        db.execute(f"SET LOCAL hnsw.ef_search = {max(40, min(int(k), 1000))}")
+        if cfg.get("ann", True):
+            # 근사 검색(HNSW 인덱스)을 쓰도록 고정. 이 설정이 없으면 PostgreSQL이 그때그때 비용을 어림해서
+            # 전체를 훑는 정확 검색을 고르기도 합니다. 작품 하나로 좁힌 검색은 대상이 수십~수백 개라 정확 검색 그대로.
+            db.execute("SET LOCAL enable_seqscan = off")
+            db.execute("SET LOCAL hnsw.iterative_scan = strict_order")   # 필터 때문에 k개가 안 채워지는 일을 막음
+            db.execute(f"SET LOCAL hnsw.ef_search = {max(int(k), min(int(cfg.get('ef_search', 1000)), 1000))}")
+        else:
+            db.execute("SET LOCAL enable_indexscan = off")               # 정확 검색: 전체를 훑어 빠짐없이 비교
         return db.execute(
             f"""SELECT {COLUMNS}, 1 - (c.embedding <=> %(vec)s::vector) AS score
                 FROM chunks c

@@ -111,7 +111,10 @@ def db():
             chunks += [
                 (f"{sid}:plot:{ep}", "plot", ep, f"{head} 줄거리\nThe hero fights dragon{ep}. {mark}", axis(sid, ep)),
                 (f"{sid}:ep:{ep}", "episode", ep, f"{head}\n{ep}화 요약. {mark}", None),
-                (f"{sid}:event:{ep}:1", "event", ep, f"{head} 장면\nThe hero meets wizard{ep} at the tower. {mark}", None),
+                (f"{sid}:event:{ep}:1", "event", ep, f"{head} 장면\nThe hero meets wizard{ep} at the tower. {mark}",
+                 axis(sid, ep)),
+                (f"{sid}:event:{ep}:2", "event", ep, f"{head} 장면\nThe hero goes home after wizard{ep}. {mark}",
+                 axis(sid, ep)),
             ]
         chunks += [(f"{sid}:char:7", "character", None, f"{title_ko} 캐릭터 Hero [MAIN]\nA brave hero.", None),
                    (f"{sid}:char:8", "character", 4, f"{title_ko} 캐릭터 Rival [MAIN]\nA masked rival. SECRET-X-4", None),
@@ -165,6 +168,7 @@ def test_no_chunk_after_watched_episode(db, watched):
         rows = search_chunks(db, vector({axis(A, min(target, 10)): 1.0}), watched={A: watched}, types=types, k=1000)
         assert all(r["abs_ep"] is None or (r["series_id"] == A and r["abs_ep"] <= watched) for r in rows)
         assert len([r for r in rows if r["type"] == "plot"]) == watched      # 볼 수 있는 청크는 빠짐없이 검색 대상
+        assert len([r for r in rows if r["type"] == "event"]) == watched * 2
     rows = keyword_search(db, ["hero wizard rival sword"], watched={A: watched}, series_ids=[A, B], types=types, k=1000)
     assert rows and all(r["abs_ep"] is None or (r["series_id"] == A and r["abs_ep"] <= watched) for r in rows)
     rows = chunks_upto(db, A, seen_ep=watched, types=types, include_episode_free=True)

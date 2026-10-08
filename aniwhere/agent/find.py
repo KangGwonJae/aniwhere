@@ -3,6 +3,10 @@
 흐름: 단서 추출(LLM) → 작품 후보(제목 언급·짐작·전체 벡터 검색) → 후보 작품 안에서 회차 재검색(벡터 + 키워드)
 → 판정(LLM이 검색된 줄거리만 보고 맞는지 판단). 후보가 비슷하면 다시 묻고, 근거가 약하면 단정하지 않습니다.
 
+작게 찾고 크게 읽습니다: 검색은 장면 청크(약 700자)로 하고, 맞은 장면을 회차로 묶은 뒤, 판정에는 그 회차의
+상세 줄거리 전체를 보여 줍니다. 회차 통째를 벡터 하나로 만들면 한 장면의 뜻이 묻혀서 잘 안 찾아집니다
+(eval/results/2026-10-08_chunking-ab.json: 작품 안에서 정답 회차 1위 20% → 63%).
+
 스포일러: 기록장에 있는 작품은 본 회차까지만 검색합니다. 기록이 없는 작품은 사용자가 이미 본 장면을 묻는 것이므로
 전체 회차를 검색하되, 응답에는 작품명과 회차 번호·제목만 넣고 줄거리 본문은 넣지 않습니다.
 """
@@ -17,7 +21,6 @@ from aniwhere.retrieval.search import ALL_EPISODES, chunks_upto, keyword_search,
 
 RRF_K = 60                      # 여러 검색 결과의 순위를 합칠 때 쓰는 상수 (Reciprocal Rank Fusion)
 PROFILE_TYPES = ["character", "terminology", "summary"]    # 인물 생김새·설정은 줄거리가 아니라 여기에 적혀 있음
-KEYWORD_TYPES = ["event"] + PROFILE_TYPES
 ASK_MORE = "기억나는 인물의 생김새나 이름, 장소, 그 장면 앞뒤에 있었던 일을 조금 더 알려 주세요."
 QUOTE_MATCH = 0.7              # 근거 문장의 낱말 가운데 이만큼이 자료의 이어진 두 문장 안에 있어야 인정
 NOT_FOUND = "지금 단서로는 찾지 못했어요."
@@ -55,24 +58,27 @@ def _episodes(dense_lists, keyword_hits):
             e["score"] = max(e["score"] or 0, score)
         return e
 
-    for hits in dense_lists:
-        for rank, h in enumerate(h for h in hits if h["abs_ep"]):
-            add((h["series_id"], h["abs_ep"]), rank, h, h["score"])["chunk"] = h
-    seen = []
-    for h in keyword_hits:
-        if h["type"] != "event":
-            continue
-        key = (h["series_id"], h["abs_ep"])
-        if key not in seen:
-            seen.append(key)
-            # 벡터 검색은 질문 수만큼 벌이 있으므로, 키워드 검색 한 벌이 묻히지 않게 같은 무게를 줌
-            add(key, len(seen) - 1, h, weight=max(len(dense_lists), 1))
-        eps[key]["scenes"].append(h)
+    # 한 회차의 장면이 여러 개 맞아도 그 회차의 순위는 가장 잘 맞은 장면 하나로 정함
+    for hits, weight in [(h, 1) for h in dense_lists] + [(keyword_hits, max(len(dense_lists), 1))]:
+        # (벡터 검색은 질문 수만큼 벌이 있으므로, 키워드 검색 한 벌이 묻히지 않게 같은 무게를 줌)
+        seen = []
+        for h in hits:
+            if not h["abs_ep"]:
+                continue
+            key = (h["series_id"], h["abs_ep"])
+            if key not in seen:
+                seen.append(key)
+                # 키워드 검색의 score는 유사도가 아니라서 남기지 않음
+                e = add(key, len(seen) - 1, h, None if hits is keyword_hits else h["score"], weight)
+                if hits is not keyword_hits:
+                    e["chunk"] = h
+            if h["type"] == "event" and h["chunk_id"] not in {s["chunk_id"] for s in eps[key]["scenes"]}:
+                eps[key]["scenes"].append(h)
     return sorted(eps.values(), key=lambda e: (e["rrf"], len(e["scenes"]), e["score"] or 0), reverse=True)
 
 
 def _evidence(db, eps, watched, limit):
-    """후보 회차마다 LLM에게 보여 줄 글: 그 회차의 상세 줄거리. 키워드로 맞은 장면이 있으면 그 장면을 앞에 둠.
+    """후보 회차마다 LLM에게 보여 줄 글: 맞은 장면(최대 3개)을 앞에 두고, 그 회차의 상세 줄거리 전체를 붙임.
 
     어떤 검색으로 찾았든(벡터·키워드) 같은 글을 보여 주려고 줄거리를 다시 읽습니다. 본 회차 조건은 그대로 적용됩니다.
     """
@@ -84,26 +90,26 @@ def _evidence(db, eps, watched, limit):
     out = []
     for e in eps:
         plot = plots.get((e["series_id"], e["abs_ep"]))
-        scenes = "\n".join(s["text"] for s in e["scenes"][:2])
+        scenes = "\n".join(s["text"] for s in e["scenes"][:3])
         text = "\n".join(x for x in (scenes, plot["text"][:limit] if plot else "") if x)
         out.append((text, plot or e["chunk"]))
     return out
 
 
-def _words(text):
-    return set(re.findall(r"[a-z0-9]{3,}", text.lower()))
-
-
 def _quoted(quote, text):
-    """LLM이 근거로 든 문장이 자료에 실제로 있는지: 이어진 두 문장 안에 그 문장의 낱말이 대부분 들어 있어야 함.
+    """LLM이 근거로 든 문장이 자료에 실제로 있는지: 자료의 한 구간 안에 그 문장의 낱말이 대부분 들어 있어야 함.
 
-    LLM이 문장을 조금 줄여 옮기는 일이 있어 글자 그대로 비교하지 않습니다.
+    LLM이 문장을 조금 줄이거나 두세 문장을 이어 옮기는 일이 있어 글자 그대로 비교하지 않고, 인용 길이의 두 배쯤 되는
+    구간을 옮겨 가며 낱말이 겹치는 비율을 봅니다. 자료에 없는 내용을 지어낸 인용은 어느 구간과도 겹치지 않습니다.
     """
-    want = _words(quote) if isinstance(quote, str) else set()
+    said = re.findall(r"[a-z0-9]{3,}", quote.lower()) if isinstance(quote, str) else []
+    want = set(said)
     if len(want) < 4:
         return False
-    sents = [_words(s) for s in re.split(r"(?<=[.!?])\s+|\n+", text)]
-    return any(len(want & (a | b)) >= QUOTE_MATCH * len(want) for a, b in zip(sents, sents[1:] + [set()]))
+    words = re.findall(r"[a-z0-9]{3,}", text.lower())
+    size = max(2 * len(said), 30)
+    return any(len(want & set(words[i:i + size])) >= QUOTE_MATCH * len(want)
+               for i in range(0, max(len(words) - size // 2, 1), max(size // 4, 1)))
 
 
 def _grounded(j, text):
@@ -136,20 +142,24 @@ def find(db, question, history=None, *, llm=None, user_id=records.LOCAL_USER) ->
         global_lists = [search_chunks(db, v, k=cfg.get("pool", 30), **scope) for v in vectors]
         # 장면이 아니라 인물·설정을 묘사한 경우: 전체 작품의 캐릭터·용어·작품 소개에서 낱말로 찾음
         profiles = keyword_search(db, terms, series_ids=None, types=PROFILE_TYPES, k=cfg.get("pool", 30), **scope)
+        looks = [search_chunks(db, v, types=PROFILE_TYPES, k=cfg.get("pool", 30), **scope) for v in vectors]
         guessed = [sid for t in clues.get("title_guesses", []) for sid in catalog.find_series(db, t, limit=1)]
-        found = _rank_series(global_lists + [profiles] * len(global_lists))
+        found = _rank_series(global_lists + looks + [profiles] * len(global_lists))
         series_ids = list(dict.fromkeys(guessed + found))[:cfg.get("max_series", 4)]
     if not series_ids:
         return _result("none", "지금 단서로는 찾지 못했어요.", follow_up=ASK_MORE, clues=clues)
 
     # 2단계: 후보 작품 안에서 회차 재검색. 질문마다 작품별 결과를 유사도 순으로 합쳐 한 벌로 만듦
-    dense = [sorted((h for sid in series_ids for h in search_chunks(db, v, series_id=sid, k=10, **scope)),
+    dense = [sorted((h for sid in series_ids for h in search_chunks(db, v, series_id=sid, k=20, **scope)),
                     key=lambda h: h["score"], reverse=True) for v in vectors]
     words = keyword_search(db, terms, series_ids=series_ids, types=["event"], k=30, **scope)
     eps = _episodes(dense, words)
     # 인물·용어·작품 소개: 몇 화인지는 못 정해도 어느 작품인지를 뒷받침하는 근거. 작품마다 가장 잘 맞은 것 두 개씩
     extras = [h for sid in series_ids for h in keyword_search(db, terms, series_ids=[sid], types=PROFILE_TYPES, k=2,
                                                               **scope)]
+    extras += [h for sid in series_ids for h in search_chunks(db, vectors[-1], series_id=sid, types=PROFILE_TYPES, k=2,
+                                                              **scope)]
+    extras = list({h["chunk_id"]: h for h in extras}.values())
     names = {sid: catalog.series_info(db, sid)["name"] for sid in series_ids}
     labels = {sid: catalog.episodes(db, sid, [e["abs_ep"] for e in eps if e["series_id"] == sid])
               for sid in series_ids}
@@ -184,7 +194,7 @@ def find(db, question, history=None, *, llm=None, user_id=records.LOCAL_USER) ->
         ok, missing = _grounded(j, picked[0][1]) if status == "episode" else (True, [])
         if not ok:
             return _result("none", NOT_FOUND, follow_up=ASK_MORE, **out)
-        if missing:
+        if missing and "다만" not in reason:
             reason += " 다만 " + ", ".join(f"'{m}'" for m in missing) + " 부분은 줄거리에서 확인하지 못했어요."
         if status == "ambiguous":
             return _result("ambiguous", "비슷한 후보가 여러 개 있어요. " + reason, [c for c, _, _ in picked],

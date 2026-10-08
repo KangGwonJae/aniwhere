@@ -24,7 +24,13 @@ chunking:
 
 retrieval:
   top_k: 5
-  chunk_types: [plot]       # 벡터 검색 대상. 임베딩한 종류만 적음 (지금은 회차 통째 줄거리만 임베딩)
+  ann: true                 # true: 근사 검색(HNSW 인덱스). false: 전체를 훑는 정확 검색
+  ef_search: 1000           # 근사 검색이 살펴보는 후보 수(최대 1000). 클수록 정확 검색과 같아지고 조금 느려짐
+                            #   2026-10-08 측정(벡터 19,296개, 전체 작품에서 30개 검색): 정확 검색 49ms /
+                            #   100 → 6ms, 30개 중 22개 일치 / 400 → 8ms, 28개 / 1000 → 14ms, 30개
+  chunk_types: [event]      # 장면을 찾는 벡터 검색의 대상. 작게 찾고(장면 약 700자) 크게 읽음(그 회차의 줄거리 전체)
+                            #   회차 통째(plot)로 찾으면 정답 회차 1위 20%, 장면(event)이면 63% (eval/results/2026-10-08_chunking-ab.json)
+                            #   캐릭터·용어·작품 소개는 작품을 찾을 때 따로 검색 (aniwhere/agent/find.py의 PROFILE_TYPES)
   query_device: cpu         # 질문 임베딩을 계산할 장치. null이면 자동(GPU). 청크 임베딩(embed)이 GPU를 쓰는 동안에도 돌도록 cpu
 
 # 02 탐색 — 기억으로 작품·회차 찾기 (aniwhere/agent/find.py)
@@ -46,5 +52,5 @@ recommend:
   count: 5
 
 llm:
-  model: gpt-4o-mini        # OpenAI 모델 이름. 키는 .env의 OPENAI_API_KEY
+  model: gpt-5.4-mini       # OpenAI 모델 이름. 키는 .env의 OPENAI_API_KEY
   temperature: 0            # 이 값을 받지 않는 모델이면 null

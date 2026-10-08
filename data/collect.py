@@ -1850,6 +1850,8 @@ def step_embed(db, args):
         if done % 2560 == 0 or done >= todo:
             print(f"  {done:,}/{todo:,} ({done / (time.time() - started):.0f}개/초)", flush=True)
     db.execute("CREATE INDEX IF NOT EXISTS chunks_embedding_idx ON chunks USING hnsw (embedding vector_cosine_ops)")
+    # 통계를 갱신하지 않으면 PostgreSQL이 임베딩이 아직 비어 있다고 보고 벡터 인덱스를 쓰지 않음
+    db.execute("ANALYZE chunks")
     print("  임베딩 완료, 벡터 인덱스 확인")
 
 

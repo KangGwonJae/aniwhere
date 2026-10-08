@@ -127,9 +127,26 @@ python data/collect.py migrate --min-fill 0.9 --to 다른이름   # 기준·DB �
 청크 텍스트가 바뀌면 그 청크의 임베딩만 비워지므로 `embed`를 다시 실행하면 바뀐 것만 계산합니다.
 
 ```bash
-python data/collect.py embed --chunk-types plot                     # 회차 통째 줄거리만 임베딩
-python data/collect.py search "질문" --series tmdb:65930 --watched 49 --chunk-types plot
+python data/collect.py embed                                        # 모든 종류를 임베딩 (이미 한 것은 건너뜀)
+python data/collect.py embed --chunk-types event                    # 한 종류만
+python data/collect.py search "질문" --series tmdb:65930 --watched 49 --chunk-types event
 ```
+
+**어떤 종류로 검색하나 — 작게 찾고 크게 읽기.** 모든 종류를 임베딩해 두고, 앱이 어느 종류로 검색할지는
+`config/settings.yaml`의 `retrieval.chunk_types`로 고릅니다(지금은 `event`). 장면(`event`, 약 700자)으로 찾아
+회차로 묶은 뒤, LLM에게는 그 회차의 상세 줄거리(`plot`) 전체를 보여 줍니다. 회차 통째(`plot`)를 벡터 하나로 만들어
+찾으면 한 장면의 뜻이 묻힙니다. 데모 3작품 질문 75개로 잰 결과(`eval/results/2026-10-08_chunking-ab.json`):
+
+| 검색 대상 | 작품 안에서 정답 회차 1위 | 8위 안 |
+|---|---|---|
+| 회차 통째(`plot`) | 20% | 53% |
+| 장면(`event`) | 63% | 85% |
+
+캐릭터·용어·작품 소개(`character`·`terminology`·`summary`)는 "키 작은 아저씨가 칼 들고 날아다녀"처럼 장면이 아니라
+생김새로 작품을 찾을 때 검색합니다.
+
+`embed`는 끝날 때 `ANALYZE chunks`로 통계를 갱신합니다. 이것이 빠지면 PostgreSQL이 임베딩이 비어 있다고 보고
+벡터 인덱스를 쓰지 않습니다. 임베딩은 오래 걸리므로 노트북에서는 절전을 막고 돌리세요: `caffeinate -i -s python data/collect.py embed`
 
 상세 줄거리는 청크로 만들기 전에 줄거리가 아닌 줄을 지웁니다(`clean_plot`): 위키 탭 표시(`|-|Netflix=`), 일본어·로마자
 원문, 이름·소제목만 있는 50자 미만 줄.
