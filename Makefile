@@ -24,4 +24,4 @@ test:
 	.venv/bin/python -m pytest tests
 
 eval:
-	@echo "TODO: eval 스크립트 연결 → eval/results/"
+	.venv/bin/python eval/run.py
