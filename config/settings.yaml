@@ -3,8 +3,21 @@
 # 회차까지 지원하는 작품 — docs/data-sources.md의 "작품 × 출처" 표로 확정
 works: []
 
+# 서비스용 DB — 상세 줄거리가 제대로 있는 작품만 수집 DB에서 옮김 (python data/collect.py migrate)
+service_db:
+  name: aniwhere_service
+  min_plot_fill: 0.8        # 500자 이상 상세 줄거리가 있는 회차 ÷ 전체 회차가 이 이상인 작품만
+
 embedding:
-  model: null        # 임베딩 모델 비교 후 확정
+  # data/collect.py embed가 쓰는 모델 (한국어 질문 ↔ 영어 줄거리 검색용 다국어 모델, 로컬 실행)
+  model: BAAI/bge-m3
+  dim: 1024                 # data/schema.sql의 vector(N)과 같아야 함
+  passage_prefix: ""        # e5 계열은 청크·질문 앞에 "passage: " / "query: "를 붙임. bge-m3는 붙이지 않음
+  query_prefix: ""
+  max_seq_length: 8192      # 이보다 긴 글은 뒤가 잘림 (bge-m3의 최대). 회차 통째 줄거리는 대부분 이 안에 들어감
+  fp16: true                # GPU(Apple Silicon 포함)에서 반정밀도로 계산. 결과는 거의 같고(코사인 0.9997) 4배쯤 빠름
+  batch_size: 32            # 한 번에 넣는 청크 수의 최대
+  max_batch_chars: 32000    # 한 번에 넣는 글자 수의 최대. 긴 글은 이 값에 맞춰 개수를 줄임 (메모리 부족 방지)
 
 chunking:
   strategy: memory_unit   # memory_unit(기억 단위) | fixed(고정 길이, 비교용)
