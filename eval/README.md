@@ -23,3 +23,16 @@ make eval                                                  # 벡터 검색만 (L
 - LLM이 만든 질문은 실제 사용자 질문보다 길고 자세합니다. 그리고 장면 청크에서 만들었기 때문에 장면 단위 검색에
   조금 유리합니다. 발표에 쓰는 숫자는 사람이 쓴 질문의 결과와 같이 보세요. 사람이 쓴 질문을 늘리는 것이 가장 좋습니다.
 - 지금은 데모 3작품(진격의 거인, 귀멸의 칼날, 나의 히어로 아카데미아)만 들어 있습니다.
+
+## 청킹 방식 비교 (`chunking_compare.py`)
+
+같은 줄거리를 여러 방식(위키 문단·겹침·의미 기반·고정 길이·회차 통째)으로 잘라 임베딩하고 정답 회차 순위를 비교합니다.
+서비스 DB는 읽기만 하고, 벡터는 `data/processed/chunking_compare/`에 캐시합니다. 결과와 해석: `docs/meetings/2026-10-08_청킹-비교-실험.md`
+
+- `questions_plot.jsonl` — 청크를 보지 않고 **회차 줄거리 전체**를 읽고 만든 질문 72개(`source: claude-plot`).
+  질문마다 근거 원문(`evidence`)과 줄거리 안 위치(`position`)가 있습니다. 청킹 방식끼리 비교할 때는 이 질문셋을 씁니다.
+
+```bash
+.venv/bin/python eval/chunking_compare.py                                                  # questions_plot.jsonl
+.venv/bin/python eval/chunking_compare.py --questions eval/questions.jsonl --label taeho-questions
+```
