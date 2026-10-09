@@ -1,0 +1,254 @@
+<meta charset="utf-8">
+<title>AniWhere 워크플로우 전/후</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: 기능 지도와 같은 토큰. 한 줄 세로 문서 — 요약 → ① 없이 → ② 쓸 때(같은 두 줄 구조) → 비교표 → ③ 에이전트 안 → 평가 근거. 그림은 슬라이드에 그대로 옮길 수 있게 넓게. */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --ink: #161a24;
+  --muted: #5d6475;
+  --line: #dfe2e9;
+  --line-strong: #b9bfcc;
+  --accent: #2346d8;        /* 회차 진행선 블루 = AniWhere */
+  --accent-soft: #e6ebff;
+  --spoiler: #d6324a;       /* 스포일러·불편 지점 */
+  --spoiler-soft: #fde8eb;
+  --good: #157a52;  --good-bg: #e3f5ec;
+  --warn: #8a5a00;  --warn-bg: #fbf0d9;
+  --f-display: "Black Han Sans", "IBM Plex Sans KR", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans KR", system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10131a; --surface: #171b24; --ink: #e8eaf0; --muted: #9aa1b2; --line: #2a303d; --line-strong: #46506a;
+    --accent: #7d95ff; --accent-soft: #1e2647; --spoiler: #ff6b80; --spoiler-soft: #3a1820;
+    --good: #5fd3a0; --good-bg: #14322a; --warn: #f0c060; --warn-bg: #352a12;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10131a; --surface: #171b24; --ink: #e8eaf0; --muted: #9aa1b2; --line: #2a303d; --line-strong: #46506a;
+  --accent: #7d95ff; --accent-soft: #1e2647; --spoiler: #ff6b80; --spoiler-soft: #3a1820;
+  --good: #5fd3a0; --good-bg: #14322a; --warn: #f0c060; --warn-bg: #352a12;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.6; margin: 0; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 72px; display: flex; flex-direction: column; gap: 48px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+p { margin: 0; }
+.prose { max-width: 68ch; }
+code { font-family: var(--f-mono); font-size: 0.86em; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+
+header { display: flex; flex-direction: column; gap: 14px; }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+h1 { font-family: var(--f-display); font-weight: 400; font-size: clamp(30px, 5vw, 46px); line-height: 1.15; letter-spacing: -0.01em; }
+.lede { font-size: 17px; color: var(--ink); }
+.meta { font-size: 13px; color: var(--muted); }
+
+.diffs { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+.diff { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.diff h3 { font-size: 15px; }
+.pair { display: grid; grid-template-columns: 70px 1fr; gap: 4px 10px; font-size: 14px; }
+.pair dt { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.04em; padding-top: 3px; }
+.pair dt.b { color: var(--spoiler); }
+.pair dt.a { color: var(--accent); }
+.pair dd { margin: 0; }
+
+section { display: flex; flex-direction: column; gap: 16px; }
+.sec-head { display: flex; flex-direction: column; gap: 6px; }
+.sec-num { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.08em; color: var(--muted); }
+h2 { font-family: var(--f-display); font-weight: 400; font-size: 28px; line-height: 1.2; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.sw { width: 22px; height: 14px; border-radius: 4px; border: 1.5px solid; display: inline-block; }
+.sw.n { background: var(--surface); border-color: var(--line-strong); }
+.sw.ai { background: var(--accent-soft); border-color: var(--accent); }
+.sw.pain { background: var(--spoiler-soft); border-color: var(--spoiler); border-style: dashed; }
+.sw.guard { background: var(--accent-soft); border-color: var(--spoiler); border-width: 2.5px; }
+.sw.d { width: 14px; height: 14px; transform: rotate(45deg); background: var(--surface); border-color: var(--ink); border-radius: 2px; }
+
+figure { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 18px 14px; display: flex; flex-direction: column; gap: 12px; }
+figure.before { border-top: 4px solid var(--spoiler); }
+figure.after { border-top: 4px solid var(--accent); }
+.scroll { overflow-x: auto; }
+.scroll svg { display: block; width: 100%; min-width: 860px; height: auto; }
+figcaption { font-size: 14px; color: var(--muted); max-width: 80ch; }
+figcaption b { color: var(--ink); font-weight: 500; }
+
+/* SVG 안 요소 — 색은 모두 토큰 */
+.b-n { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.5; }
+.b-ai { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+.b-pain { fill: var(--spoiler-soft); stroke: var(--spoiler); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.b-guard { fill: var(--accent-soft); stroke: var(--spoiler); stroke-width: 2.5; }
+.b-start { fill: var(--ink); stroke: none; }
+.b-d { fill: var(--surface); stroke: var(--ink); stroke-width: 1.5; }
+svg text { font-family: var(--f-body); }
+.t { fill: var(--ink); font-size: 14px; font-weight: 700; }
+.ts { fill: var(--muted); font-size: 11.5px; }
+.td { fill: var(--ink); font-size: 12.5px; font-weight: 500; }
+.t-start { fill: var(--bg); font-size: 13.5px; font-weight: 700; }
+.tnote { fill: var(--muted); font-size: 11px; }
+.tl { fill: var(--muted); font-size: 11.5px; font-weight: 500; }
+.tl-pain { fill: var(--spoiler); font-size: 12.5px; font-weight: 700; }
+.tl-key { fill: var(--accent); font-size: 12.5px; font-weight: 700; }
+.tcode { fill: var(--accent); font-family: var(--f-mono) !important; font-size: 11.5px; font-weight: 700; }
+.row { fill: var(--muted); font-family: var(--f-mono) !important; font-size: 12px; letter-spacing: 0.04em; }
+.e { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+.e-key { fill: none; stroke: var(--accent); stroke-width: 3; }
+.e-pain { fill: none; stroke: var(--spoiler); stroke-width: 1.8; stroke-dasharray: 6 5; }
+.ah-a { fill: var(--muted); }
+.ah-k { fill: var(--accent); }
+.ah-p { fill: var(--spoiler); }
+.bad-bg { fill: var(--spoiler-soft); stroke: var(--spoiler); stroke-width: 1; }
+.bad-dot { fill: var(--spoiler); }
+.bad-mark { fill: var(--surface); font-size: 11px; font-weight: 700; }
+.bad-t { fill: var(--spoiler); font-size: 11.5px; font-weight: 700; }
+.tally-h { fill: var(--ink); font-size: 15px; font-weight: 700; }
+.tally { fill: var(--muted); font-size: 12px; }
+.tally-bad { fill: var(--spoiler); font-size: 12.5px; font-weight: 700; }
+.tally-good { fill: var(--good); font-size: 12.5px; font-weight: 700; }
+
+.tbl { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: none; }
+thead th { font-family: var(--f-mono); font-size: 11.5px; letter-spacing: 0.06em; font-weight: 700; color: var(--muted); background: var(--bg); }
+thead th.b { color: var(--spoiler); }
+thead th.a { color: var(--accent); }
+tbody th { font-weight: 700; width: 17%; }
+td.where { font-family: var(--f-mono); font-size: 12px; color: var(--muted); width: 22%; }
+
+.bar { display: flex; height: 34px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+.bar span { display: flex; align-items: center; padding-inline: 10px; font-size: 13px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 0; overflow: hidden; }
+.bar .ok { background: var(--good-bg); color: var(--good); }
+.bar .ask { background: var(--warn-bg); color: var(--warn); }
+.bar .bad { background: var(--spoiler-soft); color: var(--spoiler); }
+.bar-key { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bar-key b { color: var(--ink); }
+.k { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: 0; }
+.k.ok { background: var(--good); } .k.ask { background: var(--warn); } .k.bad { background: var(--spoiler); }
+
+.next { border: 1.5px dashed var(--line-strong); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+.next h3 { font-size: 16px; }
+ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; }
+@media (max-width: 560px) { h2 { font-size: 24px; } .lede { font-size: 16px; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Category G · Workflow 전/후 비교</div>
+    <h1>AniWhere 없이 볼 때와 쓸 때</h1>
+    <p class="lede prose">같은 사람이 같은 일을 겪는 두 장면을 비교합니다. 기억나는 장면으로 회차를 찾아 보다가 멈추고, 몇 달 뒤 다시 이어보는 경우입니다. 두 흐름도는 같은 두 줄 구조로 그렸습니다. 위아래를 맞대어 보면 무엇이 바뀌는지 보입니다.</p>
+    <p class="meta">작성 강권재 · 2026-10-09 · 기준: <code>main</code>의 <code>aniwhere/agent/find.py</code>, <code>review.py</code>, <code>records/</code> · 시청 여정 단계는 <code>docs/identity/AniWhere_기능지도_2026-10-01.html</code> 기준</p>
+  </header>
+
+  <div class="diffs">
+    <div class="diff">
+      <h3>들르는 곳</h3>
+      <dl class="pair"><dt class="b">없이</dt><dd>검색 포털, 커뮤니티·챗봇, 위키, OTT 앱 여러 개, 요약 영상</dd><dt class="a">AniWhere</dt><dd>한 곳에서 찾기 → 시청처 → 기록 → 복습</dd></dl>
+    </div>
+    <div class="diff">
+      <h3>스포일러</h3>
+      <dl class="pair"><dt class="b">없이</dt><dd>위키 회차 목록과 시즌 요약에서 뒷 내용이 보임</dd><dt class="a">AniWhere</dt><dd>본 회차 이후 내용은 검색하기 전에 뺌</dd></dl>
+    </div>
+    <div class="diff">
+      <h3>다음 방문</h3>
+      <dl class="pair"><dt class="b">없이</dt><dd>기록이 남지 않아 다시 기억에 의존</dd><dt class="a">AniWhere</dt><dd>기록장의 본 회차가 복습 범위를 정함</dd></dl>
+    </div>
+  </div>
+
+  <div class="legend" aria-label="흐름도 범례">
+    <span><i class="sw n"></i>사람이 직접 하는 일</span>
+    <span><i class="sw ai"></i>AniWhere가 하는 일</span>
+    <span><i class="sw pain"></i>불편하거나 스포일러가 보이는 곳</span>
+    <span><i class="sw guard"></i>스포일러 차단이 걸리는 곳</span>
+    <span><i class="sw d"></i>판단</span>
+  </div>
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">① BEFORE</div>
+      <h2>AniWhere 없이 애니를 볼 때</h2>
+    </div>
+    <figure class="before">
+      <div class="scroll">{{BEFORE}}</div>
+      <figcaption><b>이름을 모르면 검색이 막히고, 회차를 확인하려면 스포일러를 감수해야 합니다.</b> 위키 회차 목록은 다음 화 줄거리가 바로 옆에 있고, 시즌 요약 영상에는 결말이 섞여 있습니다. 어디까지 봤는지는 아무 데도 남지 않아서, 몇 달 뒤에는 같은 과정을 기억에만 기대어 다시 시작합니다(빨간 점선).</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">② AFTER</div>
+      <h2>AniWhere를 쓸 때</h2>
+    </div>
+    <figure class="after">
+      <div class="scroll">{{AFTER}}</div>
+      <figcaption><b>①의 빨간 점선이 ②에서는 파란 실선이 됩니다.</b> 찾은 회차와 본 회차가 기록장에 남고, 다음에 복습할 때 그 회차가 스포일러 범위가 됩니다. 근거가 약하면 회차를 단정하지 않고 되묻고(찾기), 본 회차를 모르면 검색하기 전에 먼저 묻습니다(복습).</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">한 줄씩 비교</div>
+      <h2>순간마다 무엇이 바뀌나</h2>
+    </div>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>순간</th><th class="b">AniWhere 없이</th><th class="a">AniWhere를 쓸 때</th><th>코드 위치</th></tr></thead>
+        <tbody>
+          <tr><th>이름이 기억 안 남</th><td>검색어가 안 맞아 커뮤니티에 묻고 기다림</td><td>장면 묘사를 그대로 입력. 에이전트가 이름·키워드를 뽑아 검색</td><td class="where">agent/find.py</td></tr>
+          <tr><th>몇 화인지 확인</th><td>위키 줄거리를 한 화씩 열다가 뒷 화까지 봄</td><td>작품·회차와 근거 줄거리, 출처를 함께 보여 줌</td><td class="where">agent/find.py</td></tr>
+          <tr><th>답이 확실하지 않을 때</th><td>AI 챗봇은 그럴듯한 회차를 단정하기도 함</td><td>근거 문장이 자료에 없으면 단정하지 않고 되물음</td><td class="where">find.py _grounded</td></tr>
+          <tr><th>어디서 보지</th><td>OTT 앱을 하나씩 열어 검색</td><td>국내 구독형 제공처와 확인일을 같은 화면에</td><td class="where">retrieval/catalog.py</td></tr>
+          <tr><th>보다가 멈춤</th><td>기록 없음</td><td>기록장에 본 회차·평점 저장</td><td class="where">records/</td></tr>
+          <tr><th>몇 달 뒤 복습</th><td>요약 영상·위키에서 결말까지 노출</td><td>기록장의 본 회차까지만 근거로 복습, 이후 회차는 검색 전에 제외</td><td class="where">agent/review.py · retrieval/search.py</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">③ INSIDE</div>
+      <h2>에이전트가 찾는 과정</h2>
+      <p class="prose" style="color: var(--muted)">②의 "에이전트가 찾기" 상자를 펼친 그림입니다. 기억으로 작품·회차 찾기(기능 05·06)의 실제 코드 순서입니다.</p>
+    </div>
+    <figure class="after">
+      <div class="scroll">{{AGENT}}</div>
+      <figcaption><b>검색은 작게, 판정은 크게 합니다.</b> 약 700자 장면 청크로 찾고, 맞은 장면을 회차로 묶은 뒤, 판정할 때는 그 회차의 줄거리 전체를 LLM에 보여 줍니다. LLM은 검색된 자료만 보고 고르며, 회차로 답하려면 근거로 든 문장이 줄거리에 실제로 있어야 합니다. 스포일러 범위는 검색 <i>전에</i> 정해서, 걸러낼 청크가 애초에 검색되지 않습니다.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">근거</div>
+      <h2>찾기 평가 75문항 결과</h2>
+    </div>
+    <div class="bar" role="img" aria-label="75문항 중 회차 맞음 59, 못 찾고 되물음 12, 틀린 회차를 단정 4">
+      <span class="ok" style="width: 78.67%">59</span>
+      <span class="ask" style="width: 16%">12</span>
+      <span class="bad" style="width: 5.33%">4</span>
+    </div>
+    <div class="bar-key">
+      <span><i class="k ok"></i>회차 맞음 <b>59</b> (79%)</span>
+      <span><i class="k ask"></i>못 찾고 되물음 <b>12</b> (16%)</span>
+      <span><i class="k bad"></i>틀린 회차를 단정 <b>4</b> (5%)</span>
+    </div>
+    <p class="prose" style="color: var(--muted); font-size: 14px">데모 3작품(진격의 거인, 귀멸의 칼날, 나의 히어로 아카데미아)에서 찾기 기능 전체(LLM 포함)를 돌린 결과입니다. 틀렸을 때 단정하기보다 되묻는 쪽으로 끝나는 경우가 더 많습니다. 다만 75문항 중 68개는 LLM이 장면 청크를 보고 만든 질문이라 실제 사용자 질문보다 쉬울 수 있습니다. 사람이 쓴 질문 7개에서는 5개가 맞았습니다. 출처: <code>eval/results/2026-10-08_pipeline-event.json</code></p>
+  </section>
+
+  <div class="next">
+    <h3>다음에 바뀔 부분</h3>
+    <ul class="prose">
+      <li>지금은 사용자가 화면에서 찾기·복습·사전 중 하나를 고릅니다. "에이전트스러움" 피드백을 반영해, 질문 하나를 받으면 에이전트가 어느 기능을 쓸지 스스로 고르도록 바꿀 예정입니다. 바뀌면 ②의 "에이전트가 찾기" 상자 앞에 "기능 고르기" 판단이 하나 생깁니다.</li>
+      <li>그림 원본은 <code>docs/workflow/</code>에 있습니다. 슬라이드에는 ①과 ②를 한 장씩, ③을 한 장으로 넣는 것을 권합니다.</li>
+    </ul>
+  </div>
+</div>
