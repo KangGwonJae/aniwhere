@@ -119,6 +119,64 @@ python data/collect.py migrate --min-fill 0.9 --to 다른이름   # 기준·DB �
   그리고 그 작품들의 `wiki_pages`(원문 `wikitext` 칸 제외). `raw`(API 원본 캐시)는 옮기지 않습니다.
 - 서비스용 DB를 쓰려면 `.env`의 `DATABASE_URL`에서 DB 이름만 `aniwhere_service`로 바꿉니다.
 
+### 서비스용 DB 공유
+
+수집과 임베딩을 각자 다시 돌리지 않도록, 서비스용 DB를 파일 하나(덤프)로 내보내 팀 클라우드에 올려 공유합니다.
+덤프는 용량이 커서(1GB 이상) 저장소에 커밋하지 않습니다(`data/dump/`는 `.gitignore`에 있음).
+
+**보내는 쪽**
+
+```bash
+make db-dump        # → data/dump/aniwhere_service_날짜.dump 와 .sha256 (내 시청 기록은 빠짐)
+```
+
+두 파일을 팀 클라우드에 올립니다. 링크는 팀 안에서만 공유합니다(아래 "출처와 라이선스": AniList는 대량 재배포 금지).
+
+**받는 쪽**
+
+1. **PostgreSQL 18과 pgvector 0.8 이상을 설치합니다.** 덤프를 PostgreSQL 18에서 만들었기 때문에 17 이하에서는 복원되지
+   않습니다(서버와 `pg_restore` 둘 다 18 이상이어야 함). 19 이상은 됩니다.
+
+   | 환경 | 설치 |
+   |---|---|
+   | macOS (가장 쉬움) | [Postgres.app](https://postgresapp.com/)에서 PostgreSQL 18 서버를 만듦. pgvector가 들어 있음. 터미널에서 `psql`·`pg_restore`를 쓰려면 Postgres.app 안내의 "Configure your $PATH"를 따름 |
+   | macOS (Homebrew) | `brew install postgresql@18 pgvector` → `brew services start postgresql@18` |
+   | macOS·Windows (공식 설치 프로그램) | [EDB 설치 프로그램](https://www.enterprisedb.com/downloads/postgres-postgresql-downloads)으로 18을 설치. pgvector는 들어 있지 않아 [pgvector 설치 안내](https://github.com/pgvector/pgvector#installation)대로 따로 빌드해 넣음(Windows는 Visual Studio C++ 빌드 도구 필요) |
+   | Windows (WSL2)·Ubuntu | [PGDG 저장소](https://www.postgresql.org/download/linux/ubuntu/)를 등록한 뒤 `sudo apt install postgresql-18 postgresql-18-pgvector` |
+
+2. **버전을 확인합니다.**
+
+   ```bash
+   pg_restore --version                                   # 18 이상
+   psql -d postgres -c "SHOW server_version" -c "SELECT default_version FROM pg_available_extensions WHERE name='vector'"
+   ```
+
+   `server_version`이 18 이상이고 `default_version`이 0.8 이상이면 됩니다. 두 번째 결과가 비어 있으면 pgvector가
+   이 서버에 설치되지 않은 것입니다(PostgreSQL을 여러 버전 깔았다면 다른 버전에 들어갔을 수 있음).
+
+3. **복원합니다.**
+
+   ```bash
+   shasum -a 256 -c aniwhere_service_날짜.dump.sha256      # 내려받은 파일이 깨지지 않았는지 확인
+   make setup
+   cp .env.example .env                                    # DATABASE_URL=postgresql://사용자:비밀번호@localhost:5432/aniwhere 를 채움
+   make db-restore DUMP=aniwhere_service_날짜.dump          # aniwhere_service DB를 만들고 복원. 몇 분 걸림
+   make run
+   ```
+
+   - `DATABASE_URL`의 DB 이름은 무엇이든 괜찮습니다. 앱은 같은 서버의 `aniwhere_service`를 읽습니다(`config/settings.yaml`의 `service_db.name`).
+   - 끝나면 작품 589개, 청크 200,767개(모두 임베딩됨)가 찍힙니다(2026-10-08 덤프 기준).
+   - 새 덤프를 받으면 `make db-restore`만 다시 합니다. 기존 내용을 지우고 다시 넣으므로 내 시청 기록도 지워집니다.
+   - `make` 없이 직접 하려면:
+
+     ```bash
+     createdb aniwhere_service
+     PGOPTIONS="-c maintenance_work_mem=2GB" pg_restore -d aniwhere_service --no-owner -j 4 aniwhere_service_날짜.dump
+     psql -d aniwhere_service -c "ANALYZE"
+     ```
+
+   - 디스크는 덤프 1.2GB와 복원한 DB 약 3.7GB가 필요합니다.
+
 ### 임베딩
 
 모델과 차원은 `config/settings.yaml`의 `embedding`에서 정합니다(지금은 `BAAI/bge-m3`, 1024차원. 처음 실행할 때
@@ -127,9 +185,26 @@ python data/collect.py migrate --min-fill 0.9 --to 다른이름   # 기준·DB �
 청크 텍스트가 바뀌면 그 청크의 임베딩만 비워지므로 `embed`를 다시 실행하면 바뀐 것만 계산합니다.
 
 ```bash
-python data/collect.py embed --chunk-types plot                     # 회차 통째 줄거리만 임베딩
-python data/collect.py search "질문" --series tmdb:65930 --watched 49 --chunk-types plot
+python data/collect.py embed                                        # 모든 종류를 임베딩 (이미 한 것은 건너뜀)
+python data/collect.py embed --chunk-types event                    # 한 종류만
+python data/collect.py search "질문" --series tmdb:65930 --watched 49 --chunk-types event
 ```
+
+**어떤 종류로 검색하나 — 작게 찾고 크게 읽기.** 모든 종류를 임베딩해 두고, 앱이 어느 종류로 검색할지는
+`config/settings.yaml`의 `retrieval.chunk_types`로 고릅니다(지금은 `event`). 장면(`event`, 약 700자)으로 찾아
+회차로 묶은 뒤, LLM에게는 그 회차의 상세 줄거리(`plot`) 전체를 보여 줍니다. 회차 통째(`plot`)를 벡터 하나로 만들어
+찾으면 한 장면의 뜻이 묻힙니다. 데모 3작품 질문 75개로 잰 결과(`eval/results/2026-10-08_chunking-ab.json`):
+
+| 검색 대상 | 작품 안에서 정답 회차 1위 | 8위 안 |
+|---|---|---|
+| 회차 통째(`plot`) | 20% | 53% |
+| 장면(`event`) | 63% | 85% |
+
+캐릭터·용어·작품 소개(`character`·`terminology`·`summary`)는 "키 작은 아저씨가 칼 들고 날아다녀"처럼 장면이 아니라
+생김새로 작품을 찾을 때 검색합니다.
+
+`embed`는 끝날 때 `ANALYZE chunks`로 통계를 갱신합니다. 이것이 빠지면 PostgreSQL이 임베딩이 비어 있다고 보고
+벡터 인덱스를 쓰지 않습니다. 임베딩은 오래 걸리므로 노트북에서는 절전을 막고 돌리세요: `caffeinate -i -s python data/collect.py embed`
 
 상세 줄거리는 청크로 만들기 전에 줄거리가 아닌 줄을 지웁니다(`clean_plot`): 위키 탭 표시(`|-|Netflix=`), 일본어·로마자
 원문, 이름·소제목만 있는 50자 미만 줄.

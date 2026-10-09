@@ -24,6 +24,33 @@ chunking:
 
 retrieval:
   top_k: 5
+  ann: true                 # true: 근사 검색(HNSW 인덱스). false: 전체를 훑는 정확 검색
+  ef_search: 1000           # 근사 검색이 살펴보는 후보 수(최대 1000). 클수록 정확 검색과 같아지고 조금 느려짐
+                            #   2026-10-08 측정(벡터 19,296개, 전체 작품에서 30개 검색): 정확 검색 49ms /
+                            #   100 → 6ms, 30개 중 22개 일치 / 400 → 8ms, 28개 / 1000 → 14ms, 30개
+  chunk_types: [event]      # 장면을 찾는 벡터 검색의 대상. 작게 찾고(장면 약 700자) 크게 읽음(그 회차의 줄거리 전체)
+                            #   회차 통째(plot)로 찾으면 정답 회차 1위 20%, 장면(event)이면 63% (eval/results/2026-10-08_chunking-ab.json)
+                            #   캐릭터·용어·작품 소개는 작품을 찾을 때 따로 검색 (aniwhere/agent/find.py의 PROFILE_TYPES)
+  query_device: cpu         # 질문 임베딩을 계산할 장치. null이면 자동(GPU). 청크 임베딩(embed)이 GPU를 쓰는 동안에도 돌도록 cpu
+
+# 02 탐색 — 기억으로 작품·회차 찾기 (aniwhere/agent/find.py)
+find:
+  pool: 30                  # 작품을 모를 때 전체에서 먼저 가져오는 청크 수
+  max_series: 4             # 회차까지 다시 검색하는 작품 후보 수
+  min_score: 0.5            # 1위 유사도가 이보다 낮으면 근거가 약하다고 보고 단정하지 않음
+  margin: 0.02              # 1위와 2위의 유사도 차이가 이보다 작으면 후보가 비슷하다고 보고 다시 물음 (LLM이 없을 때)
+  judge_chunks: 8           # LLM에게 보여 주는 후보 회차 수
+  judge_chunk_chars: 8000   # 후보 청크 하나에서 보여 주는 글자 수 (회차 줄거리는 길면 7~8천 자)
+
+# 04 이어보기 — 맞춤 복습 (aniwhere/agent/review.py)
+review:
+  max_context_chars: 60000  # LLM에 넣는 근거의 최대 글자 수. 회차가 많으면 회차당 글자 수를 줄여 맞춤
+  source_chars: 400         # 응답의 sources[].text 한 개 길이
+
+# 01 입문 — 취향 인터뷰 추천 (aniwhere/agent/recommend.py)
+recommend:
+  count: 5
 
 llm:
-  model: null
+  model: gpt-5.4-mini       # OpenAI 모델 이름. 키는 .env의 OPENAI_API_KEY
+  temperature: 0            # 이 값을 받지 않는 모델이면 null
