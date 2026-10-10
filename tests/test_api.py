@@ -123,3 +123,55 @@ def test_fake_rejects_bad_input_like_service():
         fake.review(fake.HERO, 49, "ask", None)
     with pytest.raises(ValueError):
         fake.review(fake.HERO, 49, "오타")
+
+
+def test_series_list_and_search(client):
+    assert len(client.get("/api/series").json()) == 2
+    rows = client.get("/api/series", params={"q": "거인"}).json()
+    assert [r["series_id"] for r in rows] == [fake.TITAN]
+    assert set(rows[0]) == {"series_id", "name", "title", "total_episodes"}
+
+
+def test_series_limit_is_bounded(client):
+    assert client.get("/api/series", params={"limit": 0}).status_code == 422
+    assert client.get("/api/series", params={"limit": 100000}).status_code == 422
+
+
+def test_series_info_and_404(client):
+    assert client.get(f"/api/series/{fake.HERO}").json()["name"] == "나의 히어로 아카데미아"
+    assert client.get("/api/series/tmdb:0").status_code == 404
+
+
+def test_series_id_may_be_url_encoded(client):
+    plain = client.get("/api/series/tmdb:65930").json()
+    encoded = client.get("/api/series/tmdb%3A65930").json()
+    assert plain == encoded
+
+
+def test_where_to_watch(client):
+    r = client.get(f"/api/series/{fake.HERO}/where-to-watch")
+    assert r.status_code == 200
+    body = r.json()
+    assert set(body) == {"series_id", "title", "seasons", "attribution"}
+    assert set(body["seasons"][0]) >= {"name", "providers", "checked_at"}
+
+
+def test_unknown_series_is_404_everywhere(client):
+    assert client.get("/api/series/tmdb:0/where-to-watch").status_code == 404
+    assert client.get("/api/series/tmdb:0/dictionary").status_code == 404
+    assert "모르는 작품" in client.get("/api/series/tmdb:0/where-to-watch").json()["detail"]
+
+
+def test_dictionary_uses_record_when_seen_ep_missing(client):
+    body = client.get(f"/api/series/{fake.HERO}/dictionary").json()
+    assert body["seen_ep"] == 49 and body["entries"] and body["follow_up"] is None
+
+
+def test_dictionary_asks_when_no_record_and_no_seen_ep(client):
+    body = client.get(f"/api/series/{fake.TITAN}/dictionary").json()
+    assert body == {"seen_ep": None, "entries": [], "follow_up": fake.ASK_SEEN}
+
+
+def test_dictionary_explicit_seen_ep(client):
+    body = client.get(f"/api/series/{fake.TITAN}/dictionary", params={"seen_ep": 7}).json()
+    assert body["seen_ep"] == 7

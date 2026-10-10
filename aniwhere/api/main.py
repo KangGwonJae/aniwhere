@@ -8,10 +8,11 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
 
 from aniwhere.config import REPO
+from aniwhere.retrieval.catalog import UnknownSeries
 
 
 def fake_mode() -> bool:
@@ -31,6 +32,12 @@ def _mode(svc) -> str:
     return getattr(svc, "MODE", "real")
 
 
+def _or_404(value, what: str):
+    if value is None:
+        raise HTTPException(status_code=404, detail=f"없습니다: {what}")
+    return value
+
+
 def create_app(frontend_dir: Path | None = REPO / "frontend") -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -40,6 +47,10 @@ def create_app(frontend_dir: Path | None = REPO / "frontend") -> FastAPI:
         yield
 
     app = FastAPI(title="AniWhere API", lifespan=lifespan)
+
+    @app.exception_handler(UnknownSeries)
+    async def unknown_series(_, exc: UnknownSeries):
+        return JSONResponse(status_code=404, content={"detail": str(exc)})
 
     @app.exception_handler(ValueError)
     async def value_error(_, exc: ValueError):
@@ -54,6 +65,22 @@ def create_app(frontend_dir: Path | None = REPO / "frontend") -> FastAPI:
             except Exception as e:  # DB가 꺼져 있으면 503
                 return JSONResponse(status_code=503, content={"status": "db_unavailable", "detail": str(e)})
         return {"status": "ok", "mode": mode}
+
+    @app.get("/api/series")
+    def series_list(q: str | None = None, limit: int = Query(50, ge=1, le=200), svc=Depends(get_service)):
+        return svc.search_series(q, limit)
+
+    @app.get("/api/series/{series_id}")
+    def series_info(series_id: str, svc=Depends(get_service)):
+        return _or_404(svc.series(series_id), series_id)
+
+    @app.get("/api/series/{series_id}/where-to-watch")
+    def where_to_watch(series_id: str, svc=Depends(get_service)):
+        return svc.where_to_watch(series_id)
+
+    @app.get("/api/series/{series_id}/dictionary")
+    def dictionary(series_id: str, seen_ep: int | None = None, svc=Depends(get_service)):
+        return svc.dictionary(series_id, seen_ep)
 
     return app
 
