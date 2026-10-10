@@ -10,7 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from aniwhere import service
-from aniwhere.api import fake
+from aniwhere.api import fake, main as api_main
 from aniwhere.api.main import create_app, get_service
 from aniwhere.retrieval.catalog import UnknownSeries
 
@@ -295,3 +295,29 @@ def test_record_out_of_range_is_400_not_500(client):
 def test_record_requires_integer_seen_ep(client):
     assert client.put(f"/api/records/{fake.HERO}", json={}).status_code == 422
     assert client.put(f"/api/records/{fake.HERO}", json={"seen_ep": "열둘"}).status_code == 422
+
+
+def test_every_service_function_has_a_route():
+    """service.py에 함수를 추가하고 API를 빠뜨리면 여기서 걸림."""
+    src = inspect.getsource(api_main)
+    missing = [n for n in SERVICE_FUNCS if f"svc.{n}(" not in src]
+    assert missing == [], f"라우트에서 부르지 않는 서비스 함수: {missing}"
+
+
+def test_frontend_is_served_when_folder_exists(tmp_path):
+    (tmp_path / "index.html").write_text("<!doctype html><title>AniWhere</title>", encoding="utf-8")
+    (tmp_path / "app.js").write_text("console.log('hi')", encoding="utf-8")
+    app = create_app(frontend_dir=tmp_path)
+    app.dependency_overrides[get_service] = lambda: fake
+    c = TestClient(app)
+    assert c.get("/").status_code == 200 and "AniWhere" in c.get("/").text
+    assert c.get("/app.js").status_code == 200
+    assert c.get("/api/health").json()["mode"] == "fake"      # /api가 화면보다 먼저 매칭
+
+
+def test_no_frontend_folder_means_api_only(tmp_path):
+    app = create_app(frontend_dir=tmp_path / "없는폴더")
+    app.dependency_overrides[get_service] = lambda: fake
+    c = TestClient(app)
+    assert c.get("/").status_code == 404
+    assert c.get("/api/health").status_code == 200

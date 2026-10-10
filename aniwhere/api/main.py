@@ -11,6 +11,7 @@ from typing import Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from aniwhere.config import REPO
@@ -142,6 +143,10 @@ def create_app(frontend_dir: Path | None = REPO / "frontend") -> FastAPI:
         if not svc.delete_record(series_id):
             raise HTTPException(status_code=404, detail=f"없습니다: {series_id}의 기록")
         return Response(status_code=204)
+
+    # 화면 파일. 폴더가 없으면(아직 main에 frontend/가 없을 때) API만 뜬다.
+    if frontend_dir and Path(frontend_dir).is_dir():
+        app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
 
     return app
 
