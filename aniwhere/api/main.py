@@ -1,0 +1,61 @@
+"""HTTP 입구. 화면(frontend/)이 부르는 /api/* 와 화면 파일을 함께 제공합니다.
+
+판단 로직을 두지 않습니다: 서비스(aniwhere/service.py, 또는 ANIWHERE_FAKE=1이면 aniwhere/api/fake.py)의 함수를
+그대로 부르고 반환값을 그대로 돌려줍니다. 응답 형식의 원본은 service.py의 독스트링입니다.
+실행: make api  /  make api FAKE=1  /  문서: http://localhost:8000/docs
+"""
+import os
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from fastapi import Depends, FastAPI
+from fastapi.responses import JSONResponse
+
+from aniwhere.config import REPO
+
+
+def fake_mode() -> bool:
+    return os.environ.get("ANIWHERE_FAKE", "") not in ("", "0")
+
+
+def get_service():
+    """라우트가 부를 서비스 모듈. 테스트는 app.dependency_overrides로 바꿔 끼웁니다."""
+    if fake_mode():
+        from aniwhere.api import fake
+        return fake
+    from aniwhere import service
+    return service
+
+
+def _mode(svc) -> str:
+    return getattr(svc, "MODE", "real")
+
+
+def create_app(frontend_dir: Path | None = REPO / "frontend") -> FastAPI:
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        svc = app.dependency_overrides.get(get_service, get_service)()
+        if _mode(svc) == "real":
+            svc.warm_up()
+        yield
+
+    app = FastAPI(title="AniWhere API", lifespan=lifespan)
+
+    @app.exception_handler(ValueError)
+    async def value_error(_, exc: ValueError):
+        return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+    @app.get("/api/health")
+    def health(svc=Depends(get_service)):
+        mode = _mode(svc)
+        if mode == "real":
+            try:
+                svc.db().execute("SELECT 1")
+            except Exception as e:  # DB가 꺼져 있으면 503
+                return JSONResponse(status_code=503, content={"status": "db_unavailable", "detail": str(e)})
+        return {"status": "ok", "mode": mode}
+
+    return app
+
+
+app = create_app()
