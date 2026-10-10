@@ -1,0 +1,110 @@
+# API 서버 설계 (2026-10-10)
+
+- 작성: 강권재
+- 목적: `aniwhere/service.py`를 HTTP로 열어 이의진의 HTML/JS 화면(`frontend/`)이 가짜 데이터(`mock`) 대신 실제 백엔드를 부르게 한다.
+- 시청 여정 단계: 특정 단계가 아니라 **모든 기능의 입구**. 기능별 단계는 `service.py`의 표를 따른다.
+- 기준 문서: `docs/meetings/2026-10-07_구현범위-역할분담.md`의 "프론트와 백엔드 사이 약속", `docs/ARCHITECTURE.md`의 `api/` 규칙.
+
+## 성공 기준
+
+1. `make api`로 `http://localhost:8000`에서 화면(`/`)과 API(`/api/...`)가 함께 뜬다.
+2. `make api FAKE=1`이면 PostgreSQL·임베딩 모델·OpenAI 키 없이 뜬다. 응답 형식은 실제 모드와 같다.
+3. 의진이 `app.js`의 `mock`을 `fetch('/api/...')`로 바꾸기만 하면 두 모드 모두에서 동작한다.
+4. `make test`에 API 테스트가 들어가고, DB·LLM 없이 통과한다.
+
+## 구조
+
+```
+aniwhere/api/
+  __init__.py
+  main.py     ← FastAPI 앱, 라우트, 화면 파일 mount. 판단 로직 없음
+  fake.py     ← service.py와 같은 함수 이름·형식으로 고정 응답을 돌려주는 가짜 서비스
+frontend/     ← 의진의 화면 (이 PR에서는 만들지 않음; 폴더가 있을 때만 mount)
+tests/test_api.py
+```
+
+의존 방향은 `retrieval → agent → service → api`로, AGENTS.md의 규칙 안이다. `api/`는 `service`(또는 `fake`)만 import한다.
+
+### 서비스 주입
+
+라우트 함수는 서비스 모듈을 `Depends(get_service)`로 받는다.
+
+- `ANIWHERE_FAKE=1`이면 `aniwhere.api.fake`, 아니면 `aniwhere.service`.
+- 테스트는 `app.dependency_overrides[get_service]`로 가짜(또는 호출 기록용 객체)를 끼운다.
+- 실제 모드에서는 앱 시작 시(`lifespan`) `service.warm_up()`을 불러 첫 질문이 모델 로딩을 기다리지 않게 한다. 가짜 모드에서는 부르지 않는다.
+
+가짜 서비스 `fake.py`의 역할 세 가지: 의진의 개발용 백엔드, 테스트 픽스처, 응답 형식의 실행 가능한 예시. 데이터는 의진 `mock`과 맞춘 나의 히어로 아카데미아(`tmdb:65930`, 49화까지 봄) 하나와, 기록 없는 작품 하나. 기록장은 메모리 dict에 저장한다(프로세스 재시작 시 초기화).
+
+## 엔드포인트
+
+경로 접두어는 `/api`. LLM을 부르는 기능은 POST, 조회만 하는 기능은 GET.
+
+| 기능 | 메서드·경로 | 요청 | 호출 | 응답 |
+|---|---|---|---|---|
+| 상태 확인 | `GET /api/health` | | | `{status: "ok", mode: "real"\|"fake"}` |
+| 작품 목록·검색 | `GET /api/series?q=&limit=50` | | `search_series(q, limit)` | `[{series_id, name, title, total_episodes}]` |
+| 작품 정보 | `GET /api/series/{series_id}` | | `series(id)` | dict, 없으면 404 |
+| 07 시청처 | `GET /api/series/{series_id}/where-to-watch` | | `where_to_watch(id)` | `{series_id, title, seasons[], attribution}` |
+| 08 사전 | `GET /api/series/{series_id}/dictionary?seen_ep=` | `seen_ep?` | `dictionary(id, seen_ep)` | `{seen_ep, entries[], follow_up?}` |
+| 05·06 찾기 | `POST /api/find` | `{question, history?: [{role, content}]}` | `find(question, history)` | `{status, answer, candidates[], follow_up?, sources[]}` |
+| 09 복습 | `POST /api/review` | `{series_id, seen_ep?, mode?: summary\|characters\|last\|ask, question?}` | `review(...)` | `{answer, seen_ep, sources[], follow_up?}` |
+| 01 추천 | `POST /api/recommend` | `{likes}` | `recommend(likes)` | `{mood, picks[], follow_up?}` |
+| 13 기록장 목록 | `GET /api/records` | | `list_records()` | `[record]` |
+| 13 기록 조회 | `GET /api/records/{series_id}` | | `get_record(id)` | record, 없으면 404 |
+| 13 기록 저장 | `PUT /api/records/{series_id}` | `{seen_ep, rating?}` | `save_record(id, seen_ep, rating)` | 저장된 record |
+| 13 기록 삭제 | `DELETE /api/records/{series_id}` | | `delete_record(id)` | 204, 없으면 404 |
+
+- `series_id`는 `tmdb:65930`처럼 콜론을 포함한다. 경로 매개변수로 그대로 받는다(`:`는 경로 세그먼트 안에서 허용).
+- 응답은 `service`가 돌려준 dict·list를 **그대로** 보낸다. 응답용 pydantic 모델은 두지 않는다 — 형식의 원본은 `service.py` 독스트링 하나다.
+- 요청 본문만 pydantic 모델로 검사한다(`FindRequest`, `ReviewRequest`, `RecommendRequest`, `RecordRequest`). `mode`는 `Literal["summary", "characters", "last", "ask"]`. `history`의 항목은 `{role: str, content: str}`.
+- `seen_ep`가 없을 때 서버는 오류를 내지 않는다. `service`가 기록장을 읽고, 기록도 없으면 `follow_up`이 담긴 200 응답을 돌려준다(이미 그렇게 동작함).
+
+## 오류 처리
+
+| 상황 | 응답 |
+|---|---|
+| 요청 형식 오류 (필수 값 누락, `mode` 오타) | 422 (FastAPI 기본) |
+| `service`가 `ValueError` (모르는 작품, 회차·평점 범위 밖, `ask`인데 질문 없음) | 400 `{detail: 메시지}` — `ValueError` → 400으로 바꾸는 예외 처리기 하나 |
+| 조회 결과 없음 (`series`, `get_record`가 `None`, `delete_record`가 `False`) | 404 |
+| DB 연결 실패 등 그 외 예외 | 500 (FastAPI 기본). `/api/health`는 실제 모드에서 `SELECT 1`을 시도해 실패하면 503 |
+
+## 화면 연결
+
+- `REPO/frontend/`가 있으면 `app.mount("/", StaticFiles(directory=..., html=True))`를 **라우트 등록 뒤에** 붙인다. `/api/*`가 먼저 매칭되므로 충돌 없음.
+- 폴더가 없으면 mount하지 않고 `/`는 404. API만 뜬다 (지금 `main`의 상태).
+- 같은 출처(origin)이므로 CORS 설정은 두지 않는다.
+- 의진이 화면을 따로 띄우고 싶으면(Live Server) 나중에 CORS를 추가하면 된다. 이 PR 범위 밖.
+
+## 실행
+
+- `requirements.txt`에 `fastapi>=0.115`, `uvicorn[standard]>=0.30` 추가.
+- `Makefile`: `make api` → `uvicorn aniwhere.api.main:app --reload --port 8000`. `make api FAKE=1`은 `ANIWHERE_FAKE=1`을 붙여 실행.
+- `.env.example`은 바뀌지 않는다(새 비밀 값 없음). `ANIWHERE_FAKE`는 비밀이 아니므로 Makefile에서만 다룬다.
+- `README.md`의 실행 명령에 `make api` 두 줄 추가. 별도 API 문서는 쓰지 않는다 — `http://localhost:8000/docs`(OpenAPI 자동 생성)가 대신한다.
+
+## 테스트 (`tests/test_api.py`)
+
+DB·LLM·모델 없이 돈다. `TestClient` + `dependency_overrides`.
+
+1. **엔드포인트별 동작** — 가짜 서비스로: 각 경로가 200과 약속한 최상위 키를 돌려주는지. 404(모르는 작품·기록 없음), 400(`ValueError`), 422(`mode` 오타, `question` 누락), 기록 저장 → 조회 → 삭제 → 404.
+2. **인자 전달** — 호출 기록용 가짜를 끼워 `POST /api/review`가 `review("tmdb:1", 49, "last", None)`처럼 **값을 바꾸지 않고 그대로** 넘기는지. "판단 로직 없음"을 테스트로 지킨다.
+3. **어긋남 방지**
+   - `service.py`의 공개 함수(`_`로 시작하지 않고 `db`·`warm_up` 제외) 각각이 어느 라우트에서든 호출되는지 — 라우트 함수 소스에 `svc.<이름>(`이 있는지로 확인.
+   - `fake.py`가 `service.py`의 공개 함수와 같은 이름을 모두 가지는지.
+   - 가짜 응답의 최상위 키가 `service.py` 독스트링의 `→ {…}` 키를 모두 포함하는지 (독스트링이 그 형식인 함수만 대상; `?`가 붙은 선택 키는 빠져도 됨).
+4. **화면 mount** — `frontend/`가 있으면 `/`가 200 HTML, 없으면 404.
+
+## 검증 흐름 (구축 방식)
+
+| 단계 | 누가 | 확인 |
+|---|---|---|
+| 테스트 먼저 | 구현 에이전트 | 테스트 작성 → 실패 확인 → 구현 → 통과 |
+| 규칙 검토 | 별도 검토 에이전트 | `api/`에 판단 로직 없음, `seen_ep` 규칙 안 깨짐, 비밀 값 없음, 의존 방향, `make test` 통과 |
+| 실제 실행 | 강권재(실제 DB가 있는 맥) | `make api` → `/api/health`, `/api/series?q=히어로`, `POST /api/find` 실제 LLM 1회, `make api FAKE=1` → `/api/records/tmdb:65930`. 출력을 그대로 PR 본문에 적음 |
+
+## 범위 밖
+
+- `frontend/` 수정(의진 담당). 의진에게는 PR 링크와 함께 "`mock` → `fetch` 교체 지점"을 Slack으로 알린다.
+- 로그인·사용자 구분(`LOCAL_USER` 한 명).
+- 스트리밍 응답, CORS, 배포.
+- 워크플로우 흐름도에 API 층 반영(③ 이후에 한 번에).
