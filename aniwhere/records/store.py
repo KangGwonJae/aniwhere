@@ -3,6 +3,7 @@
 기록은 서비스용 DB의 watch_records 테이블에 둡니다. series를 참조(REFERENCES)하지 않는 것은 일부러입니다:
 `collect.py migrate`가 서비스용 DB의 작품 데이터를 비우고 다시 채워도 사용자 기록은 남아야 합니다.
 """
+from aniwhere.retrieval.catalog import UnknownSeries
 
 LOCAL_USER = "local"     # 로그인이 없는 동안 쓰는 사용자 이름
 
@@ -29,7 +30,7 @@ def save(db, series_id, seen_ep, rating=None, *, user_id=LOCAL_USER) -> dict:
     _ensure(db)
     s = db.execute("SELECT total_episodes FROM series WHERE series_id = %s", (series_id,)).fetchone()
     if not s:
-        raise ValueError(f"모르는 작품입니다: {series_id}")
+        raise UnknownSeries(f"모르는 작품입니다: {series_id}")
     total = s["total_episodes"]
     if not isinstance(seen_ep, int) or isinstance(seen_ep, bool) or seen_ep < 0 or (total and seen_ep > total):
         raise ValueError(f"본 회차는 0부터 {total}까지의 정수여야 합니다: {seen_ep!r}")

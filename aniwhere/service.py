@@ -59,7 +59,7 @@ def where_to_watch(series_id: str) -> dict:
     """→ {series_id, title, seasons[{name, providers[], checked_at, link}], attribution}"""
     info = catalog.series_info(db(), series_id)
     if not info:
-        raise ValueError(f"모르는 작품입니다: {series_id}")
+        raise catalog.UnknownSeries(f"모르는 작품입니다: {series_id}")
     return _plain({"series_id": series_id, "title": info["name"], "seasons": catalog.streaming(db(), series_id),
                    "attribution": "시청처 정보: JustWatch (TMDB 제공). 구독형 제공처만 표시합니다."})
 
@@ -88,7 +88,7 @@ def recommend(likes: str, *, user_id=USER) -> dict:
 
 
 def save_record(series_id: str, seen_ep: int, rating: float | None = None, *, user_id=USER) -> dict:
-    """→ 저장된 기록 {series_id, name, seen_ep, total_episodes, rating, updated_at}"""
+    """→ {series_id, name, seen_ep, total_episodes, rating, updated_at} (저장된 기록)"""
     return _plain(records.save(db(), series_id, seen_ep, rating, user_id=user_id))
 
 
