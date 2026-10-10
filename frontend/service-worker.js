@@ -1,13 +1,22 @@
-const CACHE = 'aniwhere-app-v1';
+const CACHE = 'aniwhere-app-v13-name-avatar';
 const APP_SHELL = [
   './',
   './index.html',
   './styles.css',
   './app.js',
   './manifest.webmanifest',
-  './assets/app-icon.svg',
+  './assets/midoriya-mascot.png?v=2',
+  './assets/midoriya-icon-192.png?v=3',
+  './assets/midoriya-icon-512.png?v=3',
+  './assets/midoriya-apple-touch-icon.png?v=3',
   './assets/my-hero-academia.jpg',
-  './assets/spoiler-stop-dio.png'
+  './assets/spoiler-stop-dio.png',
+  './assets/light-card-user.png',
+  './assets/gon-card-user.png',
+  './assets/okabe-card-user.png',
+  './assets/l-detective-user.png',
+  './assets/eren-spoiler-user.png',
+  './assets/naruto-history-user.png'
 ];
 
 self.addEventListener('install', event => {
