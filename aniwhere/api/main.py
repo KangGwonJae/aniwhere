@@ -4,6 +4,7 @@
 그대로 부르고 반환값을 그대로 돌려줍니다. 응답 형식의 원본은 service.py의 독스트링입니다.
 실행: make api  /  make api FAKE=1  /  문서: http://localhost:8000/docs
 """
+import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -12,23 +13,24 @@ from typing import Literal
 from fastapi import Depends, FastAPI, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictInt
 
 from aniwhere.config import REPO
 from aniwhere.retrieval.catalog import UnknownSeries
 
-
-class Turn(BaseModel):
-    role: str
-    content: str
-
+log = logging.getLogger(__name__)
 
 TEXT = Field(min_length=1, max_length=1000)     # 사용자가 쓰는 글. 너무 길면 LLM 비용·지연이 그대로 늘어남
 
 
+class Turn(BaseModel):
+    role: str
+    content: str = Field(max_length=1000)
+
+
 class FindRequest(BaseModel):
     question: str = TEXT
-    history: list[Turn] = []
+    history: list[Turn] = Field(default_factory=list, max_length=20)     # 대화 전체가 LLM에 들어가므로 길이 제한
 
 
 class ReviewRequest(BaseModel):
@@ -43,7 +45,7 @@ class RecommendRequest(BaseModel):
 
 
 class RecordRequest(BaseModel):
-    seen_ep: int
+    seen_ep: StrictInt          # JSON true·"12"가 정수로 바뀌어 저장되지 않게
     rating: float | None = None
 
 
@@ -75,7 +77,10 @@ def create_app(frontend_dir: Path | None = REPO / "frontend") -> FastAPI:
     async def lifespan(app: FastAPI):
         svc = app.dependency_overrides.get(get_service, get_service)()
         if _mode(svc) == "real":
-            svc.warm_up()
+            try:
+                svc.warm_up()
+            except Exception as e:  # DB가 꺼져 있어도 서버는 뜨고, /api/health가 503으로 알려 줌
+                log.warning("warm_up 실패 — DB나 모델을 준비하지 못함: %s", e)
         yield
 
     app = FastAPI(title="AniWhere API", lifespan=lifespan)
@@ -94,8 +99,10 @@ def create_app(frontend_dir: Path | None = REPO / "frontend") -> FastAPI:
         if mode == "real":
             try:
                 svc.db().execute("SELECT 1")
-            except Exception as e:  # DB가 꺼져 있으면 503
-                return JSONResponse(status_code=503, content={"status": "db_unavailable", "detail": str(e)})
+            except Exception as e:  # DB가 꺼져 있으면 503. 접속 정보가 담길 수 있는 원문은 서버 로그에만
+                log.warning("DB 연결 확인 실패: %s", e)
+                return JSONResponse(status_code=503, content={"status": "db_unavailable",
+                                                              "detail": "DB에 연결할 수 없습니다"})
         return {"status": "ok", "mode": mode}
 
     @app.get("/api/series")

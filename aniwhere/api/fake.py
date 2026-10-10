@@ -13,15 +13,25 @@ from aniwhere.retrieval.catalog import UnknownSeries
 HERO, TITAN = "tmdb:65930", "tmdb:1429"
 USER = "local"
 
+# 키는 catalog.series_info와 같음 (name = title_ko가 있으면 title_ko, 없으면 title)
 SERIES = {
-    HERO: {"series_id": HERO, "name": "나의 히어로 아카데미아", "title": "My Hero Academia", "total_episodes": 138,
-           "poster_url": None, "genres": ["Action", "Comedy", "School"]},
-    TITAN: {"series_id": TITAN, "name": "진격의 거인", "title": "Attack on Titan", "total_episodes": 89,
-            "poster_url": None, "genres": ["Action", "Drama", "Mystery"]},
+    HERO: {"series_id": HERO, "title": "My Hero Academia", "title_ko": "나의 히어로 아카데미아",
+           "overview_ko": "개성이 없던 소년 미도리야가 최고의 히어로를 꿈꾸며 유에이 고교에 들어간다.", "poster_url": None,
+           "status": "Ended", "next_episode_at": None, "total_episodes": 138,
+           "genres_ko": ["애니메이션", "액션 & 어드벤처", "코미디"], "first_air_date": "2016-04-03",
+           "name": "나의 히어로 아카데미아"},
+    TITAN: {"series_id": TITAN, "title": "Attack on Titan", "title_ko": "진격의 거인",
+            "overview_ko": "거인에게 어머니를 잃은 엘런이 조사병단에 들어가 벽 밖의 비밀을 쫓는다.", "poster_url": None,
+            "status": "Ended", "next_episode_at": None, "total_episodes": 89,
+            "genres_ko": ["애니메이션", "액션 & 어드벤처", "드라마"], "first_air_date": "2013-04-07",
+            "name": "진격의 거인"},
 }
-SOURCE = {"text": "미도리야는 올마이트에게서 원 포 올을 물려받는다.", "abs_ep": 2,
-          "url": "https://bokunoheroacademia.fandom.com/wiki/Episode_2", "license": "CC BY-SA 3.0"}
-ASK_SEEN = "어디까지 봤어요? 마지막으로 본 회차를 알려 주세요."
+# agent/review.py의 근거 형식: 번호(n)와 짧게 자른 본문, 출처
+SOURCE = {"n": 1, "text": "미도리야는 올마이트에게서 원 포 올을 물려받는다.", "abs_ep": 2,
+          "url": "https://bokunoheroacademia.fandom.com/wiki/Episode_2", "license": "CC BY-SA 3.0", "name": "Fandom"}
+ASK_SEEN = "어디까지 봤어요? 마지막으로 본 회차를 알려 주세요."           # agent/review.py ASK_SEEN
+ASK_QUESTION = "무엇이 궁금한지 알려 주세요."                              # agent/review.py, ask인데 질문 없을 때
+ASK_MORE = "기억나는 인물의 생김새나 이름, 장소, 그 장면 앞뒤에 있었던 일을 조금 더 알려 주세요."   # agent/find.py ASK_MORE
 MODES = ("summary", "characters", "last", "ask")
 
 _records: dict[str, dict] = {}
@@ -49,27 +59,33 @@ def _seen(series_id, seen_ep):
     return seen_ep
 
 
-TITAN_SOURCE = {"text": "리바이가 입체기동으로 거인을 벤다.", "abs_ep": 1,
-                "url": "https://attackontitan.fandom.com/wiki/Episode_1", "license": "CC BY-SA 3.0"}
+# agent/find.py의 근거 형식: 작품·회차와 출처 링크만. 줄거리 본문(text)은 넣지 않음 (아직 안 본 회차일 수 있음)
+TITAN_SOURCE = {"series_id": TITAN, "abs_ep": 1, "name": "Fandom", "license": "CC BY-SA 3.0",
+                "url": "https://attackontitan.fandom.com/wiki/Episode_1"}
+
+
+def _found(status, answer, candidates=(), follow_up=None, sources=()):
+    """agent/find.py의 _result와 같은 키. debug는 실제로는 단서·검색 순위를 담음."""
+    return {"status": status, "answer": answer, "candidates": list(candidates), "follow_up": follow_up,
+            "sources": list(sources), "debug": {"clues": {}, "ranked": []}}
 
 
 def find(question: str, history: list[dict] | None = None, *, user_id=USER) -> dict:
     """status는 질문의 낱말로 고름 — 화면 네 갈래를 모두 만들어 볼 수 있게:
     "헷갈" → ambiguous(후보 둘 + follow_up), "없는" → none, "작품" → series, 그 외 → episode."""
-    ep1 = {"series_id": TITAN, "title": "진격의 거인", "abs_ep": 1, "label": "1기 1화", "score": 0.91}
-    ep2 = {"series_id": TITAN, "title": "진격의 거인", "abs_ep": 2, "label": "1기 2화", "score": 0.90}
+    ep1 = {"series_id": TITAN, "title": "진격의 거인", "abs_ep": 1,
+           "label": "1기 1화 (전체 1화) 〈2000년 후의 너에게〉", "score": 0.91}
     if "헷갈" in question:
-        return {"status": "ambiguous", "answer": None, "candidates": [ep1, ep2],
-                "follow_up": "거인이 벽을 부순 직후였나요, 아니면 피난 장면이었나요?", "sources": [TITAN_SOURCE]}
+        # 회차 후보와, 회차를 정하지 못한 작품 단위 후보(LLM 없는 경로·인물 설명으로 고른 후보)가 섞일 수 있음
+        return _found("ambiguous", "비슷한 후보가 여러 개 있어요. 벽이 부서지는 장면이 두 작품에 다 있어요.",
+                      [ep1, {"series_id": HERO, "title": "나의 히어로 아카데미아"}], ASK_MORE, [TITAN_SOURCE])
     if "없는" in question:
-        return {"status": "none", "answer": "말씀하신 장면을 찾지 못했어요. 인물 이름이나 배경을 더 알려 주세요.",
-                "candidates": [], "follow_up": None, "sources": []}
+        return _found("none", "지금 단서로는 찾지 못했어요.", follow_up=ASK_MORE)
     if "작품" in question:
-        return {"status": "series", "answer": "진격의 거인 같아요. 어느 회차인지는 장면을 더 알려 주세요.",
-                "candidates": [{"series_id": TITAN, "title": "진격의 거인", "score": 0.88}], "follow_up": None,
-                "sources": [TITAN_SOURCE]}
-    return {"status": "episode", "answer": "진격의 거인 1기 1화 〈2000년 후의 너에게〉 같아요.",
-            "candidates": [ep1], "follow_up": None, "sources": [TITAN_SOURCE]}
+        return _found("series", "「진격의 거인」 같아요. 몇 화인지는 지금 단서만으로는 정하기 어려워요.",
+                      [{"series_id": TITAN, "title": "진격의 거인"}],
+                      "어떤 장면이었는지 조금 더 알려 주시면 회차도 찾아볼게요.", [TITAN_SOURCE])
+    return _found("episode", "「진격의 거인」 1기 1화 (전체 1화) 〈2000년 후의 너에게〉 같아요.", [ep1], None, [TITAN_SOURCE])
 
 
 def where_to_watch(series_id: str) -> dict:
@@ -82,14 +98,19 @@ def where_to_watch(series_id: str) -> dict:
 
 def review(series_id: str, seen_ep: int | None = None, mode: str = "summary", question: str | None = None, *,
            user_id=USER) -> dict:
-    _series(series_id)
+    # 확인 순서는 agent/review.py와 같음: mode → 작품 → 본 회차(없으면 기록장) → 질문
     if mode not in MODES:
         raise ValueError(f"mode는 {list(MODES)} 중 하나여야 합니다: {mode!r}")
-    if mode == "ask" and not (question or "").strip():
-        raise ValueError("직접 질문 모드에는 질문이 필요합니다")
+    info = _series(series_id)
     seen_ep = _seen(series_id, seen_ep)
     if seen_ep is None:
         return {"answer": None, "seen_ep": None, "sources": [], "follow_up": ASK_SEEN}
+    seen_ep = min(int(seen_ep), info["total_episodes"])
+    if seen_ep <= 0:
+        return {"answer": f"아직 「{info['name']}」을(를) 보기 전이라 복습할 내용이 없어요.", "seen_ep": 0,
+                "sources": [], "follow_up": None}
+    if mode == "ask" and not (question or "").strip():
+        return {"answer": None, "seen_ep": seen_ep, "sources": [], "follow_up": ASK_QUESTION}
     return {"answer": f"{seen_ep}화까지의 요약입니다. 미도리야는 올마이트의 힘을 물려받았어요 [1].",
             "seen_ep": seen_ep, "sources": [SOURCE], "follow_up": None}
 
@@ -109,12 +130,12 @@ def dictionary(series_id: str, seen_ep: int | None = None, *, user_id=USER) -> d
 def recommend(likes: str, *, user_id=USER) -> dict:
     return {"mood": "반전과 긴장감", "follow_up": None,
             "picks": [{"series_id": TITAN, "title": "진격의 거인", "reason": "매 화 뒤집히는 전개가 비슷해요.",
-                       "poster_url": None, "genres": SERIES[TITAN]["genres"]}]}
+                       "poster_url": None, "genres": SERIES[TITAN]["genres_ko"]}]}
 
 
 def save_record(series_id: str, seen_ep: int, rating: float | None = None, *, user_id=USER) -> dict:
     info = _series(series_id)
-    if not isinstance(seen_ep, int) or seen_ep < 0 or seen_ep > info["total_episodes"]:
+    if not isinstance(seen_ep, int) or isinstance(seen_ep, bool) or seen_ep < 0 or seen_ep > info["total_episodes"]:
         raise ValueError(f"본 회차는 0부터 {info['total_episodes']}까지의 정수여야 합니다: {seen_ep!r}")
     if rating is not None and not 0.5 <= rating <= 5:
         raise ValueError(f"평점은 0.5부터 5까지입니다: {rating!r}")
@@ -129,11 +150,15 @@ def get_record(series_id: str, *, user_id=USER) -> dict | None:
     if not r:
         return None
     info = SERIES[series_id]
-    return {"series_id": series_id, "name": info["name"], "total_episodes": info["total_episodes"], **r}
+    return {"series_id": series_id, "name": info["name"], "seen_ep": r["seen_ep"],
+            "total_episodes": info["total_episodes"], "rating": r["rating"], "updated_at": r["updated_at"],
+            "poster_url": info["poster_url"]}
 
 
 def list_records(*, user_id=USER) -> list[dict]:
-    return [get_record(sid) for sid in _records]
+    """records.list_all처럼 최근에 저장한 기록이 먼저."""
+    newest = sorted(_records, key=lambda sid: dt.datetime.fromisoformat(_records[sid]["updated_at"]), reverse=True)
+    return [get_record(sid) for sid in newest]
 
 
 def delete_record(series_id: str, *, user_id=USER) -> bool:

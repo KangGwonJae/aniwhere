@@ -28,20 +28,46 @@ def test_health_reports_mode(client):
     assert r.status_code == 200
     assert r.json() == {"status": "ok", "mode": "fake"}
 
+
+class BrokenService:
+    """DB가 꺼진 실제 서비스 흉내: 준비도 DB 연결도 실패함."""
+    MODE = "real"
+
+    @staticmethod
+    def warm_up():
+        raise ConnectionError("connection refused: postgres://비밀번호@host")
+
+    @staticmethod
+    def db():
+        raise ConnectionError("connection refused: postgres://비밀번호@host")
+
+
+def test_server_starts_when_db_is_down_and_health_is_503(caplog):
+    app = create_app(frontend_dir=None)
+    app.dependency_overrides[get_service] = lambda: BrokenService
+    with TestClient(app) as c:                       # 여기서 lifespan(warm_up)이 돎 — 예외로 시작이 막히면 안 됨
+        r = c.get("/api/health")
+    assert r.status_code == 503
+    assert r.json() == {"status": "db_unavailable", "detail": "DB에 연결할 수 없습니다"}   # 접속 정보는 응답에 넣지 않음
+    assert "warm_up 실패" in caplog.text and "connection refused" in caplog.text           # 원인은 서버 로그에 남김
+
 # service.py의 공개 함수 = API로 열어야 하는 함수. db()·warm_up()은 서버 내부용.
 SERVICE_FUNCS = sorted(
     n for n, f in inspect.getmembers(service, inspect.isfunction)
     if f.__module__ == service.__name__ and not n.startswith("_") and n not in ("db", "warm_up")
 )
 
-# 독스트링 키 비교에 쓸 호출 인자. 기록이 있는 작품(HERO)로 부르면 follow_up 없이 정상 응답이 나옴.
+# 독스트링 키 비교에 쓸 호출 인자(함수마다 여러 벌). 기록이 있는 작품(HERO)로 부르면 follow_up 없이 정상 응답이 나옴.
+# find는 화면의 네 갈래(episode / series / ambiguous / none)를 모두 검사함.
 SAMPLE_ARGS = {
-    "find": ("키 작은 아저씨가 칼 들고 날아다녀",),
-    "where_to_watch": (fake.HERO,),
-    "review": (fake.HERO,),
-    "dictionary": (fake.HERO,),
-    "recommend": ("반전 많은 스릴러",),
-    "save_record": (fake.HERO, 3),
+    "find": [("키 작은 아저씨가 칼 들고 날아다녀",), ("거인 나오는 작품",), ("두 장면이 헷갈려",), ("없는 작품 이야기",)],
+    "where_to_watch": [(fake.HERO,)],
+    "review": [(fake.HERO,), (fake.TITAN,), (fake.HERO, 49, "ask", None)],
+    "dictionary": [(fake.HERO,)],
+    "recommend": [("반전 많은 스릴러",)],
+    "save_record": [(fake.HERO, 3)],
+    "series": [(fake.HERO,)],
+    "get_record": [(fake.HERO,)],
 }
 
 
@@ -79,11 +105,12 @@ def test_fake_response_keys_match_service_docstring(name):
     if keys is None:
         pytest.skip("독스트링에 → {…} 형식이 없음")
     required, optional = keys
-    fake.reset()
-    result = getattr(fake, name)(*SAMPLE_ARGS[name])
-    assert isinstance(result, dict), f"{name}은 dict를 돌려줘야 함"
-    assert required <= set(result), f"{name}: 빠진 필수 키 {required - set(result)}"
-    assert set(result) <= required | optional, f"{name}: 독스트링에 없는 키 {set(result) - required - optional}"
+    for args in SAMPLE_ARGS[name]:
+        fake.reset()
+        result = getattr(fake, name)(*args)
+        assert isinstance(result, dict), f"{name}{args}은 dict를 돌려줘야 함"
+        assert required <= set(result), f"{name}{args}: 빠진 필수 키 {required - set(result)}"
+        assert set(result) <= required | optional, f"{name}{args}: 독스트링에 없는 키 {set(result) - required - optional}"
 
 
 def test_fake_record_roundtrip():
@@ -108,6 +135,41 @@ def test_find_status_branches_are_reachable():
     assert none["status"] == "none" and none["candidates"] == []
 
 
+def test_fake_find_matches_real_shapes():
+    """agent/find.py와 같은 모양: none·series도 되묻고, 근거에는 줄거리 본문(text)이 없으며,
+    LLM 없는 경로의 ambiguous처럼 회차 없이 작품 단위인 후보가 있을 수 있음."""
+    fake.reset()
+    for q in ("거인 나오는 작품", "없는 작품 이야기", "두 장면이 헷갈려"):
+        assert fake.find(q)["follow_up"], q
+    assert fake.find("키 작은 아저씨가 칼 들고 날아다녀")["follow_up"] is None
+    for q in ("키 작은 아저씨가 칼 들고 날아다녀", "거인 나오는 작품", "두 장면이 헷갈려"):
+        for src in fake.find(q)["sources"]:
+            assert set(src) == {"series_id", "abs_ep", "name", "license", "url"}, q
+    amb = fake.find("두 장면이 헷갈려")["candidates"]
+    assert any("abs_ep" not in c and "label" not in c for c in amb)
+    assert fake.find("거인 나오는 작품")["candidates"] == [{"series_id": fake.TITAN, "title": "진격의 거인"}]
+
+
+def test_fake_series_and_record_match_real_keys():
+    """catalog.series_info·records.get이 돌려주는 키와 같아야 함 (service 독스트링 검사와 별도로 정확히 비교)."""
+    fake.reset()
+    assert set(fake.series(fake.HERO)) == {"series_id", "name", "title", "title_ko", "overview_ko", "poster_url",
+                                           "status", "next_episode_at", "total_episodes", "genres_ko",
+                                           "first_air_date"}
+    record_keys = {"series_id", "name", "seen_ep", "total_episodes", "rating", "updated_at", "poster_url"}
+    assert set(fake.get_record(fake.HERO)) == record_keys
+    assert all(set(r) == record_keys for r in fake.list_records())
+
+
+def test_fake_list_records_newest_first():
+    """records.list_all처럼 최근에 저장한 기록이 먼저."""
+    fake.reset()
+    fake.save_record(fake.TITAN, 3)
+    assert [r["series_id"] for r in fake.list_records()] == [fake.TITAN, fake.HERO]
+    fake.save_record(fake.HERO, 50)
+    assert [r["series_id"] for r in fake.list_records()] == [fake.HERO, fake.TITAN]
+
+
 def test_fake_rejects_bad_input_like_service():
     with pytest.raises(UnknownSeries):
         fake.where_to_watch("tmdb:0")
@@ -120,9 +182,11 @@ def test_fake_rejects_bad_input_like_service():
     with pytest.raises(ValueError):
         fake.save_record(fake.HERO, 999)
     with pytest.raises(ValueError):
-        fake.review(fake.HERO, 49, "ask", None)
+        fake.save_record(fake.HERO, True)        # records.save처럼 bool은 정수로 치지 않음
     with pytest.raises(ValueError):
         fake.review(fake.HERO, 49, "오타")
+    with pytest.raises(ValueError):              # agent/review.py처럼 mode를 작품보다 먼저 검사
+        fake.review("tmdb:0", 49, "오타")
 
 
 def test_series_list_and_search(client):
@@ -239,13 +303,45 @@ def test_review_bad_mode_is_422(client):
     assert client.post("/api/review", json={"series_id": fake.HERO, "mode": "요약"}).status_code == 422
 
 
-def test_review_ask_without_question_is_400(client):
+def test_review_ask_without_question_asks_back(client):
+    """agent/review.py는 질문이 없으면 오류 대신 follow_up으로 되물음 (본 회차를 먼저 확인한 뒤)."""
     r = client.post("/api/review", json={"series_id": fake.HERO, "seen_ep": 49, "mode": "ask"})
-    assert r.status_code == 400
+    assert r.status_code == 200
+    assert r.json() == {"answer": None, "seen_ep": 49, "sources": [], "follow_up": fake.ASK_QUESTION}
+
+
+def test_review_ask_with_blank_question_asks_back(client):
+    for q in ("", "   "):
+        r = client.post("/api/review", json={"series_id": fake.HERO, "seen_ep": 49, "mode": "ask", "question": q})
+        assert r.status_code == 200 and r.json()["follow_up"] == fake.ASK_QUESTION, repr(q)
+
+
+def test_review_ask_without_seen_ep_asks_seen_first(client):
+    """본 회차도 질문도 없으면 본 회차부터 물음 (agent/review.py의 확인 순서)."""
+    body = client.post("/api/review", json={"series_id": fake.TITAN, "mode": "ask"}).json()
+    assert body == {"answer": None, "seen_ep": None, "sources": [], "follow_up": fake.ASK_SEEN}
+
+
+def test_review_sources_match_real_shape(client):
+    body = client.post("/api/review", json={"series_id": fake.HERO, "seen_ep": 49}).json()
+    assert set(body["sources"][0]) == {"n", "text", "abs_ep", "url", "license", "name"}
+
+
+def test_review_seen_ep_is_capped_at_total(client):
+    body = client.post("/api/review", json={"series_id": fake.HERO, "seen_ep": 999}).json()
+    assert body["seen_ep"] == fake.SERIES[fake.HERO]["total_episodes"]
 
 
 def test_review_unknown_series_is_404(client):
     assert client.post("/api/review", json={"series_id": "tmdb:0", "seen_ep": 1}).status_code == 404
+
+
+def test_long_history_is_rejected(client):
+    turn = {"role": "user", "content": "거인"}
+    assert client.post("/api/find", json={"question": "벽", "history": [turn] * 20}).status_code == 200
+    assert client.post("/api/find", json={"question": "벽", "history": [turn] * 21}).status_code == 422
+    long_turn = {"role": "user", "content": "가" * 1001}
+    assert client.post("/api/find", json={"question": "벽", "history": [long_turn]}).status_code == 422
 
 
 def test_long_text_is_rejected(client):
@@ -295,6 +391,9 @@ def test_record_out_of_range_is_400_not_500(client):
 def test_record_requires_integer_seen_ep(client):
     assert client.put(f"/api/records/{fake.HERO}", json={}).status_code == 422
     assert client.put(f"/api/records/{fake.HERO}", json={"seen_ep": "열둘"}).status_code == 422
+    assert client.put(f"/api/records/{fake.HERO}", json={"seen_ep": True}).status_code == 422     # true → 1 금지
+    assert client.put(f"/api/records/{fake.HERO}", json={"seen_ep": "12"}).status_code == 422     # "12" → 12 금지
+    assert client.put(f"/api/records/{fake.HERO}", json={"seen_ep": 12.0}).status_code == 422
 
 
 def test_every_service_function_has_a_route():
