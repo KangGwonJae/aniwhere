@@ -53,6 +53,8 @@ make setup                # 패키지 설치
 make data                 # 외부 데이터 수집
 make index                # 청킹 + 벡터 DB 생성
 make run                  # 데모 실행
+make api                  # API 서버 + 화면 (http://localhost:8000, 문서 /docs)
+make api FAKE=1           # DB·LLM 없이 가짜 응답으로 띄우기 (프론트엔드 개발용)
 ```
 
 ## 협업 방법

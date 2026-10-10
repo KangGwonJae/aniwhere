@@ -17,13 +17,14 @@ import pytest
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
-from aniwhere import records
+from aniwhere import records, service
 from aniwhere.agent import find as find_mod
 from aniwhere.agent import recommend as recommend_mod
 from aniwhere.agent import review as review_mod
 from aniwhere.agent.llm import prompt
 from aniwhere.config import service_db_url
 from aniwhere.retrieval import catalog, embedder
+from aniwhere.retrieval.catalog import UnknownSeries
 from aniwhere.retrieval.dictionary import dictionary
 from aniwhere.retrieval.search import ALL_EPISODES, chunks_upto, keyword_search, search_chunks
 
@@ -324,6 +325,13 @@ def test_dictionary_shows_only_entries_up_to_seen_episode(db):
     names = lambda n: {e["name"] for e in dictionary(db, A, seen_ep=n)}
     assert names(3) == {"Hero"} and names(4) == {"Hero", "Rival"} and names(6) == {"Hero", "Rival", "Magic Sword"}
     assert {e["kind"] for e in dictionary(db, A, seen_ep=10)} == {"character", "term"}
+
+
+def test_dictionary_rejects_unknown_series(db, monkeypatch):
+    """가짜 서비스(api/fake.py)와 같게, 모르는 작품은 UnknownSeries → API에서 404."""
+    monkeypatch.setattr(service, "db", lambda: db)
+    with pytest.raises(UnknownSeries):
+        service.dictionary("tmdb:0", seen_ep=1)
 
 
 def test_recommend_skips_watched_series_and_reads_only_intro(db):

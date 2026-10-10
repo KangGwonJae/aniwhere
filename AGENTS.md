@@ -58,6 +58,8 @@ make setup   # 패키지 설치
 make data    # 외부 데이터 수집 → data/raw/
 make index   # 청킹 + 벡터 DB 생성 → data/processed/, data/index/
 make run     # 데모 실행
+make api     # API 서버 + 화면 (http://localhost:8000)
+make api FAKE=1   # DB·LLM 없이 가짜 응답
 make test    # 테스트
 make eval    # 평가셋 실행 → eval/results/
 ```
