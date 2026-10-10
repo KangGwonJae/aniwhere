@@ -73,6 +73,8 @@ def review(series_id: str, seen_ep: int | None = None, mode: str = "summary", qu
 
 def dictionary(series_id: str, seen_ep: int | None = None, *, user_id=USER) -> dict:
     """→ {seen_ep, entries[{kind, name, text, first_ep, url, ...}], follow_up?}"""
+    if not catalog.series_info(db(), series_id):
+        raise catalog.UnknownSeries(f"모르는 작품입니다: {series_id}")
     if seen_ep is None:
         record = records.get(db(), series_id, user_id=user_id)
         seen_ep = record["seen_ep"] if record else None
