@@ -175,3 +175,88 @@ def test_dictionary_asks_when_no_record_and_no_seen_ep(client):
 def test_dictionary_explicit_seen_ep(client):
     body = client.get(f"/api/series/{fake.TITAN}/dictionary", params={"seen_ep": 7}).json()
     assert body["seen_ep"] == 7
+
+
+class Recorder:
+    """서비스 함수 호출을 (이름, 인자, 키워드)로 기록하고 빈 dict를 돌려줌."""
+    MODE = "fake"
+
+    def __init__(self):
+        self.calls = []
+
+    def __getattr__(self, name):
+        def call(*args, **kwargs):
+            self.calls.append((name, args, kwargs))
+            return {}
+        return call
+
+
+@pytest.fixture
+def recorder():
+    rec = Recorder()
+    app = create_app(frontend_dir=None)
+    app.dependency_overrides[get_service] = lambda: rec
+    return rec, TestClient(app)
+
+
+def test_find_returns_contract_keys(client):
+    r = client.post("/api/find", json={"question": "키 작은 아저씨가 칼 들고 날아다녀"})
+    assert r.status_code == 200
+    assert set(r.json()) >= {"status", "answer", "candidates", "sources"}
+    assert set(r.json()["candidates"][0]) >= {"series_id", "title"}
+
+
+def test_find_passes_question_and_history_unchanged(recorder):
+    rec, c = recorder
+    history = [{"role": "user", "content": "거인 나오는 거"}, {"role": "assistant", "content": "어떤 장면이었나요?"}]
+    c.post("/api/find", json={"question": "벽을 부숴", "history": history})
+    assert rec.calls == [("find", ("벽을 부숴", history), {})]
+
+
+def test_find_rejects_empty_or_missing_question(client):
+    assert client.post("/api/find", json={"question": ""}).status_code == 422
+    assert client.post("/api/find", json={}).status_code == 422
+
+
+def test_review_passes_arguments_unchanged(recorder):
+    rec, c = recorder
+    c.post("/api/review", json={"series_id": fake.HERO, "seen_ep": 49, "mode": "last"})
+    assert rec.calls == [("review", (fake.HERO, 49, "last", None), {})]
+
+
+def test_review_defaults(recorder):
+    rec, c = recorder
+    c.post("/api/review", json={"series_id": fake.HERO})
+    assert rec.calls == [("review", (fake.HERO, None, "summary", None), {})]
+
+
+def test_review_without_seen_ep_and_record_asks_back(client):
+    body = client.post("/api/review", json={"series_id": fake.TITAN}).json()
+    assert body["answer"] is None and body["follow_up"] == fake.ASK_SEEN
+
+
+def test_review_bad_mode_is_422(client):
+    assert client.post("/api/review", json={"series_id": fake.HERO, "mode": "요약"}).status_code == 422
+
+
+def test_review_ask_without_question_is_400(client):
+    r = client.post("/api/review", json={"series_id": fake.HERO, "seen_ep": 49, "mode": "ask"})
+    assert r.status_code == 400
+
+
+def test_review_unknown_series_is_404(client):
+    assert client.post("/api/review", json={"series_id": "tmdb:0", "seen_ep": 1}).status_code == 404
+
+
+def test_long_text_is_rejected(client):
+    assert client.post("/api/find", json={"question": "가" * 1001}).status_code == 422
+    assert client.post("/api/recommend", json={"likes": "가" * 1001}).status_code == 422
+    assert client.post("/api/find", json={"question": "가" * 1000}).status_code == 200
+
+
+def test_recommend(client, recorder):
+    r = client.post("/api/recommend", json={"likes": "기생충, 오징어 게임"})
+    assert set(r.json()) >= {"mood", "picks"}
+    rec, c = recorder
+    c.post("/api/recommend", json={"likes": "기생충"})
+    assert rec.calls == [("recommend", ("기생충",), {})]

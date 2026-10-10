@@ -7,12 +7,38 @@
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 
 from aniwhere.config import REPO
 from aniwhere.retrieval.catalog import UnknownSeries
+
+
+class Turn(BaseModel):
+    role: str
+    content: str
+
+
+TEXT = Field(min_length=1, max_length=1000)     # 사용자가 쓰는 글. 너무 길면 LLM 비용·지연이 그대로 늘어남
+
+
+class FindRequest(BaseModel):
+    question: str = TEXT
+    history: list[Turn] = []
+
+
+class ReviewRequest(BaseModel):
+    series_id: str
+    seen_ep: int | None = None
+    mode: Literal["summary", "characters", "last", "ask"] = "summary"
+    question: str | None = Field(None, max_length=1000)
+
+
+class RecommendRequest(BaseModel):
+    likes: str = TEXT
 
 
 def fake_mode() -> bool:
@@ -81,6 +107,18 @@ def create_app(frontend_dir: Path | None = REPO / "frontend") -> FastAPI:
     @app.get("/api/series/{series_id}/dictionary")
     def dictionary(series_id: str, seen_ep: int | None = None, svc=Depends(get_service)):
         return svc.dictionary(series_id, seen_ep)
+
+    @app.post("/api/find")
+    def find(body: FindRequest, svc=Depends(get_service)):
+        return svc.find(body.question, [t.model_dump() for t in body.history])
+
+    @app.post("/api/review")
+    def review(body: ReviewRequest, svc=Depends(get_service)):
+        return svc.review(body.series_id, body.seen_ep, body.mode, body.question)
+
+    @app.post("/api/recommend")
+    def recommend(body: RecommendRequest, svc=Depends(get_service)):
+        return svc.recommend(body.likes)
 
     return app
 
