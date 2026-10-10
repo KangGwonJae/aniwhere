@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
@@ -39,6 +39,11 @@ class ReviewRequest(BaseModel):
 
 class RecommendRequest(BaseModel):
     likes: str = TEXT
+
+
+class RecordRequest(BaseModel):
+    seen_ep: int
+    rating: float | None = None
 
 
 def fake_mode() -> bool:
@@ -119,6 +124,24 @@ def create_app(frontend_dir: Path | None = REPO / "frontend") -> FastAPI:
     @app.post("/api/recommend")
     def recommend(body: RecommendRequest, svc=Depends(get_service)):
         return svc.recommend(body.likes)
+
+    @app.get("/api/records")
+    def records(svc=Depends(get_service)):
+        return svc.list_records()
+
+    @app.get("/api/records/{series_id}")
+    def record(series_id: str, svc=Depends(get_service)):
+        return _or_404(svc.get_record(series_id), f"{series_id}의 기록")
+
+    @app.put("/api/records/{series_id}")
+    def save_record(series_id: str, body: RecordRequest, svc=Depends(get_service)):
+        return svc.save_record(series_id, body.seen_ep, body.rating)
+
+    @app.delete("/api/records/{series_id}", status_code=204)
+    def delete_record(series_id: str, svc=Depends(get_service)):
+        if not svc.delete_record(series_id):
+            raise HTTPException(status_code=404, detail=f"없습니다: {series_id}의 기록")
+        return Response(status_code=204)
 
     return app
 

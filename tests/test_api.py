@@ -260,3 +260,38 @@ def test_recommend(client, recorder):
     rec, c = recorder
     c.post("/api/recommend", json={"likes": "기생충"})
     assert rec.calls == [("recommend", ("기생충",), {})]
+
+
+def test_records_crud(client):
+    assert [r["series_id"] for r in client.get("/api/records").json()] == [fake.HERO]
+    assert client.get(f"/api/records/{fake.TITAN}").status_code == 404
+
+    r = client.put(f"/api/records/{fake.TITAN}", json={"seen_ep": 12, "rating": 4.5})
+    assert r.status_code == 200
+    assert set(r.json()) >= {"series_id", "name", "seen_ep", "total_episodes", "rating", "updated_at"}
+    assert r.json()["seen_ep"] == 12
+
+    assert client.get(f"/api/records/{fake.TITAN}").json()["rating"] == 4.5
+    assert len(client.get("/api/records").json()) == 2
+
+    assert client.delete(f"/api/records/{fake.TITAN}").status_code == 204
+    assert client.delete(f"/api/records/{fake.TITAN}").status_code == 404
+    assert client.get(f"/api/records/{fake.TITAN}").status_code == 404
+
+
+def test_record_save_passes_arguments_unchanged(recorder):
+    rec, c = recorder
+    c.put(f"/api/records/{fake.HERO}", json={"seen_ep": 50})
+    assert rec.calls == [("save_record", (fake.HERO, 50, None), {})]
+
+
+def test_record_out_of_range_is_400_not_500(client):
+    assert client.put(f"/api/records/{fake.HERO}", json={"seen_ep": -1}).status_code == 400
+    assert client.put(f"/api/records/{fake.HERO}", json={"seen_ep": 999}).status_code == 400
+    assert client.put(f"/api/records/{fake.HERO}", json={"seen_ep": 3, "rating": 9}).status_code == 400
+    assert client.put("/api/records/tmdb:0", json={"seen_ep": 1}).status_code == 404     # 모르는 작품은 404
+
+
+def test_record_requires_integer_seen_ep(client):
+    assert client.put(f"/api/records/{fake.HERO}", json={}).status_code == 422
+    assert client.put(f"/api/records/{fake.HERO}", json={"seen_ep": "열둘"}).status_code == 422
