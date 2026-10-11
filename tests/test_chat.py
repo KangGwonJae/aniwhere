@@ -506,3 +506,30 @@ def test_save_value_error_is_returned_to_llm():
     llm, r = run_chat(stub, "테스트 거인 99화까지 봤어", SEARCH_ONE, save(seen_ep=99), {"content": "끝"})
     assert "0부터 10까지" in error_of(llm, 2) and r["steps"][1]["ok"] is False and stub.records == {}
     assert r["context"] == {"tool": "search_series", "series_id": A, "title": "테스트 거인"} and r["suggestions"] == []
+
+
+# ───────────────────────── service.chat 연결 ─────────────────────────
+
+def test_service_chat_passes_only_public_functions_and_calls_run(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(service, "db", lambda: None)
+    monkeypatch.setattr(service, "get_llm", lambda: "LLM")
+    monkeypatch.setattr(service._chat, "run", lambda llm, message, history, fns: seen.update(
+        llm=llm, message=message, history=history, fns=fns) or {"answer": "ok"})
+    assert service.chat("안녕") == {"answer": "ok"}
+    assert seen["llm"] == "LLM" and seen["message"] == "안녕" and seen["history"] == []
+    assert set(seen["fns"]) == {t["function"]["name"] for t in chat.TOOLS} | {"series"}
+    public = {n: f for n, f in inspect.getmembers(service, inspect.isfunction) if f.__module__ == service.__name__}
+    assert all(seen["fns"][name] is public[name] for name in seen["fns"])
+
+
+def test_service_chat_forwards_message_and_history_to_find(monkeypatch):
+    got = {}
+    monkeypatch.setattr(service, "db", lambda: None)
+    monkeypatch.setattr(service, "get_llm", lambda: ScriptLLM({"tool_calls": [call("find", question="바꿈")]}, {"content": "끝"}))
+    monkeypatch.setattr(service._find, "find", lambda db, question, history, **kw: got.update(
+        question=question, history=history) or FIND_EP)
+    history = [{"role": "user", "content": "거인"}, {"role": "assistant", "content": "?", "context": {"tool": "find"}}]
+    r = service.chat("벽을 부숴", history)
+    assert got == {"question": "벽을 부숴", "history": history}
+    assert r["results"]["find"]["status"] == "episode" and r["context"]["series_id"] == B

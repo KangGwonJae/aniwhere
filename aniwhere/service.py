@@ -11,9 +11,11 @@
 | 08 회차 기준 인물·용어 사전 | dictionary(series_id, seen_ep) |
 | 09 맞춤 복습 | review(series_id, seen_ep, mode, question) |
 | 13 시청 기록장 | save_record / get_record / list_records / delete_record |
+| 에이전트 대화 (모든 기능의 입구) | chat(message, history) |
 | 11 스포일러 차단 | 위 모든 함수에 적용 (aniwhere/retrieval/search.py) |
 """
 from aniwhere import records
+from aniwhere.agent import chat as _chat
 from aniwhere.agent import find as _find
 from aniwhere.agent import recommend as _recommend
 from aniwhere.agent import review as _review
@@ -120,3 +122,13 @@ def series(series_id: str) -> dict | None:
     """→ {series_id, name, title, title_ko, overview_ko, poster_url, status, next_episode_at, total_episodes,
     genres_ko, first_air_date}. 모르는 작품이면 None."""
     return _plain(catalog.series_info(db(), series_id))
+
+
+def chat(message: str, history: list[dict] | None = None) -> dict:
+    """→ {answer, follow_up?, steps[{tool, label, ok, args}], results{}, suggestions[{label, message}], context?}
+    에이전트 대화. LLM이 위 함수들을 도구로 골라 부르고(한 턴에 3번), 되물으면 follow_up을 그대로 답으로 씁니다.
+    history의 assistant 턴에는 전 응답의 context를 그대로 붙여 보냅니다. 판단은 모두 agent/chat.py에 있습니다."""
+    fns = {"search_series": search_series, "list_records": list_records, "get_record": get_record,
+           "save_record": save_record, "find": find, "review": review, "dictionary": dictionary,
+           "where_to_watch": where_to_watch, "recommend": recommend, "series": series}
+    return _chat.run(get_llm(), message, history or [], fns)
