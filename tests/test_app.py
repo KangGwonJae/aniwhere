@@ -17,6 +17,8 @@ import pytest
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
+from chat_script import ScriptLLM, call
+
 from aniwhere import records, service
 from aniwhere.agent import find as find_mod
 from aniwhere.agent import recommend as recommend_mod
@@ -53,11 +55,12 @@ def fake_embed(text):
 
 
 class FakeLLM:
-    """프롬프트별로 정해 둔 답을 돌려주고, 받은 입력을 모아 둠."""
+    """프롬프트별로 정해 둔 답을 돌려주고, 받은 입력을 모아 둠. script는 에이전트 대화(tools)용 대본."""
 
-    def __init__(self, **answers):
+    def __init__(self, script=(), **answers):
         self.answers = answers
         self.calls = []
+        self.script = ScriptLLM(*script)
 
     def _reply(self, system, user):
         name = next(n for n in ("find_clues", "find_judge", "review", "recommend_taste", "recommend_reason")
@@ -70,6 +73,10 @@ class FakeLLM:
 
     def text(self, system, user):
         return self._reply(system, user) or "요약입니다 [1]"
+
+    def tools(self, system, messages, tools, *, allow_tools=True):
+        assert system == prompt("chat")
+        return self.script.tools(system, messages, tools, allow_tools=allow_tools)
 
     def seen(self, name):
         return "\n".join(user for n, user in self.calls if n == name)
@@ -342,3 +349,67 @@ def test_recommend_skips_watched_series_and_reads_only_intro(db):
     assert [p["series_id"] for p in r["picks"]] == [B] and r["mood"] == "복수극"
     assert "SECRET" not in llm.seen("recommend_reason")
     assert recommend_mod.recommend(db, "더 글로리", llm=None)["picks"] == []
+
+
+# ───────────────────────── 에이전트 대화 (service.chat: 실제 DB + 대본 LLM) ─────────────────────────
+
+@pytest.fixture
+def chat_llm(db, monkeypatch):
+    """service.chat이 테스트 DB와 대본 LLM을 쓰게 함. 패치하지 않으면 .env의 실제 키와 서비스 DB를 건드림."""
+    monkeypatch.setattr(service, "db", lambda: db)
+
+    def use(*script):
+        llm = FakeLLM(script=script)
+        monkeypatch.setattr(service, "get_llm", lambda: llm)
+        return llm
+    return use
+
+
+def test_chat_saves_record_when_user_states_episode(db, chat_llm):
+    llm = chat_llm({"tool_calls": [call("search_series", query="테스트 거인")]},
+                   {"tool_calls": [call("save_record", series_id=A, seen_ep=7)]},
+                   {"content": "테스트 거인 7화까지 기록했어요. 복습도 해 드릴 수 있어요."})
+    r = service.chat("테스트 거인 7화까지 봤어")
+    assert records.get(db, A)["seen_ep"] == 7
+    assert [(s["tool"], s["ok"]) for s in r["steps"]] == [("search_series", True), ("save_record", True)]
+    assert r["results"]["save_record"]["seen_ep"] == 7 and r["results"]["save_record"]["rating"] is None
+    assert r["answer"].startswith("「테스트 거인」 7화까지로 저장했어요.") and r["follow_up"] is None
+    assert [c["label"] for c in r["suggestions"]] == ["3분 복습", "인물·용어"]
+    assert r["context"] == {"tool": "save_record", "series_id": A, "title": "테스트 거인", "seen_ep": 7}
+    assert len(llm.script.calls) == 3
+
+
+def test_chat_made_up_series_id_gets_error_then_llm_retries(db, chat_llm):
+    llm = chat_llm({"tool_calls": [call("where_to_watch", series_id="tmdb:0")]},
+                   {"tool_calls": [call("search_series", query="테스트 거인")]},
+                   {"tool_calls": [call("where_to_watch", series_id=A)]},
+                   {"content": "넷플릭스와 티빙에서 볼 수 있어요."})
+    r = service.chat("테스트 거인 어디서 봐?")
+    assert r["steps"][0] == {"tool": "where_to_watch", "label": "시청처 확인 중", "ok": False, "args": {"series_id": "tmdb:0"}}
+    last = llm.script.calls[1]["messages"][-1]
+    assert last["role"] == "tool" and "error" in last["content"] and "모르는 작품" in last["content"]
+    assert r["results"]["where_to_watch"]["series_id"] == A and r["results"]["where_to_watch"]["seasons"][0]["providers"] == ["Netflix", "TVING"]
+    assert r["context"] == {"tool": "where_to_watch", "series_id": A, "title": "테스트 거인"}
+
+
+def test_chat_follow_up_is_the_tools_text_verbatim(db, chat_llm):
+    llm = chat_llm({"tool_calls": [call("review", series_id=A, mode="summary")]}, {"content": "불리면 안 됨"})
+    r = service.chat("테스트 거인 복습해줘")
+    assert r["answer"] == r["follow_up"] == review_mod.ASK_SEEN
+    assert len(llm.script.calls) == 1 and r["suggestions"] == [] and r["context"]["tool"] == "review"
+    assert not llm.seen("review")                                        # 본 회차 없이 복습 LLM을 부르지 않음
+
+
+def test_chat_answering_the_follow_up_saves_then_reviews(db, chat_llm):
+    history = [{"role": "user", "content": "테스트 거인 복습해줘"},
+               {"role": "assistant", "content": review_mod.ASK_SEEN,
+                "context": {"tool": "review", "series_id": A, "title": "테스트 거인"}}]
+    llm = chat_llm({"tool_calls": [call("save_record", series_id=A, seen_ep=7)]},
+                   {"tool_calls": [call("review", series_id=A, mode="summary")]},
+                   {"content": "7화까지 저장했고 복습을 준비했어요."})
+    r = service.chat("7화", history)
+    assert records.get(db, A)["seen_ep"] == 7 and r["results"]["review"]["seen_ep"] == 7     # 기록장 값이 복습 범위
+    assert "[직전 결과: tool=review, series_id=tmdb:1, 제목=테스트 거인]" in llm.script.calls[0]["messages"][1]["content"]
+    assert not leaked(json.dumps(r, ensure_ascii=False), "A", 7) and not leaked(llm.seen("review"), "A", 7)
+    assert r["answer"].startswith("「테스트 거인」 7화까지로 저장했어요.") and r["context"]["tool"] == "review"
+    assert [c["label"] for c in r["suggestions"]] == ["인물·용어", "시청처 보기"]
