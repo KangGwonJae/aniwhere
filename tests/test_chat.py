@@ -395,3 +395,114 @@ def test_results_keep_last_success_per_tool():
                     {"tool_calls": [call("get_record", series_id=B)]}, {"content": "끝"})
     assert r["results"]["get_record"]["series_id"] == B and len(r["steps"]) == 2
     assert r["context"] == {"tool": "get_record", "series_id": B, "title": "테스트 칼날", "seen_ep": 2}
+
+
+# ───────────────────────── save_record 보호 ─────────────────────────
+
+SEARCH = {"tool_calls": [call("search_series", query="테스트")]}            # A·B 2건
+SEARCH_ONE = {"tool_calls": [call("search_series", query="거인")]}          # A 1건
+
+
+def save(sid=A, **kw):
+    return {"tool_calls": [call("save_record", series_id=sid, seen_ep=kw.pop("seen_ep", 7), **kw)]}
+
+
+def error_of(llm, i=1):
+    return tool_messages(llm, i)[-1]["content"]
+
+
+def test_save_requires_series_id_from_this_turn_or_history():
+    stub = Stub()
+    llm, r = run_chat(stub, "테스트 거인 7화까지 봤어", save(), {"content": "끝"})
+    assert r["steps"] == [{"tool": "save_record", "label": "시청 기록 저장 중", "ok": False,
+                           "args": {"series_id": A, "seen_ep": 7}}]
+    assert "search_series 결과나 직전 결과" in error_of(llm) and stub.records == {}
+    history = [{"role": "assistant", "content": ASK_SEEN, "context": {"tool": "review", "series_id": A, "title": "테스트 거인"}}]
+    stub = Stub()
+    _, r = run_chat(stub, "7화", save(), {"content": "끝"}, history=history)
+    assert stub.records[A] == (7, None) and r["answer"].startswith("「테스트 거인」 7화까지로 저장했어요.")
+
+
+def test_save_with_two_candidates_needs_the_name_in_the_message():
+    stub = Stub()
+    llm, _ = run_chat(stub, "그거 7화까지 봤어", SEARCH, save(), {"content": "끝"})
+    assert "후보가 여러 개" in error_of(llm, 2) and stub.records == {}
+    stub = Stub()
+    run_chat(stub, "테스트 칼날 7화까지 봤어", SEARCH, save(B), {"content": "끝"})
+    assert stub.records[B] == (7, None)
+    stub = Stub()
+    run_chat(stub, "test blade 7화까지 봤어", SEARCH, save(B), {"content": "끝"})       # 영문 title도 인정
+    assert stub.records[B] == (7, None)
+
+
+def test_save_skips_ambiguity_check_for_ids_from_find_record_or_context():
+    stub = Stub()
+    run_chat(stub, "방금 그거 3화까지 봤어", {"tool_calls": [call("find")]}, SEARCH, save(B, seen_ep=3), {"content": "끝"})
+    assert stub.records[B] == (3, None)
+
+
+def test_save_requires_the_episode_number_in_the_message():
+    stub = Stub()
+    llm, _ = run_chat(stub, "테스트 거인 다 봤어", SEARCH_ONE, save(seen_ep=10), {"content": "끝"})
+    assert "회차 숫자" in error_of(llm, 2) and stub.records == {}
+    stub = Stub()
+    llm, _ = run_chat(stub, "테스트 거인 11화 아직 안 봤어", SEARCH_ONE, save(seen_ep=10), {"content": "끝"})
+    assert "회차 숫자" in error_of(llm, 2) and stub.records == {}
+
+
+def test_save_rejects_season_notation():
+    stub = Stub()
+    llm, _ = run_chat(stub, "테스트 거인 2기 3화까지 봤어", SEARCH_ONE, save(seen_ep=3), {"content": "끝"})
+    assert "시즌 안 회차" in error_of(llm, 2) and stub.records == {}
+
+
+def test_save_accepts_numeric_string_episode():
+    stub = Stub()
+    _, r = run_chat(stub, "테스트 거인 7화까지 봤어", SEARCH_ONE, save(seen_ep="7"), {"content": "끝"})
+    assert stub.records[A] == (7, None) and r["steps"][1]["args"]["seen_ep"] == 7
+
+
+def test_rating_only_when_user_said_a_score():
+    stub = Stub()
+    run_chat(stub, "테스트 거인 7화까지 봤어", SEARCH_ONE, save(rating=4), {"content": "끝"})
+    assert stub.kwargs("save_record")[0]["rating"] is None
+    stub = Stub()
+    run_chat(stub, "테스트 거인 7화까지 봤어 4점", SEARCH_ONE, save(rating=4), {"content": "끝"})
+    assert stub.kwargs("save_record")[0]["rating"] == 4 and stub.records[A] == (7, 4)
+    stub = Stub()
+    run_chat(stub, "테스트 거인 7화까지 봤어 별 4.5", SEARCH_ONE, save(rating=4.5), {"content": "끝"})
+    assert stub.records[A] == (7, 4.5)
+    stub = Stub()
+    run_chat(stub, "테스트 거인 7화까지 봤어 4점", SEARCH_ONE, save(rating="4"), {"content": "끝"})   # 문자열 평점은 버림
+    assert stub.kwargs("save_record")[0]["rating"] is None
+
+
+def test_second_save_in_one_turn_is_refused():
+    stub = Stub()
+    llm, r = run_chat(stub, "테스트 거인 7화, 테스트 칼날 3화까지 봤어", SEARCH, save(A, seen_ep=7), save(B, seen_ep=3), {"content": "끝"})
+    assert "한 턴에 한 작품만" in error_of(llm, 3) and stub.records == {A: (7, None)}
+    assert [(s["tool"], s["ok"]) for s in r["steps"]] == [("search_series", True), ("save_record", True), ("save_record", False)]
+
+
+def test_save_over_existing_record_reports_previous_value():
+    stub = Stub(records={A: (3, 4.0)})
+    _, r = run_chat(stub, "테스트 거인 7화까지 봤어", SEARCH_ONE, save(), {"content": "복습도 해 드릴까요?"})
+    assert r["results"]["save_record"]["previous_seen_ep"] == 3 and r["results"]["save_record"]["previous_rating"] == 4.0
+    assert r["answer"] == "「테스트 거인」 7화까지로 저장했어요. (이전 3화) 복습도 해 드릴까요?"
+    assert stub.records[A] == (7, 4.0)                                       # 평점을 안 말하면 이전 평점 유지
+    assert [n for n in stub.names() if n == "get_record"] == ["get_record"]  # 이전 값 조회는 steps에 없음
+    assert [s["tool"] for s in r["steps"]] == ["search_series", "save_record"]
+    assert r["context"] == {"tool": "save_record", "series_id": A, "title": "테스트 거인", "seen_ep": 7}
+
+
+def test_rewinding_the_record_is_allowed():
+    stub = Stub(records={A: (9, None)})
+    _, r = run_chat(stub, "테스트 거인 7화까지 봤어", SEARCH_ONE, save(), {"content": "끝"})
+    assert stub.records[A] == (7, None) and "(이전 9화)" in r["answer"]
+
+
+def test_save_value_error_is_returned_to_llm():
+    stub = Stub()
+    llm, r = run_chat(stub, "테스트 거인 99화까지 봤어", SEARCH_ONE, save(seen_ep=99), {"content": "끝"})
+    assert "0부터 10까지" in error_of(llm, 2) and r["steps"][1]["ok"] is False and stub.records == {}
+    assert r["context"] == {"tool": "search_series", "series_id": A, "title": "테스트 거인"} and r["suggestions"] == []
