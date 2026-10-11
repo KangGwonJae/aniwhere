@@ -16,7 +16,8 @@ MAX_TOOL_CALLS = 3                   # LLM이 낸 tool_call 개수. 실행·실�
 MAX_LLM_CALLS = MAX_TOOL_CALLS + 1
 NEED_LLM = "에이전트 대화에는 LLM이 필요해요. .env에 OPENAI_API_KEY를 넣어 주세요."
 NO_ANSWER = "지금은 답을 만들지 못했어요. 다시 한번 말해 주세요."
-SEASON_RE = re.compile(r"\d+\s*(기|시즌|season)", re.IGNORECASE)
+# 시즌 안 회차 표기: "3기 11화", "시즌 3 11화", "season 2", "2쿨". 전체 기준 회차만 저장한다
+SEASON_RE = re.compile(r"\d+\s*(기|시즌|season|쿨)|(시즌|season)\s*\d+", re.IGNORECASE)
 
 # 도구 이름 → 화면 문구 (말줄임표 없음, 화면이 …를 붙임)
 LABELS = {
@@ -222,21 +223,30 @@ def _title(series_id, results: dict, fns: dict):
     return (info.get("title_ko") or info.get("title")) if info else None
 
 
+def _norm(text) -> str:
+    """띄어쓰기·기호·대소문자를 무시하고 비교하기 위한 꼴 ("테스트칼날" == "테스트 칼날", "TestBlade" == "Test Blade")."""
+    return re.sub(r"[\W_]+", "", text or "").lower()
+
+
 def _mentioned(item: dict, message: str) -> bool:
-    low = message.lower()
-    return any(n and n.lower() in low for n in (item.get("name"), item.get("title")))
+    low = _norm(message)
+    return any(_norm(n) and _norm(n) in low for n in (item.get("name"), item.get("title")) if n)
+
+
+def _episode_numbers(text: str) -> list[str]:
+    """저장할 수 있는 회차 숫자. "N화까지"가 있으면 그 숫자들만("7화까지 봤는데 8화 내용"의 8은 질문), 없으면 글의 모든 숫자."""
+    anchored = re.findall(r"(\d+)\s*화?\s*까지", text)
+    return anchored or re.findall(r"\d+", text)
 
 
 def _rating_said(rating, message: str) -> bool:
-    """rating은 사용자가 '4점'·'4.5점'·'별 4개'처럼 숫자와 점·별을 함께 말했을 때만 인정."""
+    """rating은 사용자가 '4점'·'4.5점'·'별 4개'처럼 숫자를 점·별 바로 옆에 말했을 때만 인정 ("별로였어", "11화"의 1은 아님)."""
     if rating is None or isinstance(rating, bool) or not isinstance(rating, (int, float)):
-        return False
-    if "점" not in message and "별" not in message:
         return False
     forms = {str(rating)}
     if float(rating).is_integer():
         forms.add(str(int(rating)))
-    return any(f in message for f in forms)
+    return any(re.search(rf"(?<![\d.]){re.escape(n)}\s*점|별\s*{re.escape(n)}(?![\d.])", message) for n in forms)
 
 
 class _Turn:
@@ -252,6 +262,18 @@ class _Turn:
         self.known_ids = {c["series_id"] for c in contexts if isinstance(c, dict) and c.get("series_id")}
         self.direct_ids = set(self.known_ids)      # find·get_record·list_records·context에서 온 id: 후보 모호 검사를 건너뜀
         self.search_items = []                     # 이번 턴 search_series 결과
+
+    def _clarified_text(self):
+        """직전 턴이 작품을 되물은 상태(마지막 assistant 턴에 성공한 도구가 없거나 search_series에서 끝남)면
+        그 앞 user 턴의 글. "테스트 7화까지 봤어" → "어느 작품인가요?" → "테스트 칼날"에서 7을 이어 쓰기 위해."""
+        turns = self.history
+        for i in range(len(turns) - 1, -1, -1):
+            if turns[i].get("role") == "assistant":
+                ctx = turns[i].get("context") or {}
+                if ctx.get("tool") not in (None, "search_series"):
+                    return None
+                return next((t.get("content") or "" for t in reversed(turns[:i]) if t.get("role") == "user"), None)
+        return None
 
     def _fail(self, name, args, error):
         self.steps.append({"tool": name, "label": LABELS[name], "ok": False, "args": args})
@@ -286,8 +308,10 @@ class _Turn:
             item = next((i for i in self.search_items if i.get("series_id") == sid), None)
             if item is not None and not _mentioned(item, self.message):
                 return "후보가 여러 개입니다. 어느 작품인지 사용자에게 물으세요"
-        if str(seen_ep) not in re.findall(r"\d+", self.message):
-            return "사용자가 말한 회차 숫자만 저장할 수 있어요"
+        if str(seen_ep) not in _episode_numbers(self.message):
+            previous = self._clarified_text()
+            if previous is None or str(seen_ep) not in _episode_numbers(previous):
+                return "사용자가 말한 회차 숫자만 저장할 수 있어요"
         if SEASON_RE.search(self.message):
             return "시즌 안 회차는 저장하지 않아요. 전체 기준으로 몇 화인지 물으세요"
         args["rating"] = args.get("rating") if _rating_said(args.get("rating"), self.message) else None

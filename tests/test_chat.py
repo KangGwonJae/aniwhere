@@ -479,7 +479,7 @@ def test_rating_only_when_user_said_a_score():
 
 def test_second_save_in_one_turn_is_refused():
     stub = Stub()
-    llm, r = run_chat(stub, "테스트 거인 7화, 테스트 칼날 3화까지 봤어", SEARCH, save(A, seen_ep=7), save(B, seen_ep=3), {"content": "끝"})
+    llm, r = run_chat(stub, "테스트 거인 7화까지, 테스트 칼날 3화까지 봤어", SEARCH, save(A, seen_ep=7), save(B, seen_ep=3), {"content": "끝"})
     assert "한 턴에 한 작품만" in error_of(llm, 3) and stub.records == {A: (7, None)}
     assert [(s["tool"], s["ok"]) for s in r["steps"]] == [("search_series", True), ("save_record", True), ("save_record", False)]
 
@@ -533,3 +533,63 @@ def test_service_chat_forwards_message_and_history_to_find(monkeypatch):
     r = service.chat("벽을 부숴", history)
     assert got == {"question": "벽을 부숴", "history": history}
     assert r["results"]["find"]["status"] == "episode" and r["context"]["series_id"] == B
+
+
+# ───────────────────────── 검토 반영: 한국어 입력 보호 강화 ─────────────────────────
+
+@pytest.mark.parametrize("message", ["테스트 거인 시즌 3 7화까지 봤어", "테스트 거인 Season 2 7화까지 봤어", "테스트 거인 2쿨 7화까지 봤어"])
+def test_save_rejects_season_first_notation(message):
+    stub = Stub()
+    llm, _ = run_chat(stub, message, SEARCH_ONE, save(seen_ep=7), {"content": "끝"})
+    assert "시즌 안 회차" in error_of(llm, 2) and stub.records == {}
+
+
+def test_rating_needs_the_number_next_to_the_unit():
+    stub = Stub()
+    run_chat(stub, "테스트 거인 1화까지 봤어 별로였어", SEARCH_ONE, save(seen_ep=1, rating=1), {"content": "끝"})
+    assert stub.kwargs("save_record")[0]["rating"] is None                  # "별로"의 별, "1화"의 1은 점수가 아님
+    stub = Stub()
+    run_chat(stub, "테스트 거인 10화까지 봤어 1점", SEARCH_ONE, save(seen_ep=10, rating=1), {"content": "끝"})
+    assert stub.kwargs("save_record")[0]["rating"] == 1
+    stub = Stub()
+    run_chat(stub, "테스트 거인 10화까지 봤어 별 1개", SEARCH_ONE, save(seen_ep=10, rating=1), {"content": "끝"})
+    assert stub.kwargs("save_record")[0]["rating"] == 1
+
+
+def test_save_name_match_ignores_spaces_and_case():
+    stub = Stub()
+    run_chat(stub, "테스트칼날 7화까지 봤어", SEARCH, save(B), {"content": "끝"})
+    assert stub.records[B] == (7, None)
+    stub = Stub()
+    run_chat(stub, "TestBlade 7화까지 봤어", SEARCH, save(B), {"content": "끝"})
+    assert stub.records[B] == (7, None)
+
+
+def test_save_takes_only_the_number_before_kkaji_when_present():
+    stub = Stub()
+    llm, _ = run_chat(stub, "테스트 거인 7화까지 봤는데 8화 내용 알려줘", SEARCH_ONE, save(seen_ep=8), {"content": "끝"})
+    assert "회차 숫자" in error_of(llm, 2) and stub.records == {}           # 8화는 질문이지 본 회차가 아님
+    stub = Stub()
+    run_chat(stub, "테스트 거인 7화까지 봤는데 8화 내용 알려줘", SEARCH_ONE, save(seen_ep=7), {"content": "끝"})
+    assert stub.records[A] == (7, None)
+    stub = Stub()
+    run_chat(stub, "테스트 거인 7화 봤어", SEARCH_ONE, save(seen_ep=7), {"content": "끝"})     # 까지가 없으면 아무 숫자
+    assert stub.records[A] == (7, None)
+
+
+def test_save_episode_number_may_come_from_previous_turn_after_clarifying_question():
+    asked = [{"role": "user", "content": "테스트 7화까지 봤어"},
+             {"role": "assistant", "content": "테스트 거인과 테스트 칼날 중 어느 작품인가요?", "context": {"tool": "search_series"}}]
+    stub = Stub()
+    _, r = run_chat(stub, "테스트 칼날", {"tool_calls": [call("search_series", query="칼날")]}, save(B), {"content": "끝"},
+                    history=asked)
+    assert stub.records[B] == (7, None) and r["answer"].startswith("「테스트 칼날」 7화까지로 저장했어요.")
+    no_tool = [asked[0], {"role": "assistant", "content": "어느 작품인가요?"}]                 # 도구 없이 되물은 턴
+    stub = Stub()
+    run_chat(stub, "테스트 칼날", {"tool_calls": [call("search_series", query="칼날")]}, save(B), {"content": "끝"}, history=no_tool)
+    assert stub.records[B] == (7, None)
+    answered = [{"role": "user", "content": "11화가 뭐였지"},
+                {"role": "assistant", "content": "11화는 …", "context": {"tool": "review", "series_id": A, "title": "테스트 거인"}}]
+    stub = Stub()
+    llm, _ = run_chat(stub, "테스트 거인 봤어", SEARCH_ONE, save(seen_ep=11), {"content": "끝"}, history=answered)
+    assert "회차 숫자" in error_of(llm, 2) and stub.records == {}           # 되묻는 상태가 아니면 전 턴 숫자를 쓰지 않음
