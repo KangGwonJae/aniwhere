@@ -177,3 +177,197 @@ def suggest(tool: str, result: dict, context: dict | None) -> list[dict]:
         order = {"save_record": ["review", "dict"], "review": ["dict", "watch"],
                  "dictionary": ["review", "watch"], "where_to_watch": ["review", "dict"]}.get(tool, [])
     return [{"label": chips[k][0], "message": chips[k][1]} for k in order if chips[k][1]]
+
+
+# ───────────────────────── 루프 ─────────────────────────
+
+def _context_line(ctx: dict) -> str:
+    parts = [f"tool={ctx['tool']}"]
+    if ctx.get("series_id"):
+        parts.append(f"series_id={ctx['series_id']}")
+    if ctx.get("title"):
+        parts.append(f"제목={ctx['title']}")
+    if ctx.get("seen_ep") is not None:
+        parts.append(f"회차={ctx['seen_ep']}")
+    return "[직전 결과: " + ", ".join(parts) + "]"
+
+
+def _messages(history: list[dict], message: str) -> list[dict]:
+    """OpenAI messages. assistant 턴에 context가 있으면 끝에 [직전 결과: …] 한 줄을 붙여 LLM이 작품·회차를 잇게 한다."""
+    out = []
+    for turn in history:
+        role = "user" if turn.get("role") == "user" else "assistant"
+        content = turn.get("content") or ""
+        ctx = turn.get("context") if role == "assistant" else None
+        if isinstance(ctx, dict) and ctx.get("tool"):
+            content += "\n" + _context_line(ctx)
+        out.append({"role": role, "content": content})
+    out.append({"role": "user", "content": message})
+    return out
+
+
+def _title(series_id, results: dict, fns: dict):
+    """이번 턴 결과에서 제목을 찾고, 없으면 fns["series"]로 조회 (title_ko, 없으면 title)."""
+    for name in ("save_record", "get_record", "where_to_watch"):
+        r = results.get(name) or {}
+        if r.get("series_id") == series_id and (r.get("name") or r.get("title")):
+            return r.get("name") or r.get("title")
+    for item in (results.get("search_series") or {}).get("items") or []:
+        if item.get("series_id") == series_id and (item.get("name") or item.get("title")):
+            return item.get("name") or item.get("title")
+    for c in (results.get("find") or {}).get("candidates") or []:
+        if c.get("series_id") == series_id and c.get("title"):
+            return c["title"]
+    info = fns["series"](series_id) if series_id and "series" in fns else None
+    return (info.get("title_ko") or info.get("title")) if info else None
+
+
+def _mentioned(item: dict, message: str) -> bool:
+    low = message.lower()
+    return any(n and n.lower() in low for n in (item.get("name"), item.get("title")))
+
+
+def _rating_said(rating, message: str) -> bool:
+    """rating은 사용자가 '4점'·'4.5점'·'별 4개'처럼 숫자와 점·별을 함께 말했을 때만 인정."""
+    if rating is None or isinstance(rating, bool) or not isinstance(rating, (int, float)):
+        return False
+    if "점" not in message and "별" not in message:
+        return False
+    forms = {str(rating)}
+    if float(rating).is_integer():
+        forms.add(str(int(rating)))
+    return any(f in message for f in forms)
+
+
+class _Turn:
+    """한 턴의 상태: 실행한 단계·결과, 저장 보호에 쓰는 series_id 출처."""
+
+    def __init__(self, message, history, fns):
+        self.message, self.history, self.fns = message, history, fns
+        self.steps, self.results = [], {}
+        self.last = None                 # (tool, args, result) 마지막으로 성공한 도구
+        self.saved = None                # save_record 성공 결과
+        self.follow_up = None
+        contexts = [t.get("context") or {} for t in history if t.get("role") == "assistant"]
+        self.known_ids = {c["series_id"] for c in contexts if isinstance(c, dict) and c.get("series_id")}
+        self.direct_ids = set(self.known_ids)      # find·get_record·list_records·context에서 온 id: 후보 모호 검사를 건너뜀
+        self.search_items = []                     # 이번 턴 search_series 결과
+
+    def _fail(self, name, args, error):
+        self.steps.append({"tool": name, "label": LABELS[name], "ok": False, "args": args})
+        return {"error": error}
+
+    def _remember(self, name, result):
+        if name == "search_series":
+            self.search_items = [i for i in result.get("items") or [] if isinstance(i, dict)]
+            self.known_ids |= {i["series_id"] for i in self.search_items if i.get("series_id")}
+            return
+        if name == "find":
+            ids = {c["series_id"] for c in result.get("candidates") or [] if c.get("series_id")}
+        elif name == "list_records":
+            ids = {r["series_id"] for r in result.get("items") or [] if isinstance(r, dict) and r.get("series_id")}
+        elif name in ("get_record", "save_record") and result.get("series_id"):
+            ids = {result["series_id"]}
+        else:
+            return
+        self.known_ids |= ids
+        self.direct_ids |= ids
+
+    def _check_save(self, args):
+        """save_record 보호. 통과하면 None, 걸리면 LLM에 돌려줄 오류 글. rating은 조건이 안 맞으면 None으로 바꿈."""
+        sid, seen_ep = args["series_id"], args["seen_ep"]
+        if isinstance(seen_ep, str) and seen_ep.isdigit():
+            seen_ep = args["seen_ep"] = int(seen_ep)
+        if self.saved is not None:
+            return "한 턴에 한 작품만 저장해요. 나머지는 다음에 말해 달라고 하세요"
+        if sid not in self.known_ids:
+            return "series_id는 search_series 결과나 직전 결과에서 가져오세요"
+        if len(self.search_items) >= 2 and sid not in self.direct_ids:
+            item = next((i for i in self.search_items if i.get("series_id") == sid), None)
+            if item is not None and not _mentioned(item, self.message):
+                return "후보가 여러 개입니다. 어느 작품인지 사용자에게 물으세요"
+        if str(seen_ep) not in re.findall(r"\d+", self.message):
+            return "사용자가 말한 회차 숫자만 저장할 수 있어요"
+        if SEASON_RE.search(self.message):
+            return "시즌 안 회차는 저장하지 않아요. 전체 기준으로 몇 화인지 물으세요"
+        args["rating"] = args.get("rating") if _rating_said(args.get("rating"), self.message) else None
+        return None
+
+    def call(self, name, raw_args):
+        if name not in SCHEMAS:
+            return {"error": f"없는 도구입니다: {name}"}
+        schema = SCHEMAS[name]
+        raw_args = raw_args if isinstance(raw_args, dict) else {}
+        args = {k: v for k, v in raw_args.items() if k in schema["properties"]}
+        missing = [k for k in schema["required"] if k not in args]
+        if missing:
+            return self._fail(name, args, f"{missing[0]}가 필요합니다")
+        if name == "save_record":
+            error = self._check_save(args)
+            if error:
+                return self._fail(name, args, error)
+        try:
+            if name == "find":
+                value = self.fns["find"](self.message, find_history(self.history))
+            elif name == "save_record":
+                value = save_with_previous(self.fns, args["series_id"], args["seen_ep"], args.get("rating"))
+            else:
+                value = self.fns[name](**args)
+        except ValueError as e:              # 모르는 작품(UnknownSeries), 회차·평점 범위 밖, 잘못된 mode
+            return self._fail(name, args, str(e))
+        result = as_result(value)
+        self.steps.append({"tool": name, "label": LABELS[name], "ok": True, "args": args})
+        self.results[name] = result
+        self.last = (name, args, result)
+        self._remember(name, result)
+        if name == "save_record":
+            self.saved = result
+        if result.get("follow_up"):
+            self.follow_up = result["follow_up"]
+        return result
+
+    def reply(self, content):
+        answer = self.follow_up or (content or "").strip() or NO_ANSWER
+        if self.saved is not None:
+            answer = f"{confirmation(self.saved)} {answer}".strip()
+        context, suggestions = None, []
+        if self.last:
+            tool, args, result = self.last
+            title = _title(args.get("series_id"), self.results, self.fns) if tool in ("review", "dictionary", "where_to_watch") else None
+            context = context_of(tool, args, result, title)
+            suggestions = suggest(tool, result, context)
+        return {"answer": answer, "follow_up": self.follow_up, "steps": self.steps, "results": self.results,
+                "suggestions": suggestions, "context": context}
+
+
+def run(llm, message: str, history: list[dict], fns: dict) -> dict:
+    """→ {answer, follow_up?, steps[{tool, label, ok, args}], results{}, suggestions[{label, message}], context?}
+
+    fns: {도구 이름: service 함수} + "series"(제목 조회용, LLM에는 보이지 않음). llm이 None이면 도구를 돌리지 않는다."""
+    if llm is None:
+        return {"answer": NEED_LLM, "follow_up": NEED_LLM, "steps": [], "results": {}, "suggestions": [], "context": None}
+    turn = _Turn(message, history or [], fns)
+    messages = _messages(turn.history, message)
+    n_tools = n_llm = 0
+    content = None
+    while True:
+        allow = n_tools < MAX_TOOL_CALLS and n_llm < MAX_LLM_CALLS - 1
+        reply = llm.tools(prompt("chat"), messages, TOOLS, allow_tools=allow)
+        n_llm += 1
+        content = reply.get("content")
+        calls = reply.get("tool_calls") or []
+        if not calls or not allow:                 # 글만 왔거나, 도구를 막은 마지막 호출
+            break
+        messages.append(reply["raw"])              # assistant(tool_calls)를 먼저 붙이고, 모든 id에 tool 메시지를 하나씩
+        for c in calls:
+            n_tools += 1
+            if turn.follow_up:
+                result = {"error": "되묻는 중이라 실행하지 않았습니다"}
+            elif n_tools > MAX_TOOL_CALLS:
+                result = {"error": f"이번 턴의 도구 호출 한도({MAX_TOOL_CALLS}번)를 넘었습니다. 지금까지의 결과로 답하세요."}
+            else:
+                result = turn.call(c.get("name"), c.get("arguments"))
+            messages.append({"role": "tool", "tool_call_id": c["id"], "content": json.dumps(slim(result), ensure_ascii=False)})
+        if turn.follow_up:                         # 되묻는 글은 원문 그대로 사용자에게. LLM을 다시 부르지 않음
+            break
+    return turn.reply(content)
