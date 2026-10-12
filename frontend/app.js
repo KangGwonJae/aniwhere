@@ -32,6 +32,76 @@ const mock = {
   ]
 };
 
+const hunterDictionary = [
+  ['헌터','헌터·자격','희귀 생물, 보물, 유적, 범죄자 등 특정 대상을 탐색하거나 전문 분야를 연구하는 사람.',1],
+  ['헌터 협회','헌터·자격','헌터 시험을 주관하고 헌터 자격을 관리하는 비정부 조직.',1],
+  ['헌터 시험','헌터·자격','프로 헌터가 되기 위해 치르는 시험. 체력뿐 아니라 판단력·지식·관찰력도 평가한다.',1],
+  ['헌터 라이선스','헌터·자격','헌터 시험 합격자에게 발급되는 자격증. 제한된 장소와 정보에 접근할 수 있다.',1],
+  ['싱글 헌터','헌터·자격','특정 분야에서 뛰어난 업적을 인정받아 별 하나를 받은 헌터.',2],
+  ['더블 헌터','헌터·자격','협회 요건을 충족하고 후배를 육성한 헌터에게 주어지는 별 두 개의 등급.',3],
+  ['트리플 헌터','헌터·자격','여러 분야에서 뛰어난 업적을 남긴 헌터에게 주어지는 별 세 개의 등급.',3],
+  ['쿠쿠르 마운틴','세계관','파도키아 공화국의 휴화산. 세계적인 암살자 가문 조르딕의 저택이 자리한다.',1],
+  ['조르딕 가문','세계관','쿠쿠르 마운틴에 거주하는 암살자 가문. 가족들은 어려서부터 암살 기술을 훈련받는다.',1],
+  ['시험의 문','세계관','조르딕 가문의 사유지로 들어가는 여러 겹의 거대한 정문.',1],
+  ['천공격투장','세계관','격투가들이 대결하며 상위 층으로 올라가는 초고층 격투 시설.',2],
+  ['쿠르타족','세계관','강한 감정에 반응해 눈이 선명한 붉은색으로 변하는 특징을 지닌 소수 민족.',3],
+  ['붉은 눈 · 비색의 눈','세계관','쿠르타족이 격한 감정을 느낄 때 나타나는 특별한 눈의 색.',3],
+  ['환영여단','세계관','강력한 넨 능력자들로 구성된 도적 집단. 단장과 단원을 거미에 비유한다.',3],
+  ['거미','세계관','환영여단을 가리키는 별칭이자 조직의 상징.',3],
+  ['유성가','세계관','버려진 물건과 사람들이 모여 형성된 거대한 공동체.',3],
+  ['요크신 시티','세계관','대규모 경매가 열려 수집가와 상인이 모이는 도시.',3],
+  ['십로두','세계관','마피아 사회를 이끄는 열 명의 수장.',3],
+  ['음수','세계관','십로두가 선발한 최정예 부하들로 구성된 넨 전투 집단.',3],
+  ['넨','넨 기본','몸에서 나오는 생명 에너지인 오라를 다루는 기술.',2],
+  ['오라','넨 기본','생명체가 지닌 생명 에너지. 넨 수련자는 흐름과 양을 조절해 활용한다.',2],
+  ['사대행','넨 기본','넨의 기초를 이루는 텐·제츠·렌·하츠 네 가지 수행의 총칭.',2],
+  ['텐 · 纏','넨 기본','몸에서 흘러나오는 오라를 몸 주변에 머물게 하는 기술.',2],
+  ['제츠 · 絶','넨 기본','몸 밖으로 나오는 오라를 차단해 기척을 숨기는 기술.',2],
+  ['렌 · 練','넨 기본','평소보다 많은 양의 오라를 끌어내는 기술.',2],
+  ['하츠 · 発','넨 기본','오라를 자신의 성질과 목적에 맞게 발휘하는 기술.',2],
+  ['수견식','넨 기본','물과 잎에 오라를 가해 나타나는 변화로 자신의 넨 계통을 판별하는 방법.',2],
+  ['육성도','넨 기본','여섯 넨 계통의 관계와 습득 효율을 나타낸 도표.',2],
+  ['교 · 凝','넨 응용','오라를 눈이나 공격·방어 부위 같은 신체의 특정 부위에 집중시키는 기술.',2],
+  ['인 · 隠','넨 응용','능력을 유지하면서 오라의 존재를 알아차리기 어렵게 숨기는 기술.',3],
+  ['엔 · 円','넨 응용','오라를 넓게 펼쳐 범위 안 대상의 형태와 움직임을 감지하는 기술.',3],
+  ['슈 · 周','넨 응용','도구나 물체를 오라로 감싸 강화하고 보호하는 기술.',3],
+  ['코 · 硬','넨 응용','오라를 한 부위에 집중하는 대신 다른 부위가 무방비가 되는 기술.',3],
+  ['켄 · 堅','넨 응용','많은 양의 오라를 몸 전체에 유지해 전신을 보호하는 기술.',3],
+  ['류 · 流','넨 응용','상황에 맞춰 신체 각 부위의 오라 배분을 빠르게 바꾸는 기술.',3],
+  ['강화계','넨 계통','몸이나 물건이 지닌 힘과 기능을 강화한다. 수견식에서는 물의 양이 늘어난다.',2],
+  ['변화계','넨 계통','오라의 성질이나 형태를 바꾼다. 수견식에서는 물의 맛이 변한다.',2],
+  ['구현화계','넨 계통','오라를 구체적인 물체로 만든다. 수견식에서는 물속에 불순물이 생긴다.',2],
+  ['조작계','넨 계통','물체나 생물을 조종한다. 수견식에서는 잎이 움직인다.',2],
+  ['특질계','넨 계통','다른 다섯 계통으로 분류할 수 없는 특수한 능력의 계통.',2],
+  ['방출계','넨 계통','오라를 몸에서 분리해 멀리 보내고 유지하는 데 적합하다.',2],
+  ['제약','조건·현상','능력의 대상, 상황, 횟수 등을 제한해 힘을 높이는 조건.',3],
+  ['서약 · 맹세','조건·현상','규칙을 지키겠다는 강한 결의와 위반 시의 대가를 거는 원리.',3],
+  ['제약과 서약','조건·현상','제한과 대가, 사용자의 결의를 통해 넨 능력을 강화하는 원리.',3],
+  ['제넨','조건·현상','다른 사람이나 대상에 걸린 넨의 영향을 제거하거나 해소하는 행위.',4],
+  ['사후 넨','조건·현상','사용자가 죽은 뒤에도 강한 감정이나 의지로 남아 있는 넨.',4],
+  ['번지껌 · 번지검','대표 능력','히소카가 오라에 껌의 접착력과 고무의 탄성을 부여하는 능력.',2],
+  ['도 깜짝 텍스처','대표 능력','히소카가 표면의 외관을 다른 재질이나 무늬처럼 보이게 하는 능력.',2],
+  ['짜잔권 · 자잔권','대표 능력','곤이 가위바위보를 바탕으로 만든 넨 능력.',4],
+  ['짜잔권 · 바위','대표 능력','주먹에 오라를 집중해 강력한 타격을 가하는 강화계 공격.',4],
+  ['짜잔권 · 가위','대표 능력','손가락 끝에서 오라를 칼날처럼 뻗는 변화계 공격.',4],
+  ['짜잔권 · 보','대표 능력','손바닥에서 오라 덩어리를 쏘는 방출계 공격.',4],
+  ['칸무루 · 신속','대표 능력','키르아가 전기 성질의 오라로 움직임과 반응을 극도로 빠르게 하는 능력.',4],
+  ['전광석화','대표 능력','칸무루의 사용 방식 중 하나로, 사용자의 의지에 따라 빠르게 이동한다.',4],
+  ['질풍신뢰','대표 능력','외부 자극에 신체가 자동 반응하도록 하는 칸무루의 사용 방식.',4],
+  ['그리드 아일랜드 · G.I.','그리드 아일랜드','넨 능력자가 플레이하며 지정 카드를 모아 공략하는 특별한 게임.',4],
+  ['북 · Book','그리드 아일랜드','그리드 아일랜드에서 카드 바인더를 불러오는 명령어.',4],
+  ['게인 · Gain','그리드 아일랜드','카드화된 물건을 원래 형태로 되돌리는 명령어.',4],
+  ['지정 포켓 카드','그리드 아일랜드','게임 공략을 위해 정해진 슬롯에 수집해야 하는 100종의 카드.',4],
+  ['스펠 카드 · 주문 카드','그리드 아일랜드','이동·연락·탐색·강탈 등 특별한 효과를 일으키는 카드.',4]
+];
+
+const hunterCheckpoints = {
+  1: '헌터 시험 편 · 21화',
+  2: '천공격투장 편 · 36화',
+  3: '요크신 시티 편 · 58화',
+  4: '그리드 아일랜드 편 · 75화'
+};
+
 function addMessage(role, text, card = '') {
   const row = document.createElement('div');
   row.className = `message ${role}`;
@@ -121,7 +191,7 @@ function openDrawer(kicker, title, html) {
   drawer.setAttribute('aria-hidden','false');
   requestAnimationFrame(() => { $('.drawer-panel').scrollTop = 0; });
 }
-function closeDrawer() { drawer.classList.remove('open'); drawer.setAttribute('aria-hidden','true'); }
+function closeDrawer() { drawer.classList.remove('open', 'dictionary-open'); drawer.setAttribute('aria-hidden','true'); }
 function openRecap(selected = '전체 이야기') {
   openDrawer('FEATURE 09 · EP49까지', `스포일러 없는 ${selected}`, `<div class="drawer-card"><h3>처음의 약속</h3><p>무개성이던 미도리야는 위험에 뛰어드는 용기를 인정받아 올마이트의 힘을 이어받았어요.</p></div><div class="drawer-card"><h3>유에이에서의 성장</h3><p>친구들과 훈련하고 위기를 겪으며 힘을 다루는 방법과 함께 싸우는 법을 배웠어요.</p></div><div class="drawer-card"><h3>마지막으로 본 상황</h3><p>올마이트가 올 포 원과의 결전을 마치고 다음 세대에게 메시지를 남겼어요.</p></div><div class="drawer-card safe"><h3>⌾ 보호 범위</h3><p>전체 49화까지만 사용했어요. 이 아래는 실제 내용을 받지 않은 보호 구간입니다.</p></div><div class="spoiler-gate" data-spoiler-gate><span>49화</span><i></i><b>TIME STOP</b><i></i><span>50화</span></div><section class="spoiler-protected-card" aria-label="미시청 내용 보호 구간"><h3>⚠️ 스포일러 보호 중 ⚠️</h3><img src="assets/eren-spoiler-user.png" alt="스포일러를 구축해주마고 말하는 에렌 예거"></section>`);
   watchSpoilerGate();
@@ -155,7 +225,86 @@ function closeSpoilerCutin() {
   }, 240);
 }
 function openProviders() { openDrawer('FEATURE 07', '시청처 안내', `<div class="drawer-card"><h3>나의 히어로 아카데미아 · 시즌 3</h3><div class="providers"><span>Laftel</span><span>Netflix</span></div><p>국내 제공처 기준이며 실제 편성은 서비스에서 다시 확인해주세요.</p><small>정보 제공: JustWatch · 확인일 2026-10-05</small></div>`); }
-function openDictionary() { openDrawer('PROTOTYPE · FEATURE 08', '49화까지의 인물·용어', mock.characters.map(([n,d]) => `<div class="drawer-card"><h3>${n}</h3><p>${d}</p></div>`).join('') + '<div class="drawer-card"><h3>원 포 올</h3><p>힘을 축적해 다음 계승자에게 전달하는 특별한 개성이에요.</p></div>'); }
+function dictionaryEntriesHtml() {
+  return hunterDictionary.map(([name, category, description, level]) => `
+    <article class="dictionary-entry${level > 3 ? ' locked' : ''}" data-dictionary-entry data-name="${name.toLowerCase()}" data-category="${category}" data-level="${level}">
+      <header><span>${category}</span><small>${level > 3 ? '🔒 이후 공개' : `EP ${level === 1 ? '1–21' : level === 2 ? '22–36' : '37–58'}`}</small></header>
+      <h3>${name}</h3>
+      <p>${description}</p>
+      <div class="dictionary-lock"><b>스포일러 보호 중</b><span>${hunterCheckpoints[level]} 이후 공개되는 용어예요.</span></div>
+    </article>`).join('');
+}
+
+function filterDictionary() {
+  const query = ($('#dictionary-search')?.value || '').trim().toLowerCase();
+  const category = $('[data-dictionary-filter].active')?.dataset.dictionaryFilter || '전체';
+  const level = Number($('#dictionary-checkpoint')?.value || 3);
+  let visible = 0;
+  $$('[data-dictionary-entry]').forEach(entry => {
+    const matchesQuery = !query || entry.dataset.name.includes(query) || entry.textContent.toLowerCase().includes(query);
+    const matchesCategory = category === '전체' || entry.dataset.category === category;
+    entry.hidden = !(matchesQuery && matchesCategory);
+    entry.classList.toggle('locked', Number(entry.dataset.level) > level);
+    if (!entry.hidden) visible += 1;
+  });
+  $('#dictionary-count').textContent = `${visible}개 용어`;
+  $('#dictionary-safe-label').textContent = `${hunterCheckpoints[level]}까지 공개`;
+}
+
+function openDictionary() {
+  const categories = ['전체', ...new Set(hunterDictionary.map(([, category]) => category))];
+  openDrawer('PROTOTYPE · FEATURE 08', '헌터×헌터 인물·용어 사전', `
+    <div class="dictionary-toolbar">
+      <div><small>현재 시청 지점</small><select id="dictionary-checkpoint">${Object.entries(hunterCheckpoints).map(([level, label]) => `<option value="${level}"${level === '3' ? ' selected' : ''}>${label}</option>`).join('')}</select></div>
+      <span class="dictionary-safe" id="dictionary-safe-label">요크신 시티 편 · 58화까지 공개</span>
+    </div>
+    <div class="dictionary-tabs" role="tablist" aria-label="사전 보기 선택">
+      <button class="active" data-dictionary-tab="relations" role="tab">인물 관계</button>
+      <button data-dictionary-tab="terms" role="tab">용어 사전</button>
+    </div>
+    <section class="dictionary-pane active" data-dictionary-pane="relations">
+      <div class="dictionary-intro"><small>ZOLDYCK FAMILY</small><h3>조르딕 가문 관계도</h3><p>관계도 전체에는 현재 시청 지점 이후의 등장인물과 관계가 포함될 수 있어요.</p></div>
+      <figure class="relation-map protected" id="zoldyck-map">
+        <img src="assets/zoldyck-family-map.png" alt="조르딕 가문의 인물 관계도">
+        <figcaption><b>⚠️ 관계도 스포일러 보호 중</b><span>후반 등장인물까지 포함된 팬메이드 관계도예요.</span><button type="button" id="reveal-zoldyck-map">전체 관계도 보기</button></figcaption>
+      </figure>
+      <div class="relationship-cards">
+        <article><small>가족</small><b>제노 → 실버 → 키르아</b><p>조르딕 가문의 세 세대. 모두 암살자로 훈련받았어요.</p></article>
+        <article><small>친구</small><b>키르아 ↔ 곤</b><p>헌터 시험에서 만나 함께 여행하는 가장 가까운 친구예요.</p></article>
+        <article><small>형제</small><b>이르미 · 미르키 · 키르아</b><p>서로 다른 방식으로 가문과 키르아를 바라봐요.</p></article>
+        <article class="relationship-locked"><small>🔒 이후 관계</small><b>시청 지점 이후 보호</b><p>그리드 아일랜드 편 이후 밝혀지는 관계는 숨겼어요.</p></article>
+      </div>
+    </section>
+    <section class="dictionary-pane" data-dictionary-pane="terms" hidden>
+      <label class="dictionary-search"><span class="sr-only">용어 검색</span><input id="dictionary-search" type="search" placeholder="넨, 번지껌, 쿠르타족 검색"><b>⌕</b></label>
+      <div class="dictionary-filters">${categories.map((category, index) => `<button class="${index === 0 ? 'active' : ''}" data-dictionary-filter="${category}">${category}</button>`).join('')}</div>
+      <div class="dictionary-result-head"><b id="dictionary-count">${hunterDictionary.length}개 용어</b><span>설명은 현재 회차까지만</span></div>
+      <div class="dictionary-grid">${dictionaryEntriesHtml()}</div>
+      <div class="dictionary-source"><b>프로토타입 데이터</b><p>첨부된 용어 정리를 바탕으로 구성했으며, 실제 연결 시 각 항목에 출처·공개 회차·다른 표기를 함께 저장합니다.</p></div>
+    </section>`);
+  drawer.classList.add('dictionary-open');
+
+  $$('[data-dictionary-tab]').forEach(button => button.addEventListener('click', () => {
+    $$('[data-dictionary-tab]').forEach(item => item.classList.toggle('active', item === button));
+    $$('[data-dictionary-pane]').forEach(pane => {
+      const active = pane.dataset.dictionaryPane === button.dataset.dictionaryTab;
+      pane.classList.toggle('active', active);
+      pane.hidden = !active;
+    });
+    $('.drawer-panel').scrollTo({ top: 0, behavior: 'smooth' });
+  }));
+  $$('[data-dictionary-filter]').forEach(button => button.addEventListener('click', () => {
+    $$('[data-dictionary-filter]').forEach(item => item.classList.toggle('active', item === button));
+    filterDictionary();
+  }));
+  $('#dictionary-search').addEventListener('input', filterDictionary);
+  $('#dictionary-checkpoint').addEventListener('change', filterDictionary);
+  $('#reveal-zoldyck-map').addEventListener('click', () => {
+    $('#zoldyck-map').classList.remove('protected');
+    showToast('전체 관계도를 열었어요. 후반 설정이 포함되어 있어요.');
+  });
+  filterDictionary();
+}
 function openRecord() { openDrawer('FEATURE 13', '시청 기록 수정', `<form class="record-form" id="record-form"><label>상태<select><option>시청 중</option><option>보고 싶어요</option><option>완료</option></select></label><label>시즌<input type="number" value="3" min="1"></label><label>회차<input type="number" value="11" min="1"></label><label>평점 (선택)<input type="number" min="0" max="5" step="0.5" placeholder="0–5"></label><button>기록 저장</button></form>`); $('#record-form').addEventListener('submit', e => { e.preventDefault(); setRecordState(true); closeDrawer(); showToast('시즌 3 · 11화 기록을 저장했어요. (프로토타입)'); }); }
 function openSimilar() { openDrawer('확장 프로토타입 · FEATURE 02', '“진격의 거인 같은 거”', `<div class="drawer-card"><h3>강철의 연금술사</h3><p>거대한 세계의 비밀, 군과 권력의 음모, 뒤집히는 진실이 가까워요.</p></div><div class="drawer-card"><h3>86 -에이티식스-</h3><p>전쟁 속에서 감춰진 사회 구조와 인물들의 선택을 따라가요.</p></div><div class="drawer-card"><h3>메이드 인 어비스</h3><p>미지의 세계를 탐험할수록 새로운 진실이 드러나는 작품이에요.</p></div>`); }
 function openWatchOrder() { openDrawer('확장 프로토타입 · FEATURE 03', '나의 히어로 아카데미아 시청 순서', `<div class="character-scene finished-scene light-scene"><img src="assets/light-card-user.png" alt="시청 순서를 계획하는 라이토"></div><div class="order-list"><div class="order-item"><b>1</b><div><strong>TV 애니 1기</strong><br><span>먼저 보기 · 필수</span></div><em>13화</em></div><div class="order-item"><b>2</b><div><strong>TV 애니 2기</strong><br><span>이어서 보기 · 필수</span></div><em>25화</em></div><div class="order-item"><b>3</b><div><strong>극장판: 두 명의 히어로</strong><br><span>2기 이후 추천 · 건너뛰어도 본편 이해 가능</span></div><em>영화</em></div><div class="order-item"><b>4</b><div><strong>TV 애니 3기</strong><br><span>현재 시청 중</span></div><em>EP11</em></div></div><div class="drawer-card"><p>방영 순·시간 순 전환은 실제 AniList 관계 정보 연결 후 제공할 예정입니다.</p></div>`); }

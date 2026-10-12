@@ -1,4 +1,4 @@
-const CACHE = 'aniwhere-app-v13-name-avatar';
+const CACHE = 'aniwhere-app-v14-hunter-dictionary';
 const APP_SHELL = [
   './',
   './index.html',
@@ -16,7 +16,8 @@ const APP_SHELL = [
   './assets/okabe-card-user.png',
   './assets/l-detective-user.png',
   './assets/eren-spoiler-user.png',
-  './assets/naruto-history-user.png'
+  './assets/naruto-history-user.png',
+  './assets/zoldyck-family-map.png'
 ];
 
 self.addEventListener('install', event => {
