@@ -466,6 +466,16 @@ def test_fake_chat_saves_record_from_episode_sentence(client):
     assert "0부터 138까지" in bad["answer"] and bad["suggestions"] == [] and bad["context"]["tool"] == "search_series"
 
 
+def test_fake_chat_suggestion_saves_the_named_series(client):
+    body = client.post("/api/chat", json={"message": "진격의 거인 1화까지 봤어"}).json()
+    assert body["results"]["save_record"]["series_id"] == fake.TITAN
+    assert client.get(f"/api/records/{fake.TITAN}").json()["seen_ep"] == 1
+    watch = client.post("/api/chat", json={"message": "진격의 거인 어디서 볼 수 있어?"}).json()
+    assert watch["results"]["where_to_watch"]["series_id"] == fake.TITAN
+    review = client.post("/api/chat", json={"message": "진격의 거인 지금까지 복습해줘"}).json()
+    assert review["results"]["review"]["seen_ep"] == 1
+
+
 def test_fake_chat_branches(client):
     body = client.post("/api/chat", json={"message": "어디서 봐?"}).json()
     assert body["results"]["where_to_watch"]["series_id"] == fake.HERO and body["context"]["tool"] == "where_to_watch"

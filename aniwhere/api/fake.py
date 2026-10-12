@@ -61,6 +61,11 @@ def _seen(series_id, seen_ep):
     return seen_ep
 
 
+def _series_in(message: str) -> dict:
+    """가짜 대화에서도 칩의 완전한 문장에 적힌 작품을 이어서 사용한다."""
+    return next((s for s in SERIES.values() if s["name"] in message or s["title"] in message), SERIES[HERO])
+
+
 # agent/find.py의 근거 형식: 작품·회차와 출처 링크만. 줄거리 본문(text)은 넣지 않음 (아직 안 본 회차일 수 있음)
 TITAN_SOURCE = {"series_id": TITAN, "abs_ep": 1, "name": "Fandom", "license": "CC BY-SA 3.0",
                 "url": "https://attackontitan.fandom.com/wiki/Episode_1"}
@@ -203,29 +208,36 @@ def chat(message: str, history: list[dict] | None = None) -> dict:
 
     number = re.search(r"\d+", message)
     if "봤어" in message and number:
-        step("search_series", search_series("히어로"), query="히어로")
-        args = {"series_id": HERO, "seen_ep": int(number.group()), "rating": None}
+        matched = _series_in(message)
+        query = matched["name"]
+        step("search_series", search_series(query), query=query)
+        args = {"series_id": matched["series_id"], "seen_ep": int(number.group()), "rating": None}
         try:
             saved = step("save_record", _chat.save_with_previous(
-                {"get_record": get_record, "save_record": save_record}, HERO, args["seen_ep"]), **args)
+                {"get_record": get_record, "save_record": save_record}, args["series_id"], args["seen_ep"]), **args)
         except ValueError as e:
             steps.append({"tool": "save_record", "label": _chat.LABELS["save_record"], "ok": False, "args": args})
             return reply("search_series", {"query": "히어로"}, str(e))
         return reply("save_record", args, f"{_chat.confirmation(saved)} 이어서 복습하거나 인물·용어를 볼 수 있어요.")
     if "시청처" in message or "어디서" in message:
-        r = step("where_to_watch", where_to_watch(HERO), series_id=HERO)
-        return reply("where_to_watch", {"series_id": HERO},
-                     f"「{title}」은(는) {', '.join(r['seasons'][0]['providers'])}에서 볼 수 있어요.")
+        target = _series_in(message)
+        r = step("where_to_watch", where_to_watch(target["series_id"]), series_id=target["series_id"])
+        return reply("where_to_watch", {"series_id": target["series_id"]},
+                     f"「{target['name']}」은(는) {', '.join(r['seasons'][0]['providers'])}에서 볼 수 있어요.")
     if "복습" in message or "줄거리" in message:
-        step("get_record", get_record(HERO), series_id=HERO)
-        r = step("review", review(HERO, None, "summary"), series_id=HERO, mode="summary")
-        return reply("review", {"series_id": HERO, "mode": "summary"},
-                     f"「{title}」 {r['seen_ep']}화까지의 복습이에요. 자세한 내용은 복습 카드에 있어요.")
+        target = _series_in(message)
+        sid = target["series_id"]
+        step("get_record", get_record(sid), series_id=sid)
+        r = step("review", review(sid, None, "summary"), series_id=sid, mode="summary")
+        return reply("review", {"series_id": sid, "mode": "summary"},
+                     f"「{target['name']}」 {r['seen_ep']}화까지의 복습이에요. 자세한 내용은 복습 카드에 있어요.")
     if any(w in message for w in ("인물", "용어", "누구", "사전")):
-        step("get_record", get_record(HERO), series_id=HERO)
-        r = step("dictionary", dictionary(HERO), series_id=HERO)
-        return reply("dictionary", {"series_id": HERO},
-                     f"「{title}」 {r['seen_ep']}화까지 나온 인물·용어 {len(r['entries'])}개를 찾았어요.")
+        target = _series_in(message)
+        sid = target["series_id"]
+        step("get_record", get_record(sid), series_id=sid)
+        r = step("dictionary", dictionary(sid), series_id=sid)
+        return reply("dictionary", {"series_id": sid},
+                     f"「{target['name']}」 {r['seen_ep']}화까지 나온 인물·용어 {len(r['entries'])}개를 찾았어요.")
     if "추천" in message:
         r = step("recommend", recommend(message), likes=message)
         pick = r["picks"][0]
