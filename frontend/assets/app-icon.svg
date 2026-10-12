@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="AniWhere">
+  <rect width="512" height="512" rx="112" fill="#0f1520"/>
+  <path d="M92 112h328v288H92z" fill="#182131" stroke="#8394ff" stroke-width="22"/>
+  <path d="M118 138h276v42H118zM118 332h276v42H118z" fill="#72d8f2" opacity=".22"/>
+  <text x="256" y="300" text-anchor="middle" fill="#f3f7ff" font-family="Arial Black,Arial,sans-serif" font-size="142" font-weight="900" letter-spacing="-18">AW</text>
+  <circle cx="382" cy="126" r="24" fill="#efb56d"/>
+</svg>
