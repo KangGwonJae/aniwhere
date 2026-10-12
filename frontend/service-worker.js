@@ -1,4 +1,4 @@
-const CACHE = 'aniwhere-app-v14-hunter-dictionary';
+const CACHE = 'aniwhere-app-v15-dictionary-entry';
 const APP_SHELL = [
   './',
   './index.html',
