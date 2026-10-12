@@ -13,6 +13,7 @@ const installGuideClose = $('#install-guide-close');
 const spoilerCutin = $('#spoiler-cutin');
 const cutinReturn = $('#cutin-return');
 const transitionSfx = $('#transition-sfx');
+const onboarding = $('#onboarding');
 let installPrompt = null;
 let spoilerObserver = null;
 let mode = 'episode';
@@ -20,7 +21,42 @@ let persona = 'midoriya';
 let busy = false;
 let step = 0;
 const RECORD_KEY = 'aniwhere-demo-watch-record';
-let hasRecord = localStorage.getItem(RECORD_KEY) === '1';
+const ONBOARDING_KEY = 'aniwhere-onboarding-completed';
+const WATCH_RECORDS_KEY = 'aniwhere-watch-records';
+let savedWatchRecords = [];
+try { savedWatchRecords = JSON.parse(localStorage.getItem(WATCH_RECORDS_KEY) || '[]'); } catch { savedWatchRecords = []; }
+let hasRecord = localStorage.getItem(RECORD_KEY) === '1' || savedWatchRecords.length > 0;
+
+const onboardingTitles = {
+  mha: { title:'나의 히어로 아카데미아', image:'my-hero-academia.jpg', seasons:[['1기',13],['2기',25],['3기',25],['4기',25],['5기',25],['6기',25],['7기',21]], defaultSeason:3, defaultEpisode:11 },
+  aot: { title:'진격의 거인', image:'eren-spoiler-user.png', seasons:[['1기',25],['2기',12],['3기 Part 1',12],['3기 Part 2',10],['The Final Season',35]], defaultSeason:1, defaultEpisode:14 },
+  hxh: { title:'헌터×헌터', image:'hxh-gon.png', seasons:[['2011년판',148]], defaultSeason:1, defaultEpisode:63 },
+  steins: { title:'슈타인즈 게이트', image:'okabe-card-user.png', seasons:[['본편',24],['제로',23]], defaultSeason:1, defaultEpisode:12 },
+  naruto: { title:'나루토', image:'naruto-history-user.png', seasons:[['나루토',220],['질풍전',500]], defaultSeason:1, defaultEpisode:50 }
+};
+const onboardingMemoryMatches = {
+  mha: [
+    { keywords:['올마이트','올 포 원','손가락','카미노'], season:3, episode:11, confidence:'높음', evidence:'올마이트와 올 포 원의 결전 뒤 화면을 향해 손가락을 가리키는 장면' },
+    { keywords:['학교 축제','문화제','에리'], season:4, episode:23, confidence:'보통', evidence:'유에이를 배경으로 한 학교 축제와 에리의 장면' }
+  ],
+  aot: [
+    { keywords:['여성형','숲','리바이반'], season:1, episode:22, confidence:'높음', evidence:'거대 나무 숲에서 여성형 거인과 마주하는 흐름' },
+    { keywords:['바다','바닷가'], season:3, episode:22, confidence:'높음', evidence:'조사병단이 바다에 도착하는 장면' }
+  ],
+  hxh: [
+    { keywords:['비스케','그리드','수련'], season:1, episode:63, confidence:'높음', evidence:'그리드 아일랜드에서 비스케가 곤과 키르아의 수련을 시작하는 구간' },
+    { keywords:['히소카','천공','곤 싸움'], season:1, episode:36, confidence:'높음', evidence:'천공격투장에서 곤과 히소카가 대결하는 구간' }
+  ],
+  steins: [
+    { keywords:['문자','메일','과거','전자레인지'], season:1, episode:9, confidence:'보통', evidence:'D메일과 과거 변화의 규칙을 확인해 가는 구간' },
+    { keywords:['마유리','시계','멈춰'], season:1, episode:12, confidence:'높음', evidence:'마유리와 관련된 큰 전환점이 시작되는 구간' }
+  ],
+  naruto: [
+    { keywords:['중급닌자','시험','가아라'], season:1, episode:67, confidence:'높음', evidence:'중급 닌자 시험과 가아라 관련 사건이 이어지는 구간' },
+    { keywords:['사스케','탈환'], season:1, episode:110, confidence:'보통', evidence:'사스케를 쫓는 탈환 임무가 시작되는 구간' }
+  ]
+};
+const onboardingSelection = new Map();
 
 const mock = {
   record: { series_id: 'tmdb:65930', title: '나의 히어로 아카데미아', seen_ep: 49, season: 3, episode: 11, rating: null },
@@ -96,11 +132,193 @@ const hunterDictionary = [
 ];
 
 const hunterCheckpoints = {
-  1: '헌터 시험 편 · 21화',
-  2: '천공격투장 편 · 36화',
-  3: '요크신 시티 편 · 58화',
-  4: '그리드 아일랜드 편 · 75화'
+  25: '초기 동료와 가족 · 25화',
+  63: '요크신·그리드 아일랜드 · 63화',
+  111: '키메라 앤트 작전 · 111화',
+  139: '후반 관계 포함 · 139화'
 };
+
+const hunterTermEpisodes = { 1: 21, 2: 36, 3: 58, 4: 75 };
+
+const hunterCharacters = {
+  gon: { name:'곤', image:'hxh-gon.png', episode:1, x:40, y:38, group:'main', description:'아버지를 만나기 위해 헌터를 목표로 여행을 시작한 소년. 솔직하고 호기심이 많으며, 친구를 소중하게 여긴다.' },
+  killua: { name:'키르아', image:'hxh-killua.png', episode:4, x:60, y:38, group:'main', description:'헌터 시험에서 곤과 만난 동갑내기 소년. 뛰어난 신체 능력과 냉정한 판단력을 지녔다.', later:'조르딕 가문의 셋째 아들. 가족이 정한 암살자의 삶에서 벗어나 곤과 함께 자신의 길을 찾고 싶어 한다.' },
+  leorio: { name:'레오리오', image:'hxh-leorio.png', episode:4, x:40, y:62, group:'main', description:'의사가 되기를 꿈꾸는 헌터 지망생. 거친 말투와 달리 정이 많고 동료들을 적극적으로 돕는다.' },
+  kurapika: { name:'크라피카', image:'hxh-kurapika.png', episode:4, x:60, y:62, group:'main', description:'쿠르타족 출신의 소년. 동족의 붉은 눈을 되찾고 환영여단을 추적하기 위해 헌터를 목표로 한다.' },
+  netero: { name:'네테로', image:'hxh-netero.png', episode:7, x:17, y:21, group:'growth', description:'헌터 협회의 회장. 장난스러운 태도 뒤에 오랜 수련으로 쌓은 실력과 경험을 지녔다.' },
+  biske: { name:'비스케', image:'hxh-biske.png', episode:63, x:18, y:78, group:'growth', description:'그리드 아일랜드에서 곤과 키르아를 지도하는 숙련된 헌터. 귀여운 외모와 달리 엄격하고 실전적인 스승이다.' },
+  hisoka: { name:'히소카', image:'hxh-hisoka.png', episode:5, x:83, y:20, group:'tension', description:'강한 상대와 싸우는 것을 즐기는 위험한 인물. 재능 있는 사람의 성장을 지켜보며 흥미를 느낀다.' },
+  illumi: { name:'이르미', image:'hxh-illumi.png', episode:20, x:84, y:47, group:'tension', description:'조르딕 가문의 장남이자 키르아의 형. 키르아가 암살자로 살아야 한다고 생각하며 동생의 선택에 개입한다.' },
+  troupe: { name:'환영여단', image:'hxh-phantom-troupe.png', episode:41, x:82, y:78, group:'tension collective', description:'크로로가 이끄는 강력한 도적 집단. ‘거미’라는 상징으로 알려져 있으며, 단원들은 각자의 넨 능력을 사용한다.' },
+  zeno: { name:'제노 조르딕', image:'hxh-zeno.png', episode:24, x:16, y:51, group:'family', description:'키르아의 할아버지이자 조르딕 가문의 베테랑 암살자. 풍부한 경험과 뛰어난 전투 능력을 지녔다.' }
+};
+
+const hunterRelations = [
+  ['gon','killua','친구·동료','헌터 시험에서 만나 가까워진 동갑내기 친구. 함께 도전하고 서로를 도우며 성장한다.',4,'friend'],
+  ['gon','leorio','친구·동료','헌터 시험을 향하는 여정에서 만난 사이. 서로의 목표를 존중하고 어려운 순간에 힘이 되어 준다.',4,'friend'],
+  ['gon','kurapika','친구·동료','헌터 시험을 준비하며 만난 동료. 서로 다른 목표를 지녔지만 신뢰를 쌓아 간다.',4,'friend'],
+  ['leorio','kurapika','티격태격하는 동료','처음에는 의견 충돌을 겪지만, 서로의 사정을 알게 되면서 이해와 신뢰를 쌓는다.',4,'friend'],
+  ['killua','leorio','친구·동료','헌터 시험을 함께 겪은 동료. 이후 곤과 키르아를 돕는 관계로 이어진다.',25,'friend'],
+  ['killua','kurapika','친구·동료','헌터 시험에서 만난 동료. 함께 어려움을 겪으며 서로를 신뢰하게 된다.',25,'friend'],
+  ['netero','gon','실력 시험','곤과 공을 빼앗는 놀이를 하며 그의 도전 정신과 자질을 살펴본다.',7,'mentor'],
+  ['netero','killua','실력 시험','키르아와 공을 빼앗는 놀이를 하며 실력 차이를 보여 준다.',7,'mentor'],
+  ['illumi','killua','형·통제','키르아가 암살자로 살아야 한다고 주장하며, 동생의 친구 관계와 선택을 제한하려 한다.',20,'conflict'],
+  ['killua','illumi','두려움','형의 압박에 위축되며 자신의 바람을 쉽게 주장하지 못한다.',20,'conflict'],
+  ['gon','illumi','반발','키르아의 의사를 부정하는 이르미에게 맞서며 친구를 옹호한다.',21,'conflict'],
+  ['zeno','killua','할아버지·손자','조르딕 가문의 가족 관계. 제노는 키르아의 친할아버지다.',24,'family'],
+  ['hisoka','gon','성장에 대한 관심','곤의 잠재력을 높이 평가하며, 더 강해진 곤과 싸우기를 기대한다.',36,'mentor'],
+  ['gon','hisoka','도전','히소카와의 실력 차이를 의식하면서도, 자신의 힘으로 맞서고 싶어 한다.',36,'conflict'],
+  ['kurapika','troupe','복수·추적','동족을 해친 환영여단을 추적하고, 빼앗긴 붉은 눈을 되찾으려 한다.',41,'conflict'],
+  ['biske','gon','스승·제자','곤의 재능을 알아보고 넨의 기초와 응용을 엄격하게 훈련시킨다.',63,'mentor'],
+  ['biske','killua','스승·제자','키르아의 능력을 평가하고, 실전에서 활용할 수 있도록 넨 수련을 지도한다.',63,'mentor'],
+  ['netero','zeno','임무 협력','네테로가 제노에게 일을 의뢰하며, 두 사람은 같은 작전에 참여한다.',111,'alliance'],
+  ['hisoka','troupe','소속·개인적 목적','히소카는 여단에 속해 있지만, 조직에 대한 충성보다 단장과 싸우려는 개인적 목적이 앞선다.',45,'alliance'],
+  ['hisoka','kurapika','이해관계에 따른 협력','환영여단과 관련된 서로의 목적을 위해 정보를 교환하고 협력한다.',45,'alliance'],
+  ['hisoka','illumi','이해관계에 따른 협력','서로를 알고 지내며, 필요에 따라 도움을 주고받는다.',139,'alliance']
+];
+
+function showOnboardingStep(name) {
+  $$('[data-onboarding-step]').forEach(step => {
+    const active = step.dataset.onboardingStep === name;
+    step.hidden = !active;
+    step.classList.toggle('active', active);
+  });
+  const labels = { welcome:'처음 만나는 중 · 1/2', titles:'시청 목록 · 2/2' };
+  $('#onboarding-progress').textContent = labels[name];
+  $('.onboarding-shell').scrollTop = 0;
+}
+
+function updateOnboardingSelection() {
+  $$('[data-onboarding-title]').forEach(button => {
+    const record = onboardingSelection.get(button.dataset.onboardingTitle);
+    button.classList.toggle('selected', Boolean(record));
+    const summary = $('[data-onboarding-summary]', button);
+    if (!record) summary.textContent = '';
+    else if (record.status === 'planned') summary.textContent = '보고 싶어요 · 아직 안 봄';
+    else {
+      const status = record.status === 'completed' ? '다 봤어요' : '시청 중';
+      summary.textContent = `${status} · ${record.season_name} ${record.seen_ep}화`;
+    }
+  });
+  $('#onboarding-selection-count').textContent = `${onboardingSelection.size}개 저장`;
+  $('#onboarding-to-details').disabled = onboardingSelection.size === 0;
+}
+
+function onboardingEpisodeOptions(total, selected) {
+  return Array.from({ length: total }, (_, index) => index + 1).map(episode => `<option value="${episode}"${episode === selected ? ' selected' : ''}>${episode}화</option>`).join('');
+}
+
+function findOnboardingMemoryMatch(id, question) {
+  const normalized = question.replace(/\s+/g, '').toLowerCase();
+  return (onboardingMemoryMatches[id] || []).map(match => ({
+    ...match,
+    score: match.keywords.filter(keyword => normalized.includes(keyword.replace(/\s+/g, '').toLowerCase())).length
+  })).sort((a, b) => b.score - a.score).find(match => match.score > 0) || null;
+}
+
+function openOnboardingEditor(id) {
+  const title = onboardingTitles[id];
+  if (!onboardingSelection.has(id)) onboardingSelection.set(id, {
+    series_id:id, title:title.title, status:'watching', season:title.defaultSeason,
+    season_name:title.seasons[title.defaultSeason - 1][0], seen_ep:title.defaultEpisode, rating:null
+  });
+  const record = onboardingSelection.get(id);
+  const season = title.seasons[record.season - 1] || title.seasons[0];
+  const editor = $('#onboarding-editor');
+  editor.hidden = false;
+  editor.dataset.editing = id;
+  editor.innerHTML = `<header><div><small>시청 상태 설정</small><h3>${title.title}</h3></div><button type="button" data-editor-close aria-label="설정 닫기">×</button></header>
+    <div class="onboarding-status" role="group" aria-label="시청 상태">
+      <button type="button" data-watch-status="planned" class="${record.status === 'planned' ? 'active' : ''}">보고 싶어요<small>아직 안 봄</small></button>
+      <button type="button" data-watch-status="watching" class="${record.status === 'watching' ? 'active' : ''}">시청 중<small>회차 기록</small></button>
+      <button type="button" data-watch-status="completed" class="${record.status === 'completed' ? 'active' : ''}">다 봤어요<small>완료</small></button>
+    </div>
+    <div class="onboarding-picker ${record.status === 'planned' ? 'disabled' : ''}">
+      <label>시즌<select id="onboarding-season">${title.seasons.map(([name], index) => `<option value="${index + 1}"${index + 1 === record.season ? ' selected' : ''}>${name}</option>`).join('')}</select></label>
+      <label>마지막으로 본 회차<select id="onboarding-episode">${onboardingEpisodeOptions(season[1], record.seen_ep)}</select></label>
+      <label>평점 · 선택<select id="onboarding-rating"><option value="">선택 안 함</option>${[1,1.5,2,2.5,3,3.5,4,4.5,5].map(score => `<option value="${score}"${score === record.rating ? ' selected' : ''}>${score}점</option>`).join('')}</select></label>
+    </div>
+    <section class="onboarding-agent-help">
+      <header><span><img src="assets/midoriya-mascot.png?v=2" alt=""></span><div><b>AniWhere Agent에게 장면으로 말하기</b><small>시즌과 회차가 기억나지 않아도 괜찮아요.</small></div></header>
+      <form id="onboarding-memory-form"><input id="onboarding-memory-input" autocomplete="off" placeholder="예: 비스케를 만나 수련하기 시작한 데까지 봤어"><button type="submit">장면 찾기 ↗</button></form>
+      <div class="onboarding-agent-response" id="onboarding-agent-response"><p>기억나는 인물·장소·사건을 한 문장으로 말해주세요.</p></div>
+    </section>
+    <footer><button type="button" data-editor-remove>목록에서 제거</button><span>프로토타입 작품 데이터</span><button type="button" class="primary" data-editor-done>이 설정으로 저장</button></footer>`;
+  const sync = () => {
+    const current = onboardingSelection.get(id);
+    const selectedSeason = Number($('#onboarding-season').value);
+    current.season = selectedSeason;
+    current.season_name = title.seasons[selectedSeason - 1][0];
+    current.seen_ep = current.status === 'planned' ? 0 : Number($('#onboarding-episode').value);
+    const rating = $('#onboarding-rating').value;
+    current.rating = rating === '' ? null : Number(rating);
+    updateOnboardingSelection();
+  };
+  $$('[data-watch-status]', editor).forEach(button => button.addEventListener('click', () => {
+    record.status = button.dataset.watchStatus;
+    openOnboardingEditor(id);
+  }));
+  $('#onboarding-season').addEventListener('change', event => {
+    const selectedSeason = Number(event.target.value);
+    record.season = selectedSeason;
+    record.season_name = title.seasons[selectedSeason - 1][0];
+    record.seen_ep = Math.min(record.seen_ep || 1, title.seasons[selectedSeason - 1][1]);
+    openOnboardingEditor(id);
+  });
+  $('#onboarding-episode').addEventListener('change', sync);
+  $('#onboarding-rating').addEventListener('change', sync);
+  $('#onboarding-memory-form').addEventListener('submit', event => {
+    event.preventDefault();
+    const query = $('#onboarding-memory-input').value.trim();
+    if (!query) return;
+    const response = $('#onboarding-agent-response');
+    response.innerHTML = '<p class="searching">시청 기록 후보를 찾는 중…</p>';
+    setTimeout(() => {
+      const match = findOnboardingMemoryMatch(id, query);
+      if (!match) {
+        response.innerHTML = '<p><b>조금만 더 알려주세요.</b><br>등장인물, 장소 또는 기억나는 행동을 함께 말하면 더 정확히 찾을 수 있어요.</p>';
+        return;
+      }
+      const seasonName = title.seasons[match.season - 1][0];
+      response.innerHTML = `<p><b>${seasonName} · ${match.episode}화일 가능성이 ${match.confidence === '높음' ? '높아요' : '있어요'}.</b><br>${match.evidence}과 가장 가까워요.</p><button type="button" data-apply-memory>여기까지 본 것으로 기록</button>`;
+      $('[data-apply-memory]', response).addEventListener('click', () => {
+        record.status = 'watching'; record.season = match.season; record.season_name = seasonName; record.seen_ep = match.episode;
+        openOnboardingEditor(id);
+        showToast(`${seasonName} · ${match.episode}화로 적용했어요.`);
+      });
+    }, 650);
+  });
+  $('[data-editor-close]', editor).addEventListener('click', () => { editor.hidden = true; });
+  $('[data-editor-done]', editor).addEventListener('click', () => { sync(); editor.hidden = true; showToast(`${title.title} 기록을 저장했어요.`); });
+  $('[data-editor-remove]', editor).addEventListener('click', () => { onboardingSelection.delete(id); editor.hidden = true; updateOnboardingSelection(); });
+  updateOnboardingSelection();
+  requestAnimationFrame(() => editor.scrollIntoView({ behavior:'smooth', block:'nearest' }));
+}
+
+function finishOnboarding(records = []) {
+  localStorage.setItem(ONBOARDING_KEY, '1');
+  if (records.length) {
+    savedWatchRecords = records;
+    localStorage.setItem(WATCH_RECORDS_KEY, JSON.stringify(records));
+    setRecordState(true);
+  }
+  onboarding.hidden = true;
+  document.body.classList.remove('onboarding-open');
+}
+
+function startOnboardingTasteInterview() {
+  finishOnboarding();
+  $('[data-action="interview"]').click();
+  showToast('L이 취향 추리를 시작합니다.');
+}
+
+function initializeOnboarding() {
+  const completed = localStorage.getItem(ONBOARDING_KEY) === '1';
+  if (completed || hasRecord || savedWatchRecords.length) return;
+  onboarding.hidden = false;
+  document.body.classList.add('onboarding-open');
+  showOnboardingStep('welcome');
+}
 
 function addMessage(role, text, card = '') {
   const row = document.createElement('div');
@@ -227,53 +445,118 @@ function closeSpoilerCutin() {
 function openProviders() { openDrawer('FEATURE 07', '시청처 안내', `<div class="drawer-card"><h3>나의 히어로 아카데미아 · 시즌 3</h3><div class="providers"><span>Laftel</span><span>Netflix</span></div><p>국내 제공처 기준이며 실제 편성은 서비스에서 다시 확인해주세요.</p><small>정보 제공: JustWatch · 확인일 2026-10-05</small></div>`); }
 function dictionaryEntriesHtml() {
   return hunterDictionary.map(([name, category, description, level]) => `
-    <article class="dictionary-entry${level > 3 ? ' locked' : ''}" data-dictionary-entry data-name="${name.toLowerCase()}" data-category="${category}" data-level="${level}">
+    <article class="dictionary-entry" data-dictionary-entry data-name="${name.toLowerCase()}" data-category="${category}" data-level="${level}">
       <header><span>${category}</span><small>${level > 3 ? '🔒 이후 공개' : `EP ${level === 1 ? '1–21' : level === 2 ? '22–36' : '37–58'}`}</small></header>
       <h3>${name}</h3>
       <p>${description}</p>
-      <div class="dictionary-lock"><b>스포일러 보호 중</b><span>${hunterCheckpoints[level]} 이후 공개되는 용어예요.</span></div>
+      <div class="dictionary-lock"><b>스포일러 보호 중</b><span>${hunterTermEpisodes[level]}화 이후 공개되는 용어예요.</span></div>
     </article>`).join('');
+}
+
+function hunterGraphHtml() {
+  const lines = hunterRelations.map(([from, to, label, description, episode, type], index) => {
+    const start = hunterCharacters[from];
+    const end = hunterCharacters[to];
+    const centerX1 = start.x * 10;
+    const centerY1 = start.y * 6.5;
+    const centerX2 = end.x * 10;
+    const centerY2 = end.y * 6.5;
+    const dx = centerX2 - centerX1;
+    const dy = centerY2 - centerY1;
+    const distance = Math.hypot(dx, dy) || 1;
+    const nodeGap = 48;
+    const x1 = centerX1 + (dx / distance) * nodeGap;
+    const y1 = centerY1 + (dy / distance) * nodeGap;
+    const x2 = centerX2 - (dx / distance) * nodeGap;
+    const y2 = centerY2 - (dy / distance) * nodeGap;
+    const reciprocal = hunterRelations.some((relation, other) => other !== index && relation[0] === to && relation[1] === from);
+    const bend = reciprocal ? (index % 2 ? -35 : 35) : 0;
+    const cx = (x1 + x2) / 2 + bend;
+    const cy = (y1 + y2) / 2 - bend;
+    const path = `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`;
+    return `<g class="relation-edge ${type}" data-relation-index="${index}" data-required="${episode}" tabindex="0" role="button" aria-label="${start.name}에서 ${end.name}: ${label}">
+      <title>${start.name} → ${end.name} · ${label}</title><path class="relation-hit" d="${path}"></path><path class="relation-line" d="${path}" marker-end="url(#arrow-${type})"></path>
+    </g>`;
+  }).join('');
+  const markers = ['friend','family','mentor','conflict','alliance'].map(type => `<marker class="relation-arrow ${type}" id="arrow-${type}" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="14" refY="8" orient="auto"><path d="M0,0 L16,8 L0,16 z"></path></marker>`).join('');
+  const nodes = Object.entries(hunterCharacters).map(([id, character]) => `<button class="hunter-node ${character.group}" data-character="${id}" data-required="${character.episode}" style="--x:${character.x}%;--y:${character.y}%" aria-label="${character.name} 정보 보기">
+    <span class="node-photo"><img src="assets/${character.image}" alt=""><i>🔒</i></span><b>${character.name}</b><small>${character.group.includes('collective') ? '집단' : `${character.episode}화 공개`}</small>
+  </button>`).join('');
+  return `<div class="hunter-graph-shell">
+    <div class="hunter-graph" id="hunter-graph"><svg viewBox="0 0 1000 650" aria-label="헌터×헌터 인물 관계 연결선"><defs>${markers}</defs>${lines}</svg>${nodes}</div>
+    <aside class="hunter-detail" id="hunter-detail"><small>RELATION MAP</small><h3>인물이나 관계선을 선택하세요</h3><p>선택한 인물의 소개와 두 인물 사이의 관계를 여기에서 확인할 수 있어요.</p><span>현재 시청 회차 이후 정보는 자동으로 잠깁니다.</span></aside>
+  </div>`;
+}
+
+function showHunterCharacter(id) {
+  const character = hunterCharacters[id];
+  const episode = Number($('#dictionary-checkpoint')?.value || 63);
+  const locked = character.episode > episode;
+  $$('.hunter-node').forEach(node => node.classList.toggle('selected', node.dataset.character === id));
+  $$('.relation-edge').forEach(edge => {
+    const relation = hunterRelations[Number(edge.dataset.relationIndex)];
+    edge.classList.toggle('related', !locked && (relation[0] === id || relation[1] === id));
+    edge.classList.toggle('dimmed', !locked && relation[0] !== id && relation[1] !== id);
+  });
+  $('#hunter-detail').innerHTML = locked
+    ? `<small>🔒 SPOILER SAFE</small><h3>${character.episode}화 이후 공개되는 인물</h3><p>현재 선택한 시청 지점에서는 이름과 설명을 숨겼어요.</p><span>상단에서 시청 지점을 변경하면 공개됩니다.</span>`
+    : `<small>${character.group.includes('collective') ? 'GROUP NODE' : `CHARACTER · EP ${character.episode}`}</small><div class="hunter-detail-person"><img src="assets/${character.image}" alt="${character.name}"><h3>${character.name}</h3></div><p>${id === 'killua' && episode >= 24 ? character.later : character.description}</p><span>직접 연결된 관계선만 밝게 표시했어요.</span>`;
+}
+
+function showHunterRelation(index) {
+  const [from, to, label, description, episode, type] = hunterRelations[index];
+  const start = hunterCharacters[from];
+  const end = hunterCharacters[to];
+  $$('.hunter-node').forEach(node => node.classList.toggle('selected', [from, to].includes(node.dataset.character)));
+  $$('.relation-edge').forEach(edge => {
+    edge.classList.toggle('related', Number(edge.dataset.relationIndex) === index);
+    edge.classList.toggle('dimmed', Number(edge.dataset.relationIndex) !== index);
+  });
+  $('#hunter-detail').innerHTML = `<small>RELATION · EP ${episode}</small><h3>${start.name} <i>→</i> ${end.name}</h3><b class="relation-badge ${type}">${label}</b><p>${description}</p><span>선을 다시 선택하거나 다른 인물을 눌러 탐색하세요.</span>`;
+}
+
+function updateHunterGraph() {
+  const episode = Number($('#dictionary-checkpoint')?.value || 63);
+  $$('.hunter-node').forEach(node => node.classList.toggle('locked', Number(node.dataset.required) > episode));
+  $$('.relation-edge').forEach(edge => {
+    edge.hidden = Number(edge.dataset.required) > episode;
+    edge.classList.remove('related','dimmed');
+  });
+  $$('.hunter-node').forEach(node => node.classList.remove('selected'));
+  $('#hunter-detail').innerHTML = `<small>SPOILER SAFE · EP ${episode}</small><h3>${hunterCheckpoints[episode]}</h3><p>이 시점까지 확인된 인물과 관계만 연결했어요. 노드나 선을 선택해 설명을 확인하세요.</p><span>${episode < 139 ? '잠긴 실루엣은 이후 회차에 공개됩니다.' : '준비된 모든 관계가 공개됐어요.'}</span>`;
 }
 
 function filterDictionary() {
   const query = ($('#dictionary-search')?.value || '').trim().toLowerCase();
   const category = $('[data-dictionary-filter].active')?.dataset.dictionaryFilter || '전체';
-  const level = Number($('#dictionary-checkpoint')?.value || 3);
+  const episode = Number($('#dictionary-checkpoint')?.value || 63);
   let visible = 0;
   $$('[data-dictionary-entry]').forEach(entry => {
     const matchesQuery = !query || entry.dataset.name.includes(query) || entry.textContent.toLowerCase().includes(query);
     const matchesCategory = category === '전체' || entry.dataset.category === category;
     entry.hidden = !(matchesQuery && matchesCategory);
-    entry.classList.toggle('locked', Number(entry.dataset.level) > level);
+    entry.classList.toggle('locked', hunterTermEpisodes[Number(entry.dataset.level)] > episode);
     if (!entry.hidden) visible += 1;
   });
   $('#dictionary-count').textContent = `${visible}개 용어`;
-  $('#dictionary-safe-label').textContent = `${hunterCheckpoints[level]}까지 공개`;
+  $('#dictionary-safe-label').textContent = `${episode}화까지 공개`;
 }
 
 function openDictionary() {
   const categories = ['전체', ...new Set(hunterDictionary.map(([, category]) => category))];
   openDrawer('PROTOTYPE · FEATURE 08', '헌터×헌터 인물·용어 사전', `
     <div class="dictionary-toolbar">
-      <div><small>현재 시청 지점</small><select id="dictionary-checkpoint">${Object.entries(hunterCheckpoints).map(([level, label]) => `<option value="${level}"${level === '3' ? ' selected' : ''}>${label}</option>`).join('')}</select></div>
-      <span class="dictionary-safe" id="dictionary-safe-label">요크신 시티 편 · 58화까지 공개</span>
+      <div><small>현재 시청 지점</small><select id="dictionary-checkpoint">${Object.entries(hunterCheckpoints).map(([episode, label]) => `<option value="${episode}"${episode === '63' ? ' selected' : ''}>${label}</option>`).join('')}</select></div>
+      <span class="dictionary-safe" id="dictionary-safe-label">63화까지 공개</span>
     </div>
     <div class="dictionary-tabs" role="tablist" aria-label="사전 보기 선택">
       <button class="active" data-dictionary-tab="relations" role="tab">인물 관계</button>
       <button data-dictionary-tab="terms" role="tab">용어 사전</button>
     </div>
     <section class="dictionary-pane active" data-dictionary-pane="relations">
-      <div class="dictionary-intro"><small>ZOLDYCK FAMILY</small><h3>조르딕 가문 관계도</h3><p>관계도 전체에는 현재 시청 지점 이후의 등장인물과 관계가 포함될 수 있어요.</p></div>
-      <figure class="relation-map protected" id="zoldyck-map">
-        <img src="assets/zoldyck-family-map.png" alt="조르딕 가문의 인물 관계도">
-        <figcaption><b>⚠️ 관계도 스포일러 보호 중</b><span>후반 등장인물까지 포함된 팬메이드 관계도예요.</span><button type="button" id="reveal-zoldyck-map">전체 관계도 보기</button></figcaption>
-      </figure>
-      <div class="relationship-cards">
-        <article><small>가족</small><b>제노 → 실버 → 키르아</b><p>조르딕 가문의 세 세대. 모두 암살자로 훈련받았어요.</p></article>
-        <article><small>친구</small><b>키르아 ↔ 곤</b><p>헌터 시험에서 만나 함께 여행하는 가장 가까운 친구예요.</p></article>
-        <article><small>형제</small><b>이르미 · 미르키 · 키르아</b><p>서로 다른 방식으로 가문과 키르아를 바라봐요.</p></article>
-        <article class="relationship-locked"><small>🔒 이후 관계</small><b>시청 지점 이후 보호</b><p>그리드 아일랜드 편 이후 밝혀지는 관계는 숨겼어요.</p></article>
-      </div>
+      <div class="dictionary-intro"><small>HUNTER × HUNTER</small><h3>회차 기준 인물 관계도</h3><p>노드나 관계선을 선택하면 설명이 열려요. 아직 보지 않은 관계는 자동으로 숨깁니다.</p></div>
+      <div class="relation-legend"><span class="friend">친구·동료</span><span class="family">가족</span><span class="mentor">지도·관심</span><span class="conflict">통제·대립</span><span class="alliance">임무·이해관계</span></div>
+      ${hunterGraphHtml()}
     </section>
     <section class="dictionary-pane" data-dictionary-pane="terms" hidden>
       <label class="dictionary-search"><span class="sr-only">용어 검색</span><input id="dictionary-search" type="search" placeholder="넨, 번지껌, 쿠르타족 검색"><b>⌕</b></label>
@@ -298,12 +581,14 @@ function openDictionary() {
     filterDictionary();
   }));
   $('#dictionary-search').addEventListener('input', filterDictionary);
-  $('#dictionary-checkpoint').addEventListener('change', filterDictionary);
-  $('#reveal-zoldyck-map').addEventListener('click', () => {
-    $('#zoldyck-map').classList.remove('protected');
-    showToast('전체 관계도를 열었어요. 후반 설정이 포함되어 있어요.');
+  $('#dictionary-checkpoint').addEventListener('change', () => { filterDictionary(); updateHunterGraph(); });
+  $$('[data-character]').forEach(node => node.addEventListener('click', () => showHunterCharacter(node.dataset.character)));
+  $$('[data-relation-index]').forEach(edge => {
+    edge.addEventListener('click', () => showHunterRelation(Number(edge.dataset.relationIndex)));
+    edge.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); showHunterRelation(Number(edge.dataset.relationIndex)); } });
   });
   filterDictionary();
+  updateHunterGraph();
 }
 function openRecord() { openDrawer('FEATURE 13', '시청 기록 수정', `<form class="record-form" id="record-form"><label>상태<select><option>시청 중</option><option>보고 싶어요</option><option>완료</option></select></label><label>시즌<input type="number" value="3" min="1"></label><label>회차<input type="number" value="11" min="1"></label><label>평점 (선택)<input type="number" min="0" max="5" step="0.5" placeholder="0–5"></label><button>기록 저장</button></form>`); $('#record-form').addEventListener('submit', e => { e.preventDefault(); setRecordState(true); closeDrawer(); showToast('시즌 3 · 11화 기록을 저장했어요. (프로토타입)'); }); }
 function openSimilar() { openDrawer('확장 프로토타입 · FEATURE 02', '“진격의 거인 같은 거”', `<div class="drawer-card"><h3>강철의 연금술사</h3><p>거대한 세계의 비밀, 군과 권력의 음모, 뒤집히는 진실이 가까워요.</p></div><div class="drawer-card"><h3>86 -에이티식스-</h3><p>전쟁 속에서 감춰진 사회 구조와 인물들의 선택을 따라가요.</p></div><div class="drawer-card"><h3>메이드 인 어비스</h3><p>미지의 세계를 탐험할수록 새로운 진실이 드러나는 작품이에요.</p></div>`); }
@@ -337,16 +622,39 @@ function setRecordState(next) {
   $('#empty-library').hidden = next;
   $('#library-content').hidden = !next;
   $('#record-greeting').hidden = !next;
-  $('#chat-kicker').textContent = next ? 'MIDORIYA GUIDE · WELCOME BACK' : 'MIDORIYA GUIDE · FIRST VISIT';
+  $('#chat-kicker').textContent = next ? 'ANIWHERE AGENT · WELCOME BACK' : 'ANIWHERE AGENT · FIRST VISIT';
   $('#chat-title').innerHTML = next ? '12일 만이네요.<br>어디까지 기억나요?' : '오늘은 어떤 애니<br>이야기를 해볼까요?';
 }
 
 $$('[data-load-sample]').forEach(button => button.addEventListener('click', () => { setRecordState(true); $('[data-view="chat"]').click(); resetChat('episode'); showToast('나의 히어로 아카데미아 샘플 기록을 불러왔어요.'); }));
 $$('[data-clear-record]').forEach(button => button.addEventListener('click', () => { setRecordState(false); resetChat('episode'); showToast('작품 선택을 해제했어요.'); }));
+$$('[data-onboarding-next]').forEach(button => button.addEventListener('click', () => showOnboardingStep(button.dataset.onboardingNext)));
+$$('[data-onboarding-back]').forEach(button => button.addEventListener('click', () => showOnboardingStep(button.dataset.onboardingBack)));
+$$('[data-onboarding-l]').forEach(button => button.addEventListener('click', startOnboardingTasteInterview));
+$$('[data-onboarding-title]').forEach(button => button.addEventListener('click', () => {
+  const id = button.dataset.onboardingTitle;
+  if (onboardingSelection.has(id)) {
+    onboardingSelection.delete(id);
+    const editor = $('#onboarding-editor');
+    if (editor.dataset.editing === id) { editor.hidden = true; delete editor.dataset.editing; }
+    updateOnboardingSelection();
+    showToast(`${onboardingTitles[id].title} 선택을 해제했어요.`);
+    return;
+  }
+  openOnboardingEditor(id);
+}));
+$('#onboarding-to-details').addEventListener('click', () => {
+  const records = [...onboardingSelection.values()].map(record => ({ ...record, seen_ep: record.status === 'planned' ? 0 : record.seen_ep }));
+  finishOnboarding(records);
+  $('[data-view="chat"]').click();
+  resetChat('episode');
+  showToast(`${records.length}개 작품의 스포일러 기준을 저장했어요.`);
+});
 cutinReturn.addEventListener('click', closeSpoilerCutin);
 document.addEventListener('keydown', event => { if (event.key === 'Escape' && !spoilerCutin.hidden) closeSpoilerCutin(); });
 setRecordState(hasRecord);
 resetChat('episode');
+initializeOnboarding();
 
 function isStandalone() { return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true; }
 function hideInstallGuide() { installGuide.hidden = true; sessionStorage.setItem('aniwhere-install-dismissed', '1'); }

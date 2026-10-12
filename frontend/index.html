@@ -28,6 +28,37 @@
     <div class="top-actions"><span>APP PROTOTYPE</span><button class="install-app" id="install-app" type="button" hidden>앱 설치</button><button class="profile" data-view="library" aria-label="의진님의 시청 기록">의</button></div>
   </header>
 
+  <section class="onboarding" id="onboarding" hidden role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
+    <div class="onboarding-shell">
+      <header class="onboarding-brand"><b>AniWhere</b><span id="onboarding-progress">처음 만나는 중 · 1/3</span></header>
+      <div class="onboarding-step active" data-onboarding-step="welcome">
+        <div class="onboarding-welcome-copy">
+          <span class="onboarding-mascot"><img src="assets/midoriya-mascot.png?v=2" alt="미도리야 이즈쿠"></span>
+          <small>ANIWHERE AGENT</small>
+          <h1 id="onboarding-title">환영합니다!</h1>
+          <p>당신의 애니 생활을 함께할 aniWhere 에이전트예요!<br>그동안 본 애니를 알려주시면 스포일러 없이 도와드릴게요.</p>
+          <div class="onboarding-actions"><button class="primary" data-onboarding-next="titles">시청 목록 만들기</button><button data-onboarding-l>아직 본 애니가 없어요</button></div>
+        </div>
+        <div class="onboarding-ribbon" aria-hidden="true">
+          <img src="assets/my-hero-academia.jpg" alt=""><img src="assets/eren-spoiler-user.png" alt=""><img src="assets/hxh-gon.png" alt=""><img src="assets/okabe-card-user.png" alt=""><img src="assets/naruto-history-user.png" alt="">
+        </div>
+      </div>
+      <div class="onboarding-step" data-onboarding-step="titles" hidden>
+        <div class="onboarding-heading"><small>STEP 01 · WATCH LIST</small><h2>작품을 누르고 시청 상태를 알려주세요.</h2><p>보고 싶은 작품도 저장할 수 있어요. 시즌과 회차 목록은 실제 연결 시 백엔드 작품 데이터로 채워집니다.</p></div>
+        <div class="onboarding-titles">
+          <button data-onboarding-title="mha" data-title="나의 히어로 아카데미아"><img src="assets/my-hero-academia.jpg" alt=""><span><b>나의 히어로 아카데미아</b><small>성장 · 히어로</small><em data-onboarding-summary></em></span><i>✓</i></button>
+          <button data-onboarding-title="aot" data-title="진격의 거인"><img src="assets/eren-spoiler-user.png" alt=""><span><b>진격의 거인</b><small>미스터리 · 전쟁</small><em data-onboarding-summary></em></span><i>✓</i></button>
+          <button data-onboarding-title="hxh" data-title="헌터×헌터"><img src="assets/hxh-gon.png" alt=""><span><b>헌터×헌터</b><small>모험 · 능력</small><em data-onboarding-summary></em></span><i>✓</i></button>
+          <button data-onboarding-title="steins" data-title="슈타인즈 게이트"><img src="assets/okabe-card-user.png" alt=""><span><b>슈타인즈 게이트</b><small>SF · 서스펜스</small><em data-onboarding-summary></em></span><i>✓</i></button>
+          <button data-onboarding-title="naruto" data-title="나루토"><img src="assets/naruto-history-user.png" alt=""><span><b>나루토</b><small>닌자 · 성장</small><em data-onboarding-summary></em></span><i>✓</i></button>
+        </div>
+        <section class="onboarding-editor" id="onboarding-editor" hidden aria-live="polite"></section>
+        <div class="onboarding-footer"><button data-onboarding-back="welcome">이전</button><span id="onboarding-selection-count">0개 저장</span><button class="primary" id="onboarding-to-details" disabled>선택 완료하고 시작</button></div>
+        <button class="onboarding-l-link" data-onboarding-l>본 작품이 없나요? L에게 취향 추리 맡기기 →</button>
+      </div>
+    </div>
+  </section>
+
   <main>
     <section class="view chat-view active" id="chat-view">
       <aside class="context-rail">
@@ -58,7 +89,7 @@
 
       <div class="chat-workspace">
         <header class="chat-heading">
-          <div><span class="agent-dot"><img src="assets/midoriya-mascot.png?v=2" alt="미도리야 이즈쿠"></span><small id="chat-kicker">MIDORIYA GUIDE · FIRST VISIT</small><h1 id="chat-title">오늘은 어떤 애니<br>이야기를 해볼까요?</h1></div>
+          <div><span class="agent-dot"><img src="assets/midoriya-mascot.png?v=2" alt="AniWhere Agent"></span><small id="chat-kicker">ANIWHERE AGENT · FIRST VISIT</small><h1 id="chat-title">오늘은 어떤 애니<br>이야기를 해볼까요?</h1></div>
           <button class="new-chat" id="new-chat">＋ 새 대화</button>
         </header>
 

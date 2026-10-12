@@ -1,4 +1,4 @@
-const CACHE = 'aniwhere-app-v15-dictionary-entry';
+const CACHE = 'aniwhere-app-v23-balanced-relation-arrows';
 const APP_SHELL = [
   './',
   './index.html',
@@ -17,7 +17,17 @@ const APP_SHELL = [
   './assets/l-detective-user.png',
   './assets/eren-spoiler-user.png',
   './assets/naruto-history-user.png',
-  './assets/zoldyck-family-map.png'
+  './assets/zoldyck-family-map.png',
+  './assets/hxh-gon.png',
+  './assets/hxh-killua.png',
+  './assets/hxh-leorio.png',
+  './assets/hxh-kurapika.png',
+  './assets/hxh-netero.png',
+  './assets/hxh-biske.png',
+  './assets/hxh-hisoka.png',
+  './assets/hxh-illumi.png',
+  './assets/hxh-phantom-troupe.png',
+  './assets/hxh-zeno.png'
 ];
 
 self.addEventListener('install', event => {

@@ -1,6 +1,6 @@
 # AniWhere Installable App Prototype V1
 
-기존 웹 UI의 모든 화면과 기능을 포함하고, 설치 정보·앱 아이콘·오프라인 캐시를 추가한 설치형 PWA 앱 프로토타입입니다.
+기존 `ui-frontend-v3`를 보존하고 별도로 만든 설치형 PWA 앱 프로토타입입니다.
 
 ## 중요
 
@@ -31,7 +31,7 @@
 `index.html`을 직접 열거나 아래처럼 실행합니다.
 
 ```bash
-cd frontend
+cd ui-app-v1
 python3 -m http.server 8000
 ```
 
