@@ -7,7 +7,9 @@
 MODE = "fake"
 
 import datetime as dt
+import re
 
+from aniwhere.agent import chat as _chat     # LABELS·suggest·as_result·context_of·save_with_previous·confirmation 공유
 from aniwhere.retrieval.catalog import UnknownSeries
 
 HERO, TITAN = "tmdb:65930", "tmdb:1429"
@@ -175,3 +177,61 @@ def search_series(query: str | None = None, limit: int = 50) -> list[dict]:
 
 def series(series_id: str) -> dict | None:
     return SERIES.get(series_id)
+
+
+def chat(message: str, history: list[dict] | None = None) -> dict:
+    """→ {answer, follow_up?, steps[{tool, label, ok, args}], results{}, suggestions[{label, message}], context?}
+    LLM 없이 낱말 규칙으로 흐름을 재현(설계 문서 "가짜 모드" 표). 위에서부터 먼저 맞는 것 하나:
+    봤어+숫자 → 저장 / 시청처·어디서 → 시청처 / 복습·줄거리 → 복습 / 인물·용어·누구·사전 → 사전 / 추천 / 기록 / 그 외 → find.
+    agent/chat.py의 suggest()가 내는 모든 칩 문장이 이 규칙에 걸려야 합니다(tests/test_api.py가 확인)."""
+    history = history or []
+    title = SERIES[HERO]["name"]
+    steps, results = [], {}
+
+    def step(tool, value, **args):
+        result = _chat.as_result(value)
+        steps.append({"tool": tool, "label": _chat.LABELS[tool], "ok": True, "args": args})
+        results[tool] = result
+        return result
+
+    def reply(tool, args, answer):
+        result = results.get(tool)
+        context = _chat.context_of(tool, args, result, title) if result is not None else None
+        follow_up = (result or {}).get("follow_up") or None
+        return {"answer": follow_up or answer, "follow_up": follow_up, "steps": steps, "results": results,
+                "suggestions": _chat.suggest(tool, result, context), "context": context}
+
+    number = re.search(r"\d+", message)
+    if "봤어" in message and number:
+        step("search_series", search_series("히어로"), query="히어로")
+        args = {"series_id": HERO, "seen_ep": int(number.group()), "rating": None}
+        try:
+            saved = step("save_record", _chat.save_with_previous(
+                {"get_record": get_record, "save_record": save_record}, HERO, args["seen_ep"]), **args)
+        except ValueError as e:
+            steps.append({"tool": "save_record", "label": _chat.LABELS["save_record"], "ok": False, "args": args})
+            return reply("search_series", {"query": "히어로"}, str(e))
+        return reply("save_record", args, f"{_chat.confirmation(saved)} 이어서 복습하거나 인물·용어를 볼 수 있어요.")
+    if "시청처" in message or "어디서" in message:
+        r = step("where_to_watch", where_to_watch(HERO), series_id=HERO)
+        return reply("where_to_watch", {"series_id": HERO},
+                     f"「{title}」은(는) {', '.join(r['seasons'][0]['providers'])}에서 볼 수 있어요.")
+    if "복습" in message or "줄거리" in message:
+        step("get_record", get_record(HERO), series_id=HERO)
+        r = step("review", review(HERO, None, "summary"), series_id=HERO, mode="summary")
+        return reply("review", {"series_id": HERO, "mode": "summary"},
+                     f"「{title}」 {r['seen_ep']}화까지의 복습이에요. 자세한 내용은 복습 카드에 있어요.")
+    if any(w in message for w in ("인물", "용어", "누구", "사전")):
+        step("get_record", get_record(HERO), series_id=HERO)
+        r = step("dictionary", dictionary(HERO), series_id=HERO)
+        return reply("dictionary", {"series_id": HERO},
+                     f"「{title}」 {r['seen_ep']}화까지 나온 인물·용어 {len(r['entries'])}개를 찾았어요.")
+    if "추천" in message:
+        r = step("recommend", recommend(message), likes=message)
+        pick = r["picks"][0]
+        return reply("recommend", {"likes": message}, f"「{pick['title']}」을(를) 추천해요. {pick['reason']}")
+    if "기록" in message:
+        r = step("list_records", list_records())
+        return reply("list_records", {}, f"시청 기록이 {len(r['items'])}개 있어요.")
+    r = step("find", find(message, history))
+    return reply("find", {}, r["answer"])

@@ -28,6 +28,19 @@ class Turn(BaseModel):
     content: str = Field(max_length=1000)
 
 
+class ChatTurn(BaseModel):
+    """에이전트 대화의 한 턴. role을 Literal로 막는 이유: system이면 프롬프트를 덮어쓸 수 있고 tool이면 OpenAI가 400을 냄.
+    context는 서버가 전 응답에서 준 것을 화면이 그대로 되돌려 보내는 값(화면은 해석하지 않음)."""
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=2000)
+    context: dict | None = None
+
+
+class ChatRequest(BaseModel):
+    message: str = TEXT
+    history: list[ChatTurn] = Field(default_factory=list, max_length=20)     # 왕복 10번. 화면은 history.slice(-20)
+
+
 class FindRequest(BaseModel):
     question: str = TEXT
     history: list[Turn] = Field(default_factory=list, max_length=20)     # 대화 전체가 LLM에 들어가므로 길이 제한
@@ -132,6 +145,10 @@ def create_app(frontend_dir: Path | None = REPO / "frontend") -> FastAPI:
     @app.post("/api/recommend")
     def recommend(body: RecommendRequest, svc=Depends(get_service)):
         return svc.recommend(body.likes)
+
+    @app.post("/api/chat")
+    def chat(body: ChatRequest, svc=Depends(get_service)):
+        return svc.chat(body.message, [t.model_dump() for t in body.history])
 
     @app.get("/api/records")
     def records(svc=Depends(get_service)):
