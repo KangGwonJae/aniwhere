@@ -114,7 +114,7 @@ def delete_record(series_id: str, *, user_id=USER) -> bool:
 
 
 def search_series(query: str | None = None, limit: int = 50) -> list[dict]:
-    """작품 선택 목록 → [{series_id, name, title, total_episodes}]"""
+    """작품 선택 목록 → [{series_id, name, title, total_episodes, poster_url}]"""
     return _plain(catalog.list_series(db(), query, limit))
 
 

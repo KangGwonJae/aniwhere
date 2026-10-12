@@ -81,7 +81,7 @@ def series_info(db, series_id) -> dict | None:
 
 def list_series(db, query=None, limit=50) -> list[dict]:
     """화면의 작품 선택 목록. query가 있으면 제목에 그 말이 들어간 작품만, 인기순."""
-    rows = db.execute("""SELECT series_id, coalesce(title_ko, title) AS name, title, total_episodes
+    rows = db.execute("""SELECT series_id, coalesce(title_ko, title) AS name, title, total_episodes, poster_url
                          FROM series ORDER BY popularity DESC NULLS LAST""").fetchall()
     if query:
         want = norm(query)

@@ -20,11 +20,16 @@ let mode = 'episode';
 let persona = 'midoriya';
 let busy = false;
 let step = 0;
+const CHAT_HISTORY_KEY = 'aniwhere-chat-history-v1';
+const CHAT_MESSAGES_KEY = 'aniwhere-chat-messages-v1';
 let chatHistory = [];
+let visualConversation = [];
+try { chatHistory = JSON.parse(localStorage.getItem(CHAT_HISTORY_KEY) || '[]'); } catch { chatHistory = []; }
+try { visualConversation = JSON.parse(localStorage.getItem(CHAT_MESSAGES_KEY) || '[]'); } catch { visualConversation = []; }
 const HERO_SERIES_ID = 'tmdb:65930';
 let activeSeriesId = HERO_SERIES_ID;
 const RECORD_KEY = 'aniwhere-demo-watch-record';
-const ONBOARDING_KEY = 'aniwhere-onboarding-completed';
+const ONBOARDING_KEY = 'aniwhere-onboarding-completed-v3';
 const WATCH_RECORDS_KEY = 'aniwhere-watch-records';
 let savedWatchRecords = [];
 try { savedWatchRecords = JSON.parse(localStorage.getItem(WATCH_RECORDS_KEY) || '[]'); } catch { savedWatchRecords = []; }
@@ -37,6 +42,44 @@ const onboardingTitles = {
   steins: { title:'슈타인즈 게이트', image:'okabe-card-user.png', seasons:[['본편',24],['제로',23]], defaultSeason:1, defaultEpisode:12 },
   naruto: { title:'나루토', image:'naruto-history-user.png', seasons:[['나루토',220],['질풍전',500]], defaultSeason:1, defaultEpisode:50 }
 };
+
+function onboardingImage(title) {
+  return title.image?.startsWith('http') ? title.image : `assets/${title.image}`;
+}
+
+async function loadOnboardingCatalog() {
+  const container = $('#onboarding-titles');
+  const belt = $('#onboarding-poster-belt');
+  try {
+    const items = await api('/api/series?limit=30');
+    const withPosters = items.filter(item => item.poster_url);
+    if (!withPosters.length) throw new Error('포스터가 있는 작품이 없습니다.');
+    Object.keys(onboardingTitles).forEach(key => delete onboardingTitles[key]);
+    withPosters.forEach(item => {
+      onboardingTitles[item.series_id] = {
+        title:item.name || item.title, image:item.poster_url,
+        seasons:[['전체 회차', Math.max(1, item.total_episodes || 1)]], defaultSeason:1, defaultEpisode:1
+      };
+    });
+    container.innerHTML = withPosters.map(item => `<button data-onboarding-title="${escapeHtml(item.series_id)}" data-title="${escapeHtml(item.name || item.title)}"><img src="${escapeHtml(item.poster_url)}" alt="${escapeHtml(item.name || item.title)} 포스터"><span><b>${escapeHtml(item.name || item.title)}</b><small>총 ${item.total_episodes || '?'}화</small><em data-onboarding-summary></em></span><i>✓</i></button>`).join('');
+    const moving = withPosters.slice(0, 15);
+    belt.innerHTML = `<div class="poster-belt-track">${[...moving, ...moving].map(item => `<img src="${escapeHtml(item.poster_url)}" alt="">`).join('')}</div>`;
+    const backdropPosters = withPosters.slice(0, 21);
+    $('.poster-atmosphere').innerHTML = [...backdropPosters, ...backdropPosters, ...backdropPosters].map(item => `<img src="${escapeHtml(item.poster_url)}" alt="">`).join('');
+    updateOnboardingSelection();
+  } catch (error) {
+    container.innerHTML = `<p class="catalog-loading">작품 목록을 불러오지 못했어요. ${escapeHtml(error.message)}</p>`;
+  }
+}
+
+async function loadRecommendationPosters() {
+  await Promise.all($$('[data-recommend-title]').map(async card => {
+    try {
+      const items = await api(`/api/series?q=${encodeURIComponent(card.dataset.recommendTitle)}&limit=1`);
+      if (items[0]?.poster_url) card.style.setProperty('--recommend-poster', `url("${items[0].poster_url.replace(/["\\]/g, '')}")`);
+    } catch {}
+  }));
+}
 const onboardingMemoryMatches = {
   mha: [
     { keywords:['올마이트','올 포 원','손가락','카미노'], season:3, episode:11, confidence:'높음', evidence:'올마이트와 올 포 원의 결전 뒤 화면을 향해 손가락을 가리키는 장면' },
@@ -60,6 +103,7 @@ const onboardingMemoryMatches = {
   ]
 };
 const onboardingSelection = new Map();
+let onboardingEntryMode = 'first';
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -78,15 +122,9 @@ function escapeHtml(value = '') {
   return String(value).replace(/[&<>'"]/g, character => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' })[character]);
 }
 
-const mock = {
-  record: { series_id: 'tmdb:65930', title: '나의 히어로 아카데미아', seen_ep: 49, season: 3, episode: 11, rating: null },
-  providers: [{ name: '시즌 3', providers: ['Laftel', 'Netflix'], checked_at: '2026-10-05' }],
-  characters: [
-    ['미도리야 이즈쿠', '올마이트에게 힘을 물려받은 학생. 위험한 순간 먼저 몸이 움직여요.'],
-    ['올마이트', '평화의 상징이라 불리는 히어로이자 미도리야의 스승이에요.'],
-    ['바쿠고 카츠키', '폭발 능력을 가진 미도리야의 소꿉친구이자 라이벌이에요.']
-  ]
-};
+function formatAgentText(value = '') {
+  return escapeHtml(value).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+}
 
 const hunterDictionary = [
   ['헌터','헌터·자격','희귀 생물, 보물, 유적, 범죄자 등 특정 대상을 탐색하거나 전문 분야를 연구하는 사람.',1],
@@ -228,6 +266,15 @@ function onboardingEpisodeOptions(total, selected) {
   return Array.from({ length: total }, (_, index) => index + 1).map(episode => `<option value="${episode}"${episode === selected ? ' selected' : ''}>${episode}화</option>`).join('');
 }
 
+function recordAbsoluteEpisode(record) {
+  const title = onboardingTitles[record.series_id];
+  if (record.status === 'planned') return 0;
+  if (!title) return Number(record.seen_ep || 0);
+  const season = Math.max(1, Number(record.season) || 1);
+  const before = title.seasons.slice(0, season - 1).reduce((sum, [, episodes]) => sum + Number(episodes || 0), 0);
+  return before + Number(record.seen_ep || 0);
+}
+
 function findOnboardingMemoryMatch(id, question) {
   const normalized = question.replace(/\s+/g, '').toLowerCase();
   return (onboardingMemoryMatches[id] || []).map(match => ({
@@ -259,7 +306,7 @@ function openOnboardingEditor(id) {
       <label>평점 · 선택<select id="onboarding-rating"><option value="">선택 안 함</option>${[1,1.5,2,2.5,3,3.5,4,4.5,5].map(score => `<option value="${score}"${score === record.rating ? ' selected' : ''}>${score}점</option>`).join('')}</select></label>
     </div>
     <section class="onboarding-agent-help">
-      <header><span><img src="assets/midoriya-mascot.png?v=2" alt=""></span><div><b>AniWhere Agent에게 장면으로 말하기</b><small>시즌과 회차가 기억나지 않아도 괜찮아요.</small></div></header>
+      <header><span><img src="assets/midoriya-mascot.png?v=2" alt=""></span><div><b>AniWhere Agent에게 장면으로 말하기</b><small>회차가 기억나지 않아도 괜찮아요.</small></div></header>
       <form id="onboarding-memory-form"><input id="onboarding-memory-input" autocomplete="off" placeholder="예: 비스케를 만나 수련하기 시작한 데까지 봤어"><button type="submit">장면 찾기 ↗</button></form>
       <div class="onboarding-agent-response" id="onboarding-agent-response"><p>기억나는 인물·장소·사건을 한 문장으로 말해주세요.</p></div>
     </section>
@@ -276,6 +323,12 @@ function openOnboardingEditor(id) {
   };
   $$('[data-watch-status]', editor).forEach(button => button.addEventListener('click', () => {
     record.status = button.dataset.watchStatus;
+    if (record.status === 'completed') {
+      record.season = title.seasons.length;
+      record.season_name = title.seasons.at(-1)[0];
+      record.seen_ep = title.seasons.at(-1)[1];
+    } else if (record.status === 'planned') record.seen_ep = 0;
+    else if (!record.seen_ep) record.seen_ep = 1;
     openOnboardingEditor(id);
   }));
   $('#onboarding-season').addEventListener('change', event => {
@@ -318,12 +371,26 @@ function openOnboardingEditor(id) {
 function finishOnboarding(records = []) {
   localStorage.setItem(ONBOARDING_KEY, '1');
   if (records.length) {
-    savedWatchRecords = records;
-    localStorage.setItem(WATCH_RECORDS_KEY, JSON.stringify(records));
+    if (onboardingEntryMode === 'add') {
+      const merged = new Map(savedWatchRecords.map(record => [record.series_id, record]));
+      records.forEach(record => merged.set(record.series_id, { ...merged.get(record.series_id), ...record }));
+      savedWatchRecords = [...merged.values()];
+    } else savedWatchRecords = records;
+    localStorage.setItem(WATCH_RECORDS_KEY, JSON.stringify(savedWatchRecords));
     setRecordState(true);
+    applyRecordContext(records.find(record => record.status !== 'planned') || records[0]);
+    renderLibrary();
+  } else if (onboardingEntryMode !== 'add') {
+    savedWatchRecords = [];
+    localStorage.removeItem(WATCH_RECORDS_KEY);
+    setRecordState(false);
+    renderLibrary();
   }
   onboarding.hidden = true;
   document.body.classList.remove('onboarding-open');
+  onboardingSelection.clear();
+  updateOnboardingSelection();
+  onboardingEntryMode = 'first';
 }
 
 function startOnboardingTasteInterview() {
@@ -334,24 +401,140 @@ function startOnboardingTasteInterview() {
 
 function initializeOnboarding() {
   const completed = localStorage.getItem(ONBOARDING_KEY) === '1';
-  if (completed || hasRecord || savedWatchRecords.length) return;
+  const preview = new URLSearchParams(location.search).get('onboarding') === '1';
+  if (completed && !preview) return;
+  onboardingEntryMode = 'first';
+  setRecordState(false);
   onboarding.hidden = false;
   document.body.classList.add('onboarding-open');
   showOnboardingStep('welcome');
 }
 
-function addMessage(role, text, card = '') {
+function openOnboardingForRecords() {
+  onboardingEntryMode = 'add';
+  onboardingSelection.clear();
+  updateOnboardingSelection();
+  onboarding.hidden = false;
+  document.body.classList.add('onboarding-open');
+  showOnboardingStep('titles');
+}
+
+function closeOnboardingWithoutChanges() {
+  localStorage.setItem(ONBOARDING_KEY, '1');
+  onboarding.hidden = true;
+  document.body.classList.remove('onboarding-open');
+}
+
+function applyRecordContext(record) {
+  if (!record) return;
+  activeSeriesId = record.series_id;
+  const title = onboardingTitles[record.series_id];
+  if (!title) return;
+  $('.rail-heading h2').textContent = record.title;
+  const image = $('.watch-context img');
+  image.src = onboardingImage(title);
+  image.alt = `${record.title} 이미지`;
+  $('.watch-context b').textContent = record.status === 'planned' ? '보고 싶은 작품' : `${record.season_name} · ${record.seen_ep}화`;
+  $('.watch-context span').textContent = record.status === 'planned' ? '아직 시청 전이에요' : '이 지점 이후는 스포일러 보호';
+  renderRailRecords();
+}
+
+function renderRailRecords() {
+  const rail = $('#rail-posters');
+  if (!rail) return;
+  const records = savedWatchRecords.filter(record => record.status !== 'planned');
+  rail.innerHTML = records.slice(0, 3).map(record => {
+    const localTitle = onboardingTitles[record.series_id];
+    const title = record.title || record.name || localTitle?.title || '작품';
+    const image = record.poster_url || (localTitle ? onboardingImage(localTitle) : '');
+    return `<button class="rail-record-poster ${record.series_id === activeSeriesId ? 'active' : ''}" type="button" data-rail-series="${escapeHtml(record.series_id)}" title="${escapeHtml(title)}">${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(title)}">` : '<span>AW</span>'}</button>`;
+  }).join('') + (records.length > 3 ? `<span class="rail-record-more">+${records.length - 3}</span>` : '');
+}
+
+async function persistOnboardingRecords(records) {
+  const saved = [];
+  for (const record of records) {
+    const result = await api(`/api/records/${encodeURIComponent(record.series_id)}`, {
+      method:'PUT',
+      body:JSON.stringify({ seen_ep:recordAbsoluteEpisode(record), rating:record.rating ?? null })
+    });
+    saved.push({ ...record, ...result, title:record.title || result.name, seen_ep:record.seen_ep });
+  }
+  return saved;
+}
+
+function renderLibrary() {
+  const grid = $('#library-grid');
+  if (!grid) return;
+  grid.replaceChildren();
+  savedWatchRecords.forEach(record => {
+    const localTitle = onboardingTitles[record.series_id];
+    const title = record.title || record.name || localTitle?.title || '제목 정보 없음';
+    const imageUrl = record.poster_url || (localTitle ? onboardingImage(localTitle) : '');
+    const status = record.status === 'planned' ? '보고 싶어요' : record.status === 'completed' ? '완료' : '시청 중';
+    const position = record.status === 'planned' ? '아직 시청 전' : `${record.season_name ? `${record.season_name} · ` : ''}${record.seen_ep || 0}화까지`;
+    const article = document.createElement('article');
+    article.className = 'watch-card featured real-record';
+    article.innerHTML = `${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(title)} 포스터">` : '<div class="record-cover-fallback">AniWhere</div>'}<div class="watch-copy"><span class="watching">${status}</span><h2>${escapeHtml(title)}</h2><p>${escapeHtml(position)}</p><small>${record.status === 'planned' ? '시청을 시작하면 스포일러 보호 범위를 설정할 수 있어요.' : '저장한 회차 이후 정보는 보호됩니다.'}</small></div>`;
+    grid.appendChild(article);
+  });
+  renderRailRecords();
+}
+
+function saveLocalRecord(record) {
+  if (!record?.series_id) return;
+  const normalized = { ...record, title:record.title || record.name, status:'watching' };
+  const index = savedWatchRecords.findIndex(item => item.series_id === normalized.series_id);
+  if (index >= 0) savedWatchRecords[index] = { ...savedWatchRecords[index], ...normalized };
+  else savedWatchRecords.unshift(normalized);
+  localStorage.setItem(WATCH_RECORDS_KEY, JSON.stringify(savedWatchRecords));
+  setRecordState(true); renderLibrary();
+}
+
+function persistConversation() {
+  localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(chatHistory.slice(-20)));
+  localStorage.setItem(CHAT_MESSAGES_KEY, JSON.stringify(visualConversation.slice(-40)));
+}
+
+function addMessage(role, text, card = '', persist = true) {
   const row = document.createElement('div');
   row.className = `message ${role}`;
   if (role === 'agent') row.innerHTML = persona === 'l'
-    ? '<span class="avatar l-avatar">L</span>'
+    ? '<span class="avatar l-avatar"><img src="assets/l-detective-user.png" alt="L"></span>'
     : '<span class="avatar midoriya-avatar"><img src="assets/midoriya-mascot.png?v=2" alt="미도리야"></span>';
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
   bubble.innerHTML = `<div>${text}</div>${card}`;
   row.appendChild(bubble);
   messages.appendChild(row);
+  if (persist) {
+    visualConversation.push({ role, text, card });
+    persistConversation();
+  }
   requestAnimationFrame(() => messages.scrollTo({ top: messages.scrollHeight, behavior: 'smooth' }));
+}
+
+function setPersona(next) {
+  persona = next;
+  const image = $('.agent-dot img');
+  if (!image) return;
+  if (next === 'l') {
+    image.src = 'assets/l-detective-user.png';
+    image.alt = 'L 취향 탐정';
+    $('.agent-dot').classList.add('l-agent-dot');
+  } else {
+    image.src = 'assets/midoriya-mascot.png?v=2';
+    image.alt = 'AniWhere Agent';
+    $('.agent-dot').classList.remove('l-agent-dot');
+  }
+}
+
+function restoreConversation() {
+  if (!visualConversation.length) return false;
+  messages.replaceChildren();
+  visualConversation.forEach(message => addMessage(message.role, message.text, message.card || '', false));
+  $$('[data-series-id]', messages).forEach(card => hydrateResultPoster(card.dataset.seriesId, card));
+  return true;
 }
 
 function setSuggestions(items = []) {
@@ -375,16 +558,12 @@ function reply(text, labels = [], card = '', actions = ['시청 기록 확인 �
   setTimeout(() => { clearInterval(timer); typing.remove(); addMessage('agent', text, card); setSuggestions(labels); busy = false; question.focus(); }, Math.max(1200, actions.length * 680));
 }
 
-function resetChat(nextMode = mode) {
-  mode = nextMode; persona = 'midoriya'; step = 0; busy = false; chatHistory = []; messages.replaceChildren(); setSuggestions();
-  $$('.mode-chips button').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
-  const intros = {
-    episode: [hasRecord ? '저장된 작품에서 어디까지 보셨는지 함께 찾아보겠습니다! 마지막으로 기억나는 장면을 말해주세요!' : '어떤 작품인지 몰라도 괜찮습니다! 기억나는 장면부터 하나씩 찾아볼게요!', ['올마이트가 마지막에 손가락을 가리켰어', '학교 축제 전까지 봤어']],
-    title: ['제목이 기억나지 않아도 괜찮습니다! 인물의 생김새나 능력, 장면을 말해주세요. 제가 열심히 찾아보겠습니다!', ['키 작은 아저씨가 칼 들고 날아다녀', '노란 머리에 번개를 쓰는 겁 많은 아이']],
-    recap: hasRecord ? ['저장된 기록은 시즌 3 · 11화예요. 어떤 방식으로 복습할까요?', ['전체 이야기', '인물 관계', '마지막 화 상황']] : ['스포일러 없이 복습하려면 어디까지 봤는지 먼저 알아야 해요. 기억나는 마지막 장면을 말해주세요.', ['올마이트가 손가락을 가리켰어', '샘플 기록 불러오기']],
-    providers: ['어떤 작품의 시청처를 찾을까요? 현재 기록된 작품을 바로 확인할 수도 있어요.', ['나의 히어로 아카데미아', '진격의 거인', '귀멸의 칼날']]
-  };
-  addMessage('agent', intros[mode][0]); setSuggestions(intros[mode][1]);
+function resetChat() {
+  mode = 'chat'; setPersona('midoriya'); step = 0; busy = false; chatHistory = []; visualConversation = [];
+  localStorage.removeItem(CHAT_HISTORY_KEY); localStorage.removeItem(CHAT_MESSAGES_KEY);
+  messages.replaceChildren(); setSuggestions();
+  addMessage('agent', '무엇이든 물어보세요! 흐릿하게 기억나는 장면도 작품과 회차까지 함께 찾아드릴게요.');
+  setSuggestions(hasRecord ? ['마지막으로 본 장면을 찾고 싶어', '내 기록까지 복습해줘', '어디서 볼 수 있어?'] : ['기억나는 장면으로 작품 찾기', '취향에 맞는 애니 추천받기']);
 }
 
 function resultCardFromChat(data) {
@@ -392,7 +571,7 @@ function resultCardFromChat(data) {
   const found = results.find;
   if (found?.candidates?.length) {
     const candidate = found.candidates[0];
-    return `<div class="result-card"><small>${found.status === 'episode' ? '회차 후보' : '작품 후보'}</small><h3>${escapeHtml(candidate.title || candidate.name || candidate.series_id)}</h3><p>${escapeHtml(candidate.label || (candidate.abs_ep ? `전체 ${candidate.abs_ep}화` : '추가 단서를 알려주세요.'))}</p></div>`;
+    return `<div class="result-card result-with-poster" data-series-id="${escapeHtml(candidate.series_id)}"><div class="result-copy"><small>${found.status === 'episode' ? '회차 후보' : '작품 후보'}</small><h3>${escapeHtml(candidate.title || candidate.name || candidate.series_id)}</h3><p>${escapeHtml(candidate.label || (candidate.abs_ep ? `전체 ${candidate.abs_ep}화` : '추가 단서를 알려주세요.'))}</p></div><div class="result-poster-placeholder" aria-hidden="true">AniWhere</div></div>`;
   }
   const review = results.review;
   if (review?.answer) return `<div class="result-card"><small>${review.seen_ep}화까지 복습</small><p>${escapeHtml(review.answer)}</p></div>`;
@@ -403,24 +582,39 @@ function resultCardFromChat(data) {
   return '';
 }
 
+async function hydrateResultPoster(seriesId, card = null) {
+  if (!seriesId) return;
+  const target = card || $(`.result-card[data-series-id="${CSS.escape(seriesId)}"]:last-of-type`, messages);
+  if (!target) return;
+  try {
+    const series = await api(`/api/series/${encodeURIComponent(seriesId)}`);
+    if (!series.poster_url) return;
+    const image = document.createElement('img');
+    image.className = 'result-poster'; image.src = series.poster_url; image.alt = `${series.name || series.title || '애니'} 포스터`;
+    target.querySelector('.result-poster-placeholder')?.replaceWith(image);
+  } catch {}
+}
+
 async function send(value) {
   const text = value.trim(); if (!text || busy) return;
-  if (text === '샘플 기록 불러오기') { setRecordState(true); resetChat('recap'); showToast('나의 히어로 아카데미아 샘플 기록을 불러왔어요.'); return; }
   if (text === '3분 복습') { if (hasRecord) openRecap('직전 내용'); else showToast('복습할 시청 지점을 먼저 찾아주세요.'); return; }
   if (text === '시청처 보기') { openProviders(); return; }
-  addMessage('user', text); question.value = '';
+  addMessage('user', escapeHtml(text)); question.value = '';
   busy = true; setSuggestions();
   const typing = document.createElement('div'); typing.className = 'typing';
-  typing.innerHTML = '<i></i><span>Agent가 필요한 도구를 선택하고 있어요…</span>'; messages.appendChild(typing);
+  typing.innerHTML = '<i></i><span>Agent가 답변을 생각하고 있어요…</span>'; messages.appendChild(typing);
   try {
-    const apiMessage = persona === 'l' ? `추천: ${text}` : mode === 'recap' ? `복습: ${text}` : mode === 'providers' ? `시청처: ${text}` : text;
+    const apiMessage = persona === 'l' ? `추천: ${text}` : text;
     const data = await api('/api/chat', { method:'POST', body:JSON.stringify({ message:apiMessage, history:chatHistory.slice(-20) }) });
     typing.remove();
-    addMessage('agent', escapeHtml(data.answer), resultCardFromChat(data));
+    addMessage('agent', formatAgentText(data.answer), resultCardFromChat(data));
+    const foundSeriesId = data.results?.find?.candidates?.[0]?.series_id;
+    if (foundSeriesId) hydrateResultPoster(foundSeriesId);
     setSuggestions(data.suggestions || []);
     chatHistory.push({ role:'user', content:apiMessage }, { role:'assistant', content:data.answer, context:data.context || null });
+    persistConversation();
     if (data.context?.series_id) activeSeriesId = data.context.series_id;
-    if (data.results?.save_record) setRecordState(true);
+    if (data.results?.save_record) saveLocalRecord(data.results.save_record);
   } catch (error) {
     typing.remove();
     addMessage('agent', `연결 중 문제가 생겼어요. ${escapeHtml(error.message)}`);
@@ -464,7 +658,18 @@ async function openRecap(selected = '전체 이야기') {
   const modes = { '전체 이야기':'summary', '인물 관계':'characters', '마지막 화 상황':'last', '직전 내용':'last' };
   openDrawer('FEATURE 09', `스포일러 없는 ${selected}`, '<div class="drawer-card"><p>저장된 시청 기록을 확인하고 있어요…</p></div>');
   try {
+    const localRecord = savedWatchRecords.find(record => record.series_id === activeSeriesId && record.status !== 'planned');
+    if (localRecord) {
+      await api(`/api/records/${encodeURIComponent(activeSeriesId)}`, {
+        method:'PUT',
+        body:JSON.stringify({ seen_ep:recordAbsoluteEpisode(localRecord), rating:localRecord.rating ?? null })
+      });
+    }
     const data = await api('/api/review', { method:'POST', body:JSON.stringify({ series_id:activeSeriesId, seen_ep:null, mode:modes[selected] || 'summary' }) });
+    if (data.seen_ep == null) {
+      $('#drawer-content').innerHTML = `<div class="drawer-card"><h3>복습할 시청 지점이 필요해요.</h3><p>${escapeHtml(data.follow_up || '먼저 시청 기록에서 어디까지 봤는지 저장해 주세요.')}</p></div>`;
+      return;
+    }
     const sources = (data.sources || []).map(source => `<div class="drawer-card"><small>${escapeHtml(source.name || '출처')} · ${source.abs_ep}화</small><p>${escapeHtml(source.text || '')}</p></div>`).join('');
     $('#drawer-content').innerHTML = `<div class="drawer-card"><h3>${data.seen_ep}화까지의 복습</h3><p>${escapeHtml(data.answer || data.follow_up)}</p></div>${sources}<div class="drawer-card safe"><h3>⌾ 보호 범위</h3><p>전체 ${data.seen_ep}화까지만 사용했어요. 이후 내용은 검색 전에 제외합니다.</p></div><div class="spoiler-gate" data-spoiler-gate><span>${data.seen_ep}화</span><i></i><b>TIME STOP</b><i></i><span>${Number(data.seen_ep) + 1}화</span></div><section class="spoiler-protected-card" aria-label="미시청 내용 보호 구간"><h3>⚠️ 스포일러 보호 중 ⚠️</h3><img src="assets/eren-spoiler-user.png" alt="스포일러를 구축해주마고 말하는 에렌 예거"></section>`;
     watchSpoilerGate();
@@ -687,10 +892,9 @@ $$('[data-view]').forEach(button => button.addEventListener('click', () => {
   scrollPageToTop();
   requestAnimationFrame(scrollPageToTop);
 }));
-$$('[data-mode]').forEach(button => button.addEventListener('click', () => resetChat(button.dataset.mode)));
-$$('[data-action]').forEach(button => button.addEventListener('click', () => { const action = button.dataset.action; const needsRecord = ['recap','watch-order','hook-guide','manga-link','season-alert','edit-record']; if (!hasRecord && needsRecord.includes(action)) { showToast('먼저 작품을 찾거나 샘플 시청 기록을 불러와주세요.'); return; } if (action === 'recap') openRecap(); else if (action === 'providers') openProviders(); else if (action === 'dictionary') openDictionary(); else if (action === 'edit-record') openRecord(); else if (action === 'similar') openSimilar(); else if (action === 'watch-order') openWatchOrder(); else if (action === 'hook-guide') openHookGuide(); else if (action === 'season-alert') openSeasonAlert(); else if (action === 'manga-link') openMangaLink(); else if (action === 'share-copy') openShareCopy(); else if (action === 'find-episode') { $('[data-view="chat"]').click(); resetChat('episode'); } else if (action === 'interview') { $('[data-view="chat"]').click(); resetChat('title'); persona = 'l'; messages.replaceChildren(); setSuggestions(); $('#chat-kicker').textContent = 'L · TASTE DETECTIVE'; $('#chat-title').innerHTML = '당신의 취향을<br>추리하겠습니다.'; addMessage('agent','저는 L입니다. 인류 최고의 두뇌로 당신에게 최고의 애니를 추리하겠습니다. 최근 몰입해서 본 작품 하나를 말씀해주시죠.', '<div class="result-card l-case"><img class="l-chat-panel" src="assets/l-detective-user.png" alt="취향을 추리하는 L"><small>CASE 001 · TASTE PROFILE</small><h3>추리를 시작합니다.</h3><p>분위기 · 전개 속도 · 인물 관계를 분석합니다.</p></div>'); setSuggestions(['진격의 거인 같은 반전물', '성장하는 주인공']); } }));
+$$('[data-action]').forEach(button => button.addEventListener('click', () => { const action = button.dataset.action; const needsRecord = ['recap','watch-order','hook-guide','manga-link','season-alert','edit-record']; if (!hasRecord && needsRecord.includes(action)) { showToast('먼저 작품과 시청 지점을 기록해 주세요.'); return; } if (action === 'recap') openRecap(); else if (action === 'providers') openProviders(); else if (action === 'dictionary') openDictionary(); else if (action === 'edit-record') openRecord(); else if (action === 'similar') openSimilar(); else if (action === 'watch-order') openWatchOrder(); else if (action === 'hook-guide') openHookGuide(); else if (action === 'season-alert') openSeasonAlert(); else if (action === 'manga-link') openMangaLink(); else if (action === 'share-copy') openShareCopy(); else if (action === 'find-episode') { $('[data-view="chat"]').click(); resetChat(); } else if (action === 'interview') { $('[data-view="chat"]').click(); resetChat(); setPersona('l'); messages.replaceChildren(); visualConversation = []; setSuggestions(); $('#chat-kicker').textContent = 'L · TASTE DETECTIVE'; $('#chat-title').innerHTML = '당신의 취향을<br>추리하겠습니다.'; addMessage('agent','저는 L입니다. 인류 최고의 두뇌로 당신에게 최고의 애니를 추리하겠습니다. 최근 몰입해서 본 작품 하나를 말씀해주시죠.', '<div class="result-card l-case"><img class="l-chat-panel" src="assets/l-detective-user.png" alt="취향을 추리하는 L"><small>CASE 001 · TASTE PROFILE</small><h3>추리를 시작합니다.</h3><p>분위기 · 전개 속도 · 인물 관계를 분석합니다.</p></div>'); setSuggestions(['진격의 거인 같은 반전물', '성장하는 주인공']); } }));
 $$('[data-close]').forEach(b => b.addEventListener('click', closeDrawer));
-$('#new-chat').addEventListener('click', () => resetChat(mode));
+$('#new-chat').addEventListener('click', resetChat);
 composer.addEventListener('submit', e => { e.preventDefault(); send(question.value); });
 question.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); composer.requestSubmit(); } });
 
@@ -702,16 +906,26 @@ function setRecordState(next) {
   $('#empty-library').hidden = next;
   $('#library-content').hidden = !next;
   $('#record-greeting').hidden = !next;
-  $('#chat-kicker').textContent = next ? 'ANIWHERE AGENT · WELCOME BACK' : 'ANIWHERE AGENT · FIRST VISIT';
-  $('#chat-title').innerHTML = next ? '12일 만이네요.<br>어디까지 기억나요?' : '오늘은 어떤 애니<br>이야기를 해볼까요?';
+  $$('[data-requires-record]').forEach(element => { element.hidden = !next; });
+  $('#chat-kicker').textContent = 'ANIWHERE AGENT';
+  $('#chat-title').textContent = '무엇이든 물어보세요!';
 }
 
-$$('[data-load-sample]').forEach(button => button.addEventListener('click', () => { setRecordState(true); $('[data-view="chat"]').click(); resetChat('episode'); showToast('나의 히어로 아카데미아 샘플 기록을 불러왔어요.'); }));
 $$('[data-clear-record]').forEach(button => button.addEventListener('click', () => { setRecordState(false); resetChat('episode'); showToast('작품 선택을 해제했어요.'); }));
 $$('[data-onboarding-next]').forEach(button => button.addEventListener('click', () => showOnboardingStep(button.dataset.onboardingNext)));
 $$('[data-onboarding-back]').forEach(button => button.addEventListener('click', () => showOnboardingStep(button.dataset.onboardingBack)));
 $$('[data-onboarding-l]').forEach(button => button.addEventListener('click', startOnboardingTasteInterview));
-$$('[data-onboarding-title]').forEach(button => button.addEventListener('click', () => {
+$$('[data-onboarding-skip]').forEach(button => button.addEventListener('click', closeOnboardingWithoutChanges));
+$('#add-watch-record').addEventListener('click', openOnboardingForRecords);
+$('#rail-posters').addEventListener('click', event => {
+  const button = event.target.closest('[data-rail-series]');
+  if (!button) return;
+  const record = savedWatchRecords.find(item => item.series_id === button.dataset.railSeries);
+  if (record) { applyRecordContext(record); showToast(`${record.title || record.name} 대화 기준으로 바꿨어요.`); }
+});
+$('#onboarding-titles').addEventListener('click', event => {
+  const button = event.target.closest('[data-onboarding-title]');
+  if (!button) return;
   const id = button.dataset.onboardingTitle;
   if (onboardingSelection.has(id)) {
     onboardingSelection.delete(id);
@@ -722,23 +936,50 @@ $$('[data-onboarding-title]').forEach(button => button.addEventListener('click',
     return;
   }
   openOnboardingEditor(id);
-}));
-$('#onboarding-to-details').addEventListener('click', () => {
+});
+$('#onboarding-agent-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const input = $('#onboarding-agent-input');
+  const response = $('#onboarding-agent-dock-response');
+  const text = input.value.trim();
+  if (!text) return;
+  response.textContent = 'Agent가 답변을 생각하고 있어요…';
+  try {
+    const data = await api('/api/chat', { method:'POST', body:JSON.stringify({ message:text, history:[] }) });
+    response.textContent = data.answer;
+    if (data.results?.save_record) saveLocalRecord(data.results.save_record);
+    input.value = '';
+  } catch (error) { response.textContent = `연결 중 문제가 생겼어요. ${error.message}`; }
+});
+$('#onboarding-to-details').addEventListener('click', async () => {
   const records = [...onboardingSelection.values()].map(record => ({ ...record, seen_ep: record.status === 'planned' ? 0 : record.seen_ep }));
-  finishOnboarding(records);
-  $('[data-view="chat"]').click();
-  resetChat('episode');
-  showToast(`${records.length}개 작품의 스포일러 기준을 저장했어요.`);
+  const button = $('#onboarding-to-details');
+  button.disabled = true;
+  button.textContent = '기록 저장 중…';
+  try {
+    const saved = await persistOnboardingRecords(records);
+    finishOnboarding(saved);
+    $('[data-view="chat"]').click();
+    resetChat('episode');
+    showToast(`${saved.length}개 작품의 스포일러 기준을 저장했어요.`);
+  } catch (error) {
+    showToast(`기록을 저장하지 못했어요. ${error.message}`);
+  } finally {
+    button.textContent = '선택 완료하고 시작';
+    button.disabled = onboardingSelection.size === 0;
+  }
 });
 cutinReturn.addEventListener('click', closeSpoilerCutin);
 document.addEventListener('keydown', event => { if (event.key === 'Escape' && !spoilerCutin.hidden) closeSpoilerCutin(); });
 setRecordState(hasRecord);
-resetChat('episode');
+renderLibrary();
+if (hasRecord) applyRecordContext(savedWatchRecords.find(record => record.status !== 'planned') || savedWatchRecords[0]);
+if (!restoreConversation()) resetChat();
 initializeOnboarding();
+loadOnboardingCatalog();
+loadRecommendationPosters();
 
-api('/api/records').then(records => {
-  if (Array.isArray(records)) setRecordState(records.length > 0 || hasRecord);
-}).catch(() => showToast('백엔드 연결을 확인해주세요.'));
+// 로그인 전에는 공용 데모 DB의 기록을 개인 기록으로 취급하지 않습니다.
 
 function isStandalone() { return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true; }
 function hideInstallGuide() { installGuide.hidden = true; sessionStorage.setItem('aniwhere-install-dismissed', '1'); }

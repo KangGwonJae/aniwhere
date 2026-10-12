@@ -1,4 +1,4 @@
-const CACHE = 'aniwhere-app-v24-api-integration';
+const CACHE = 'aniwhere-app-v39-chat-transparency';
 const APP_SHELL = [
   './',
   './index.html',
@@ -27,7 +27,8 @@ const APP_SHELL = [
   './assets/hxh-hisoka.png',
   './assets/hxh-illumi.png',
   './assets/hxh-phantom-troupe.png',
-  './assets/hxh-zeno.png'
+  './assets/hxh-zeno.png',
+  './assets/hxh.png'
 ];
 
 self.addEventListener('install', event => {

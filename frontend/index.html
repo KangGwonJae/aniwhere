@@ -18,6 +18,9 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <div class="poster-atmosphere" aria-hidden="true">
+    <img src="assets/my-hero-academia.jpg" alt=""><img src="assets/eren-spoiler-user.png" alt=""><img src="assets/hxh-gon.png" alt=""><img src="assets/okabe-card-user.png" alt=""><img src="assets/naruto-history-user.png" alt="">
+  </div>
   <header class="topbar">
     <button class="brand" data-view="chat" aria-label="AniWhere 홈">AniWhere</button>
     <nav aria-label="주요 메뉴">
@@ -25,7 +28,7 @@
       <button data-view="library">시청 기록</button>
       <button data-view="discover">탐색</button>
     </nav>
-    <div class="top-actions"><span>APP PROTOTYPE</span><button class="install-app" id="install-app" type="button" hidden>앱 설치</button><button class="profile" data-view="library" aria-label="의진님의 시청 기록">의</button></div>
+    <div class="top-actions"><button class="install-app" id="install-app" type="button" hidden>앱 설치</button><button class="profile" data-view="library" aria-label="내 시청 기록">의</button></div>
   </header>
 
   <section class="onboarding" id="onboarding" hidden role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
@@ -37,24 +40,17 @@
           <small>ANIWHERE AGENT</small>
           <h1 id="onboarding-title">환영합니다!</h1>
           <p>당신의 애니 생활을 함께할 aniWhere 에이전트예요!<br>그동안 본 애니를 알려주시면 스포일러 없이 도와드릴게요.</p>
-          <div class="onboarding-actions"><button class="primary" data-onboarding-next="titles">시청 목록 만들기</button><button data-onboarding-l>아직 본 애니가 없어요</button></div>
+          <div class="onboarding-actions"><button class="primary" data-onboarding-next="titles">본 애니 기록하기</button><button data-onboarding-l>제 취향 애니를 찾고 싶어요</button><button data-onboarding-skip>건너뛸래요</button></div>
         </div>
-        <div class="onboarding-ribbon" aria-hidden="true">
-          <img src="assets/my-hero-academia.jpg" alt=""><img src="assets/eren-spoiler-user.png" alt=""><img src="assets/hxh-gon.png" alt=""><img src="assets/okabe-card-user.png" alt=""><img src="assets/naruto-history-user.png" alt="">
-        </div>
+        <div class="onboarding-ribbon poster-belt" id="onboarding-poster-belt" aria-hidden="true"></div>
       </div>
       <div class="onboarding-step" data-onboarding-step="titles" hidden>
-        <div class="onboarding-heading"><small>STEP 01 · WATCH LIST</small><h2>작품을 누르고 시청 상태를 알려주세요.</h2><p>보고 싶은 작품도 저장할 수 있어요. 시즌과 회차 목록은 실제 연결 시 백엔드 작품 데이터로 채워집니다.</p></div>
-        <div class="onboarding-titles">
-          <button data-onboarding-title="mha" data-title="나의 히어로 아카데미아"><img src="assets/my-hero-academia.jpg" alt=""><span><b>나의 히어로 아카데미아</b><small>성장 · 히어로</small><em data-onboarding-summary></em></span><i>✓</i></button>
-          <button data-onboarding-title="aot" data-title="진격의 거인"><img src="assets/eren-spoiler-user.png" alt=""><span><b>진격의 거인</b><small>미스터리 · 전쟁</small><em data-onboarding-summary></em></span><i>✓</i></button>
-          <button data-onboarding-title="hxh" data-title="헌터×헌터"><img src="assets/hxh-gon.png" alt=""><span><b>헌터×헌터</b><small>모험 · 능력</small><em data-onboarding-summary></em></span><i>✓</i></button>
-          <button data-onboarding-title="steins" data-title="슈타인즈 게이트"><img src="assets/okabe-card-user.png" alt=""><span><b>슈타인즈 게이트</b><small>SF · 서스펜스</small><em data-onboarding-summary></em></span><i>✓</i></button>
-          <button data-onboarding-title="naruto" data-title="나루토"><img src="assets/naruto-history-user.png" alt=""><span><b>나루토</b><small>닌자 · 성장</small><em data-onboarding-summary></em></span><i>✓</i></button>
-        </div>
+        <div class="onboarding-heading onboarding-heading-row"><div><small>STEP 01 · WATCH LIST</small><h2>작품을 누르고 시청 상태를 알려주세요.</h2><p>보고 싶은 작품도 저장할 수 있어요. 시즌과 회차 목록은 백엔드 작품 데이터로 채워집니다.</p></div><div class="onboarding-heading-actions"><span id="onboarding-selection-count">0개 저장</span><button class="primary" id="onboarding-to-details" disabled>선택 완료하고 시작</button><button data-onboarding-skip>건너뛰기</button></div></div>
+        <div class="onboarding-titles" id="onboarding-titles"><p class="catalog-loading">TMDB 작품 포스터를 불러오는 중…</p></div>
         <section class="onboarding-editor" id="onboarding-editor" hidden aria-live="polite"></section>
-        <div class="onboarding-footer"><button data-onboarding-back="welcome">이전</button><span id="onboarding-selection-count">0개 저장</span><button class="primary" id="onboarding-to-details" disabled>선택 완료하고 시작</button></div>
+        <div class="onboarding-footer"><button data-onboarding-back="welcome">이전</button></div>
         <button class="onboarding-l-link" data-onboarding-l>본 작품이 없나요? L에게 취향 추리 맡기기 →</button>
+        <form class="onboarding-dock" id="onboarding-agent-form"><span><img src="assets/midoriya-mascot.png?v=2" alt="AniWhere Agent"></span><input id="onboarding-agent-input" autocomplete="off" placeholder="기억나는 장면이나 시청 기록을 Agent에게 말해보세요"><button type="submit">보내기 ↗</button><p id="onboarding-agent-dock-response">한 번에 한 작품과 전체 기준 회차를 말하면 바로 기록할 수 있어요.</p></form>
       </div>
     </div>
   </section>
@@ -66,17 +62,17 @@
           <span class="empty-symbol">✦</span>
           <small>처음 오셨군요</small>
           <h2>아직 선택한<br>작품이 없어요.</h2>
-          <p>기억나는 장면을 말하거나, 예시 기록으로 앱을 둘러보세요.</p>
-          <button class="load-sample" data-load-sample>샘플 시청 기록 불러오기</button>
+          <p>기억나는 장면을 말하거나, 먼저 본 작품과 시청 지점을 등록해 주세요.</p>
         </div>
         <div class="record-context" id="record-context" hidden>
-          <div class="loaded-record"><span>✓</span><div><b>최근 시청 기록을 불러왔어요</b><small>12일 만에 다시 방문</small></div></div>
+          <div class="loaded-record"><span>✓</span><div><b>내 시청 기록을 불러왔어요</b><small>저장한 지점부터 이어서 안내해요</small></div></div>
           <div class="rail-heading"><small>지금 대화 중</small><h2>나의 히어로<br>아카데미아</h2></div>
           <div class="watch-context">
             <img src="assets/my-hero-academia.jpg" alt="나의 히어로 아카데미아 포스터">
-            <div><b>시즌 3 · 11화</b><span>마지막 기록 12일 전</span></div>
+            <div><b>저장된 시청 지점</b><span>내 기록을 기준으로 스포일러 보호</span></div>
           </div>
-          <button class="change-title" data-clear-record>다른 작품 선택</button>
+          <div class="rail-library"><small>내 시청 기록</small><div class="rail-posters" id="rail-posters"></div></div>
+          <button class="change-title" data-view="library">전체 기록 보기</button>
           <div class="spoiler-lock"><i>⌾</i><div><b>스포일러 보호 중</b><span>12화 이후 청크는 검색 전에 제외</span></div></div>
           <div class="rail-actions">
             <button data-action="recap">3분 복습</button>
@@ -84,24 +80,16 @@
             <button data-action="dictionary">인물·용어</button>
           </div>
         </div>
-        <p class="prototype-label">UI PROTOTYPE<br><span>가짜 응답 데이터 사용</span></p>
       </aside>
 
       <div class="chat-workspace">
         <header class="chat-heading">
-          <div><span class="agent-dot"><img src="assets/midoriya-mascot.png?v=2" alt="AniWhere Agent"></span><small id="chat-kicker">ANIWHERE AGENT · FIRST VISIT</small><h1 id="chat-title">오늘은 어떤 애니<br>이야기를 해볼까요?</h1></div>
+          <div><span class="agent-dot"><img src="assets/midoriya-mascot.png?v=2" alt="AniWhere Agent"></span><small id="chat-kicker">ANIWHERE AGENT</small><h1 id="chat-title">무엇이든 물어보세요!</h1><p class="chat-subtitle">흐릿한 기억 속 장면으로부터 정확한 작품과 회차를 찾아드려요.</p></div>
           <button class="new-chat" id="new-chat">＋ 새 대화</button>
         </header>
 
-        <div class="mode-chips" aria-label="대화 목적">
-          <button class="active" data-mode="episode">회차 찾기</button>
-          <button data-mode="title">작품 찾기</button>
-          <button data-mode="recap">복습</button>
-          <button data-mode="providers">시청처</button>
-        </div>
-
         <div class="agent-shortcuts" aria-label="자주 찾는 기능">
-          <button data-action="recap"><i>◴</i><span><b>3분 복습</b><small>49화까지만</small></span></button>
+          <button data-action="recap" data-requires-record><i>◴</i><span><b>3분 복습</b><small>내 기록까지만</small></span></button>
           <button data-action="watch-order"><i>☷</i><span><b>시청 순서</b><small>본편·극장판</small></span></button>
           <button data-action="hook-guide"><i>▶</i><span><b>몇 화부터?</b><small>스포일러 없이</small></span></button>
           <button data-action="manga-link"><i>≡</i><span><b>원작 연결</b><small>어디서부터?</small></span></button>
@@ -112,47 +100,32 @@
 
         <form class="composer" id="composer">
           <label class="sr-only" for="question">AniWhere에게 메시지 보내기</label>
-          <textarea id="question" rows="1" placeholder="예: 올마이트가 싸우고 마지막에 손가락을 가리켰어"></textarea>
+          <textarea id="question" rows="1" placeholder="기억나는 장면, 인물, 분위기를 자유롭게 말해주세요"></textarea>
           <div class="composer-bottom"><span><kbd>Enter</kbd> 전송 · <kbd>Shift</kbd>+<kbd>Enter</kbd> 줄바꿈</span><button type="submit">보내기 <b>↗</b></button></div>
         </form>
       </div>
     </section>
 
     <section class="view library-view" id="library-view">
-      <header class="page-title"><small>MY WATCH HISTORY</small><h1>내 시청 기록</h1><p>내 서재에 저장한 작품과 회차입니다. 이 기록이 복습과 스포일러 차단 범위를 정합니다.</p></header>
-      <img class="naruto-history-banner" id="record-greeting" src="assets/naruto-history-user.png" alt="지난 시청 기록을 안내하는 나루토" hidden>
-      <article class="empty-library" id="empty-library" hidden><span>✦</span><h2>아직 시청 기록이 없어요.</h2><p>Agent와 시청 지점을 찾거나, 샘플 기록을 불러와 화면을 확인해보세요.</p><div><button data-view="chat">작품 찾으러 가기</button><button class="outline" data-load-sample>샘플 기록 불러오기</button></div></article>
-      <div id="library-content">
-      <div class="library-tabs"><button class="active">시청 중 <b>3</b></button><button>보고 싶어요 <b>5</b></button><button>완료 <b>12</b></button></div>
-      <div class="library-grid">
-        <article class="watch-card featured">
-          <img src="assets/my-hero-academia.jpg" alt="나의 히어로 아카데미아 포스터">
-          <div class="watch-copy"><span class="watching">시청 중</span><h2>나의 히어로 아카데미아</h2><p>시즌 3 · 11화까지</p><div class="progress"><i></i></div><small>12화 이후 스포일러 보호 · 마지막 시청 12일 전</small><div class="buttons"><button data-action="recap">복습하기</button><button class="outline" data-action="edit-record">기록 수정</button></div></div>
-        </article>
-        <article class="watch-card compact"><div class="letter-cover cover-a">進</div><div class="watch-copy"><span class="watching">시청 중</span><h2>진격의 거인</h2><p>시즌 1 · 14화까지</p><small>마지막 시청 31일 전</small><button class="text-button" data-action="find-episode">시청 지점 다시 찾기 →</button></div></article>
-        <article class="watch-card compact"><div class="letter-cover cover-b">滅</div><div class="watch-copy"><span class="watching">시청 중</span><h2>귀멸의 칼날</h2><p>시즌 1 · 12화까지</p><small>마지막 시청 7일 전</small><button class="text-button" data-action="providers">시청처 확인 →</button></div></article>
-      </div>
-      <article class="season-alert">
-        <div class="alert-icon">N</div><div><small>확장 프로토타입 · FEATURE 10</small><h2>새 시즌이 시작됐어요.</h2><p>저장된 시청 기록을 바탕으로 직전 시즌 복습을 먼저 제안해요.</p></div><button data-action="season-alert">새 시즌 확인</button>
-      </article>
-      </div>
+      <header class="page-title library-title"><div><small>MY WATCH HISTORY</small><h1>내 시청 기록</h1><p>내 서재에 저장한 작품과 회차입니다. 이 기록이 복습과 스포일러 차단 범위를 정합니다.</p></div><div class="library-hero"><button id="add-watch-record" type="button">＋ 시청 기록 추가</button><img class="naruto-history-banner" id="record-greeting" src="assets/naruto-history-user.png" alt="지난 시청 기록을 안내하는 나루토" hidden></div></header>
+      <article class="empty-library" id="empty-library" hidden><span>✦</span><h2>아직 시청 기록이 없어요.</h2><p>Agent에게 기억나는 장면을 말하거나 시청 지점을 등록해 주세요.</p><div><button data-view="chat">Agent에게 물어보기</button></div></article>
+      <div id="library-content"><div class="library-grid" id="library-grid"></div></div>
     </section>
 
     <section class="view discover-view" id="discover-view">
-      <header class="page-title"><small>DISCOVER & GUIDE</small><h1>애니를 보는 모든 방법.</h1><p>보기 전의 궁금증부터 원작으로 이어 읽기까지, 필요한 기능을 바로 선택하세요.</p></header>
+      <header class="page-title discover-title"><div><small>DISCOVER & GUIDE</small><h1>애니를 보는 모든 방법.</h1><p>보기 전의 궁금증부터 원작으로 이어 읽기까지, 필요한 기능을 바로 선택하세요.</p></div><article class="interview l-interview"><img class="l-panel" src="assets/l-detective-user.png" alt="최고의 애니를 추리하겠다고 말하는 L"><div><small>L · TASTE DETECTIVE</small><h2>“저는 L입니다.”</h2><p>당신의 취향을 직접 추리합니다.</p></div><button data-action="interview">추리 시작</button></article></header>
 
       <section class="guide-launcher" aria-labelledby="guide-title">
         <div class="guide-launcher-head"><div><small>QUICK GUIDE · UI PROTOTYPE</small><h2 id="guide-title">지금 궁금한 건 무엇인가요?</h2></div><p>카드를 누르면 예시 결과를 바로 볼 수 있어요.</p></div>
         <div class="guide-grid">
-          <button data-action="watch-order"><i>03</i><b>시청 순서 가이드</b><span>본편·극장판·OVA를<br>어떤 순서로 볼지</span><em>확인하기 →</em></button>
-          <button data-action="hook-guide"><i>04</i><b>몇 화부터 재밌어져요?</b><span>사건은 숨기고<br>분위기가 바뀌는 지점만</span><em>확인하기 →</em></button>
-          <button data-action="dictionary"><i>08</i><b>인물·용어 사전</b><span>현재 본 회차까지만<br>관계와 설정 확인</span><em>사전 열기 →</em></button>
-          <button data-action="manga-link"><i>12</i><b>애니 → 원작 연결</b><span>내가 본 회차 다음을<br>원작 권·화로 연결</span><em>확인하기 →</em></button>
+          <button class="guide-art guide-light" data-action="watch-order"><i>03</i><b>시청 순서 가이드</b><span>본편·극장판·OVA를<br>어떤 순서로 볼지</span><em>확인하기 →</em></button>
+          <button class="guide-art guide-okabe" data-action="hook-guide"><i>04</i><b>몇 화부터 재밌어져요?</b><span>사건은 숨기고<br>분위기가 바뀌는 지점만</span><em>확인하기 →</em></button>
+          <button class="guide-art guide-hxh" data-action="dictionary"><i>08</i><b>인물·용어 사전</b><span>현재 본 회차까지만<br>관계와 설정 확인</span><em>사전 열기 →</em></button>
+          <button class="guide-art guide-gon" data-action="manga-link"><i>12</i><b>애니 → 원작 연결</b><span>내가 본 회차 다음을<br>원작 권·화로 연결</span><em>확인하기 →</em></button>
         </div>
       </section>
-      <article class="interview l-interview"><img class="l-panel" src="assets/l-detective-user.png" alt="최고의 애니를 추리하겠다고 말하는 L"><div><small>L · TASTE DETECTIVE</small><h2>“저는 L입니다.”</h2><p>이제 L이 당신의 취향을 직접 추리합니다.</p></div><button data-action="interview">추리 시작</button></article>
       <div class="recommend-head"><h2>이런 작품은 어때요?</h2><span>예시 추천</span></div>
-      <div class="recommend-grid"><article class="recommend cover-a"><small>반전과 긴장감</small><h3>진격의 거인</h3><p>세계의 비밀을 하나씩 파헤치는 전개가 가까워요.</p></article><article class="recommend cover-b"><small>강한 캐릭터와 빠른 전개</small><h3>주술회전</h3><p>전투와 인물 관계가 빠르게 이어지는 작품이에요.</p></article><article class="recommend cover-c"><small>성장과 가족</small><h3>귀멸의 칼날</h3><p>분명한 목표를 가진 주인공의 성장 이야기예요.</p></article></div>
+      <div class="recommend-grid"><article class="recommend" data-recommend-title="진격의 거인"><small>반전과 긴장감</small><h3>진격의 거인</h3><p>세계의 비밀을 하나씩 파헤치는 전개가 가까워요.</p></article><article class="recommend" data-recommend-title="주술회전"><small>강한 캐릭터와 빠른 전개</small><h3>주술회전</h3><p>전투와 인물 관계가 빠르게 이어지는 작품이에요.</p></article><article class="recommend" data-recommend-title="귀멸의 칼날"><small>성장과 가족</small><h3>귀멸의 칼날</h3><p>분명한 목표를 가진 주인공의 성장 이야기예요.</p></article></div>
       <div class="feature-lab-head"><div><small>EXPANSION PROTOTYPES</small><h2>더 깊게 즐기는 방법</h2></div><p>발표 확장 방향을 실제 화면 형태로 미리 구성했어요.</p></div>
       <div class="mini-feature-grid">
         <button data-action="similar"><b>02</b><span>“○○ 같은 거” 검색</span><small>좋아하는 작품과 분위기가 비슷한 애니 찾기</small></button>
