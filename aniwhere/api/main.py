@@ -6,11 +6,13 @@
 """
 import logging
 import os
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
+from urllib.parse import unquote
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Response
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, StrictInt
@@ -21,6 +23,21 @@ from aniwhere.retrieval.catalog import UnknownSeries
 log = logging.getLogger(__name__)
 
 TEXT = Field(min_length=1, max_length=1000)     # 사용자가 쓰는 글. 너무 길면 LLM 비용·지연이 그대로 늘어남
+NICKNAME_RE = re.compile(r"[0-9A-Za-z가-힣_-]{2,20}")
+
+
+def login_user(x_aniwhere_user: str | None = Header(None)) -> str:
+    """닉네임 로그인: 화면이 X-AniWhere-User 헤더에 닉네임을 URL 인코딩해 보내면 그 닉네임의 기록만 씁니다.
+
+    비밀번호는 없습니다(같은 닉네임이면 어느 기기에서든 같은 기록). 헤더가 없으면 이전처럼 ``local``.
+    DB의 user_id는 ``user:닉네임`` — 닉네임이 ``local``이어도 기존 로컬 기록과 섞이지 않게.
+    """
+    if x_aniwhere_user is None:
+        return "local"
+    nickname = unquote(x_aniwhere_user).strip()
+    if not NICKNAME_RE.fullmatch(nickname):
+        raise HTTPException(status_code=400, detail="닉네임은 한글·영문·숫자·_·- 2~20자입니다")
+    return f"user:{nickname}"
 
 
 class Turn(BaseModel):
@@ -131,40 +148,42 @@ def create_app(frontend_dir: Path | None = REPO / "frontend") -> FastAPI:
         return svc.where_to_watch(series_id)
 
     @app.get("/api/series/{series_id}/dictionary")
-    def dictionary(series_id: str, seen_ep: int | None = None, svc=Depends(get_service)):
-        return svc.dictionary(series_id, seen_ep)
+    def dictionary(series_id: str, seen_ep: int | None = None, svc=Depends(get_service),
+                   user_id: str = Depends(login_user)):
+        return svc.dictionary(series_id, seen_ep, user_id=user_id)
 
     @app.post("/api/find")
-    def find(body: FindRequest, svc=Depends(get_service)):
-        return svc.find(body.question, [t.model_dump() for t in body.history])
+    def find(body: FindRequest, svc=Depends(get_service), user_id: str = Depends(login_user)):
+        return svc.find(body.question, [t.model_dump() for t in body.history], user_id=user_id)
 
     @app.post("/api/review")
-    def review(body: ReviewRequest, svc=Depends(get_service)):
-        return svc.review(body.series_id, body.seen_ep, body.mode, body.question)
+    def review(body: ReviewRequest, svc=Depends(get_service), user_id: str = Depends(login_user)):
+        return svc.review(body.series_id, body.seen_ep, body.mode, body.question, user_id=user_id)
 
     @app.post("/api/recommend")
-    def recommend(body: RecommendRequest, svc=Depends(get_service)):
-        return svc.recommend(body.likes)
+    def recommend(body: RecommendRequest, svc=Depends(get_service), user_id: str = Depends(login_user)):
+        return svc.recommend(body.likes, user_id=user_id)
 
     @app.post("/api/chat")
-    def chat(body: ChatRequest, svc=Depends(get_service)):
-        return svc.chat(body.message, [t.model_dump() for t in body.history])
+    def chat(body: ChatRequest, svc=Depends(get_service), user_id: str = Depends(login_user)):
+        return svc.chat(body.message, [t.model_dump() for t in body.history], user_id=user_id)
 
     @app.get("/api/records")
-    def records(svc=Depends(get_service)):
-        return svc.list_records()
+    def records(svc=Depends(get_service), user_id: str = Depends(login_user)):
+        return svc.list_records(user_id=user_id)
 
     @app.get("/api/records/{series_id}")
-    def record(series_id: str, svc=Depends(get_service)):
-        return _or_404(svc.get_record(series_id), f"{series_id}의 기록")
+    def record(series_id: str, svc=Depends(get_service), user_id: str = Depends(login_user)):
+        return _or_404(svc.get_record(series_id, user_id=user_id), f"{series_id}의 기록")
 
     @app.put("/api/records/{series_id}")
-    def save_record(series_id: str, body: RecordRequest, svc=Depends(get_service)):
-        return svc.save_record(series_id, body.seen_ep, body.rating)
+    def save_record(series_id: str, body: RecordRequest, svc=Depends(get_service),
+                    user_id: str = Depends(login_user)):
+        return svc.save_record(series_id, body.seen_ep, body.rating, user_id=user_id)
 
     @app.delete("/api/records/{series_id}", status_code=204)
-    def delete_record(series_id: str, svc=Depends(get_service)):
-        if not svc.delete_record(series_id):
+    def delete_record(series_id: str, svc=Depends(get_service), user_id: str = Depends(login_user)):
+        if not svc.delete_record(series_id, user_id=user_id):
             raise HTTPException(status_code=404, detail=f"없습니다: {series_id}의 기록")
         return Response(status_code=204)
 

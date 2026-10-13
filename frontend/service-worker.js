@@ -1,9 +1,10 @@
-const CACHE = 'aniwhere-app-v63-fixed-navigation';
+const CACHE = 'aniwhere-app-v64-nickname-login';
 const APP_SHELL = [
   './',
   './index.html',
   './styles.css',
   './app.js',
+  './login.js',
   './manifest.webmanifest',
   './assets/midoriya-mascot.png?v=2',
   './assets/midoriya-icon-192.png?v=3',
