@@ -7,6 +7,7 @@ const composer = $('#composer');
 const drawer = $('#drawer');
 const toast = $('#toast');
 const installButton = $('#install-app');
+const onboardingInstallButton = $('#onboarding-install-app');
 const installGuide = $('#install-guide');
 const installGuideAction = $('#install-guide-action');
 const installGuideClose = $('#install-guide-close');
@@ -38,6 +39,12 @@ let activeSeriesId = null;
 let activeSeriesTitle = '';
 let activeCandidateEp = null;
 let latestReview = null;
+let onboardingCatalogCache = [];
+let railRecordsExpanded = false;
+let railTipIndex = 0;
+let railTipTimer = null;
+let railTipMessages = [];
+let recommendationSignature = '';
 const RECORD_KEY = 'aniwhere-demo-watch-record';
 const ONBOARDING_KEY = 'aniwhere-onboarding-completed-v3';
 const WATCH_RECORDS_KEY = 'aniwhere-watch-records';
@@ -61,7 +68,7 @@ async function loadOnboardingCatalog() {
   const container = $('#onboarding-titles');
   const belt = $('#onboarding-poster-belt');
   try {
-    const items = await api('/api/series?limit=30');
+    const items = await api('/api/series?limit=200');
     const withPosters = items.filter(item => item.poster_url);
     if (!withPosters.length) throw new Error('포스터가 있는 작품이 없습니다.');
     withPosters.forEach(item => {
@@ -70,6 +77,7 @@ async function loadOnboardingCatalog() {
         seasons:[['전체 회차', Math.max(1, item.total_episodes || 1)]], defaultSeason:1, defaultEpisode:1
       };
     });
+    onboardingCatalogCache = withPosters;
     renderOnboardingCatalog(withPosters);
     const moving = withPosters.slice(0, 15);
     belt.innerHTML = `<div class="poster-belt-track">${[...moving, ...moving].map(item => `<img src="${escapeHtml(item.poster_url)}" alt="">`).join('')}</div>`;
@@ -90,17 +98,31 @@ function renderOnboardingCatalog(items) {
       seasons:[['전체 회차', Math.max(1, item.total_episodes || 1)]], defaultSeason:1, defaultEpisode:1
     };
   });
-  container.innerHTML = withPosters.length ? withPosters.map(item => `<button data-onboarding-title="${escapeHtml(item.series_id)}" data-title="${escapeHtml(item.name || item.title)}"><img src="${escapeHtml(item.poster_url)}" alt="${escapeHtml(item.name || item.title)} 포스터"><span><b>${escapeHtml(item.name || item.title)}</b><small>총 ${item.total_episodes || '?'}화</small><em data-onboarding-summary></em></span><i>✓</i></button>`).join('') : '<p class="catalog-loading">검색 결과가 없어요. 다른 제목이나 줄임말로 찾아보세요.</p>';
+  container.innerHTML = withPosters.length ? withPosters.map(item => `<article class="onboarding-title-card" data-onboarding-title="${escapeHtml(item.series_id)}" data-title="${escapeHtml(item.name || item.title)}"><button type="button" class="onboarding-title-select"><img src="${escapeHtml(item.poster_url)}" alt="${escapeHtml(item.name || item.title)} 포스터"><span><b>${escapeHtml(item.name || item.title)}</b><small>총 ${item.total_episodes || '?'}화</small><em data-onboarding-summary></em></span><i>✓</i></button><section class="onboarding-card-editor" hidden aria-live="polite"></section></article>`).join('') : '<p class="catalog-loading">검색 결과가 없어요. 다른 제목이나 줄임말로 찾아보세요.</p>';
   updateOnboardingSelection();
 }
 
-async function loadRecommendationPosters() {
-  await Promise.all($$('[data-recommend-title]').map(async card => {
-    try {
-      const items = await api(`/api/series?q=${encodeURIComponent(card.dataset.recommendTitle)}&limit=1`);
-      if (items[0]?.poster_url) card.style.setProperty('--recommend-poster', `url("${items[0].poster_url.replace(/["\\]/g, '')}")`);
-    } catch {}
-  }));
+async function loadPersonalRecommendations(force = false) {
+  const grid = $('#personal-recommendations');
+  if (!grid) return;
+  const titles = savedWatchRecords.map(record => record.title || record.name || onboardingTitles[record.series_id]?.title).filter(Boolean);
+  const signature = titles.join('|');
+  if (!force && recommendationSignature === signature && grid.querySelector('.recommend')) return;
+  recommendationSignature = signature;
+  if (!titles.length) {
+    grid.innerHTML = '<p class="recommend-loading">시청 기록을 추가하면 취향에 맞는 작품을 추천해드려요.</p>';
+    $('#recommend-basis').textContent = '시청 기록 기반 추천';
+    return;
+  }
+  grid.innerHTML = '<p class="recommend-loading">내 시청 기록에 맞는 작품을 찾고 있어요…</p>';
+  $('#recommend-basis').textContent = `${titles.slice(0, 2).join(', ')}${titles.length > 2 ? ` 외 ${titles.length - 2}개` : ''} 기반`;
+  try {
+    const data = await api('/api/recommend', { method:'POST', body:JSON.stringify({ likes:`재미있게 본 애니: ${titles.join(', ')}` }) });
+    const picks = (data.picks || []).slice(0, 5);
+    grid.innerHTML = picks.length ? picks.map(pick => `<article class="recommend" style="--recommend-poster:url('${String(pick.poster_url || '').replace(/[\\'\"]/g, '')}')"><small>${escapeHtml((pick.genres || []).slice(0, 2).join(' · ') || '취향 추천')}</small><h3>${escapeHtml(pick.title)}</h3><p>${escapeHtml(pick.reason)}</p></article>`).join('') : `<p class="recommend-loading">${escapeHtml(data.follow_up || '현재 기록에서 추천 후보를 찾지 못했어요.')}</p>`;
+  } catch (error) {
+    grid.innerHTML = `<p class="recommend-loading">추천을 불러오지 못했어요. ${escapeHtml(error.message)}</p>`;
+  }
 }
 const onboardingMemoryMatches = {
   mha: [
@@ -270,10 +292,10 @@ function showOnboardingStep(name) {
 }
 
 function updateOnboardingSelection() {
-  $$('[data-onboarding-title]').forEach(button => {
-    const record = onboardingSelection.get(button.dataset.onboardingTitle);
-    button.classList.toggle('selected', Boolean(record));
-    const summary = $('[data-onboarding-summary]', button);
+  $$('[data-onboarding-title]').forEach(card => {
+    const record = onboardingSelection.get(card.dataset.onboardingTitle);
+    card.classList.toggle('selected', Boolean(record?.status));
+    const summary = $('[data-onboarding-summary]', card);
     if (!record) summary.textContent = '';
     else if (record.status === 'planned') summary.textContent = '보고 싶어요 · 아직 안 봄';
     else {
@@ -281,8 +303,9 @@ function updateOnboardingSelection() {
       summary.textContent = `${status} · ${record.season_name} ${record.seen_ep}화`;
     }
   });
-  $('#onboarding-selection-count').textContent = `${onboardingSelection.size}개 저장`;
-  $('#onboarding-to-details').disabled = onboardingSelection.size === 0;
+  const savedCount = [...onboardingSelection.values()].filter(record => record.status).length;
+  $('#onboarding-selection-count').textContent = `${savedCount}개 저장`;
+  $('#onboarding-to-details').disabled = savedCount === 0;
 }
 
 function onboardingEpisodeOptions(total, selected) {
@@ -306,87 +329,78 @@ function findOnboardingMemoryMatch(id, question) {
   })).sort((a, b) => b.score - a.score).find(match => match.score > 0) || null;
 }
 
-function openOnboardingEditor(id) {
+function openOnboardingEditor(id, showWatchingPicker = false) {
   const title = onboardingTitles[id];
   if (!onboardingSelection.has(id)) onboardingSelection.set(id, {
-    series_id:id, title:title.title, status:'watching', season:title.defaultSeason,
+    series_id:id, title:title.title, status:'', season:title.defaultSeason,
     season_name:title.seasons[title.defaultSeason - 1][0], seen_ep:title.defaultEpisode, rating:null
   });
   const record = onboardingSelection.get(id);
   const season = title.seasons[record.season - 1] || title.seasons[0];
-  const editor = $('#onboarding-editor');
+  $$('.onboarding-card-editor').forEach(openEditor => {
+    if (openEditor.closest('[data-onboarding-title]')?.dataset.onboardingTitle !== id) openEditor.hidden = true;
+  });
+  const card = $(`[data-onboarding-title="${CSS.escape(id)}"]`);
+  const editor = $('.onboarding-card-editor', card);
   editor.hidden = false;
   editor.dataset.editing = id;
-  editor.innerHTML = `<header><div><small>시청 상태 설정</small><h3>${title.title}</h3></div><button type="button" data-editor-close aria-label="설정 닫기">×</button></header>
-    <div class="onboarding-status" role="group" aria-label="시청 상태">
-      <button type="button" data-watch-status="planned" class="${record.status === 'planned' ? 'active' : ''}">보고 싶어요<small>아직 안 봄</small></button>
-      <button type="button" data-watch-status="watching" class="${record.status === 'watching' ? 'active' : ''}">시청 중<small>회차 기록</small></button>
-      <button type="button" data-watch-status="completed" class="${record.status === 'completed' ? 'active' : ''}">다 봤어요<small>완료</small></button>
-    </div>
-    <div class="onboarding-picker ${record.status === 'planned' ? 'disabled' : ''}">
+  editor.innerHTML = `<header><div><small>${showWatchingPicker ? '어디까지 봤나요?' : '시청 상태 설정'}</small><h3>${title.title}</h3></div><button type="button" data-editor-close aria-label="설정 닫기">×</button></header>${showWatchingPicker ? `
+    <div class="onboarding-picker simple-picker">
       <label>시즌<select id="onboarding-season">${title.seasons.map(([name], index) => `<option value="${index + 1}"${index + 1 === record.season ? ' selected' : ''}>${name}</option>`).join('')}</select></label>
-      <label>마지막으로 본 회차<select id="onboarding-episode">${onboardingEpisodeOptions(season[1], record.seen_ep)}</select></label>
-      <label>평점 · 선택<select id="onboarding-rating"><option value="">선택 안 함</option>${[1,1.5,2,2.5,3,3.5,4,4.5,5].map(score => `<option value="${score}"${score === record.rating ? ' selected' : ''}>${score}점</option>`).join('')}</select></label>
+      <label>마지막으로 본 회차<select id="onboarding-episode">${onboardingEpisodeOptions(season[1], record.seen_ep || 1)}</select></label>
     </div>
-    <section class="onboarding-agent-help">
-      <header><span><img src="assets/midoriya-mascot.png?v=2" alt=""></span><div><b>AniWhere Agent에게 장면으로 말하기</b><small>회차가 기억나지 않아도 괜찮아요.</small></div></header>
-      <form id="onboarding-memory-form"><input id="onboarding-memory-input" autocomplete="off" placeholder="예: 비스케를 만나 수련하기 시작한 데까지 봤어"><button type="submit">장면 찾기 ↗</button></form>
-      <div class="onboarding-agent-response" id="onboarding-agent-response"><p>기억나는 인물·장소·사건을 한 문장으로 말해주세요.</p></div>
-    </section>
-    <footer><button type="button" data-editor-remove>목록에서 제거</button><span>프로토타입 작품 데이터</span><button type="button" class="primary" data-editor-done>이 설정으로 저장</button></footer>`;
-  const sync = () => {
-    const current = onboardingSelection.get(id);
-    const selectedSeason = Number($('#onboarding-season').value);
-    current.season = selectedSeason;
-    current.season_name = title.seasons[selectedSeason - 1][0];
-    current.seen_ep = current.status === 'planned' ? 0 : Number($('#onboarding-episode').value);
-    const rating = $('#onboarding-rating').value;
-    current.rating = rating === '' ? null : Number(rating);
-    updateOnboardingSelection();
-  };
+    <button type="button" class="onboarding-watching-done" data-watching-done>여기까지 봤어요</button>
+    <button type="button" class="onboarding-forgot" data-watching-forgot>기억 안 나요</button>` : `
+    <div class="onboarding-status simple-status" role="group" aria-label="시청 상태">
+      <button type="button" data-watch-status="completed">다 봤어요<small>시청 완료</small></button>
+      <button type="button" data-watch-status="watching">시청 중<small>어디까지 봤는지 선택</small></button>
+      <button type="button" data-watch-status="planned">보고 싶어요<small>나중에 볼 작품</small></button>
+    </div>`}`;
   $$('[data-watch-status]', editor).forEach(button => button.addEventListener('click', () => {
     record.status = button.dataset.watchStatus;
     if (record.status === 'completed') {
       record.season = title.seasons.length;
       record.season_name = title.seasons.at(-1)[0];
       record.seen_ep = title.seasons.at(-1)[1];
-    } else if (record.status === 'planned') record.seen_ep = 0;
-    else if (!record.seen_ep) record.seen_ep = 1;
-    openOnboardingEditor(id);
+      editor.hidden = true;
+      updateOnboardingSelection();
+      showToast(`${title.title}을 다 본 작품으로 저장했어요.`);
+    } else if (record.status === 'planned') {
+      record.seen_ep = 0;
+      editor.hidden = true;
+      updateOnboardingSelection();
+      showToast(`${title.title}을 보고 싶은 작품으로 저장했어요.`);
+    } else {
+      if (!record.seen_ep) record.seen_ep = 1;
+      openOnboardingEditor(id, true);
+    }
   }));
-  $('#onboarding-season').addEventListener('change', event => {
+  $('#onboarding-season', editor)?.addEventListener('change', event => {
     const selectedSeason = Number(event.target.value);
     record.season = selectedSeason;
     record.season_name = title.seasons[selectedSeason - 1][0];
     record.seen_ep = Math.min(record.seen_ep || 1, title.seasons[selectedSeason - 1][1]);
-    openOnboardingEditor(id);
+    openOnboardingEditor(id, true);
   });
-  $('#onboarding-episode').addEventListener('change', sync);
-  $('#onboarding-rating').addEventListener('change', sync);
-  $('#onboarding-memory-form').addEventListener('submit', event => {
-    event.preventDefault();
-    const query = $('#onboarding-memory-input').value.trim();
-    if (!query) return;
-    const response = $('#onboarding-agent-response');
-    response.innerHTML = '<p class="searching">시청 기록 후보를 찾는 중…</p>';
-    setTimeout(() => {
-      const match = findOnboardingMemoryMatch(id, query);
-      if (!match) {
-        response.innerHTML = '<p><b>조금만 더 알려주세요.</b><br>등장인물, 장소 또는 기억나는 행동을 함께 말하면 더 정확히 찾을 수 있어요.</p>';
-        return;
-      }
-      const seasonName = title.seasons[match.season - 1][0];
-      response.innerHTML = `<p><b>${seasonName} · ${match.episode}화일 가능성이 ${match.confidence === '높음' ? '높아요' : '있어요'}.</b><br>${match.evidence}과 가장 가까워요.</p><button type="button" data-apply-memory>여기까지 본 것으로 기록</button>`;
-      $('[data-apply-memory]', response).addEventListener('click', () => {
-        record.status = 'watching'; record.season = match.season; record.season_name = seasonName; record.seen_ep = match.episode;
-        openOnboardingEditor(id);
-        showToast(`${seasonName} · ${match.episode}화로 적용했어요.`);
-      });
-    }, 650);
+  $('[data-watching-done]', editor)?.addEventListener('click', () => {
+    record.status = 'watching';
+    record.seen_ep = Number($('#onboarding-episode', editor).value);
+    record.rating = null;
+    editor.hidden = true;
+    updateOnboardingSelection();
+    showToast(`${title.title} 시청 지점을 저장했어요.`);
   });
-  $('[data-editor-close]', editor).addEventListener('click', () => { editor.hidden = true; });
-  $('[data-editor-done]', editor).addEventListener('click', () => { sync(); editor.hidden = true; showToast(`${title.title} 기록을 저장했어요.`); });
-  $('[data-editor-remove]', editor).addEventListener('click', () => { onboardingSelection.delete(id); editor.hidden = true; updateOnboardingSelection(); });
+  $('[data-watching-forgot]', editor)?.addEventListener('click', () => {
+    record.status = 'watching'; record.seen_ep = 0; record.rating = null;
+    editor.hidden = true;
+    updateOnboardingSelection();
+    showToast('메인 AI 대화에서 기억나는 장면을 말해주세요.');
+  });
+  $('[data-editor-close]', editor).addEventListener('click', () => {
+    if (!record.status) onboardingSelection.delete(id);
+    editor.hidden = true;
+    updateOnboardingSelection();
+  });
   updateOnboardingSelection();
   requestAnimationFrame(() => editor.scrollIntoView({ behavior:'smooth', block:'nearest' }));
 }
@@ -455,7 +469,6 @@ function clearConversationContext() {
   $('.rail-heading').hidden = true;
   $('.watch-context').hidden = true;
   $('.spoiler-lock').hidden = true;
-  $('.rail-actions').hidden = true;
   $$('[data-context-seen]').forEach(button => { button.hidden = true; });
   renderRailRecords();
 }
@@ -465,6 +478,8 @@ async function applyConversationContext(seriesId, seenEp = null, fallbackTitle =
   activeSeriesId = seriesId;
   activeCandidateEp = seenEp == null && candidateEp != null ? Number(candidateEp) : null;
   const local = savedWatchRecords.find(record => record.series_id === seriesId);
+  const localSeenEp = local && local.status !== 'planned' ? recordAbsoluteEpisode(local) : null;
+  const effectiveSeenEp = Number(seenEp) > 0 ? Number(seenEp) : Number(localSeenEp) > 0 ? Number(localSeenEp) : null;
   let series = null;
   try { series = await api(`/api/series/${encodeURIComponent(seriesId)}`); } catch {}
   const title = series?.name || series?.title || local?.title || local?.name || fallbackTitle || '확인된 작품';
@@ -477,12 +492,11 @@ async function applyConversationContext(seriesId, seenEp = null, fallbackTitle =
   const image = $('.watch-context img');
   image.hidden = !imageUrl;
   if (imageUrl) { image.src = imageUrl; image.alt = `${title} 포스터`; }
-  $('.watch-context b').textContent = seenEp == null ? '대화에서 확인된 작품' : `전체 ${seenEp}화까지 확인`;
-  $('.watch-context span').textContent = seenEp == null ? '질문에 따라 실시간으로 바뀌어요' : '이 지점 이후는 스포일러 보호';
-  $('.rail-actions').hidden = false;
-  const hasSeen = Number.isFinite(Number(seenEp));
+  $('.watch-context b').textContent = effectiveSeenEp == null ? '대화에서 확인된 작품' : `전체 ${effectiveSeenEp}화까지 확인`;
+  $('.watch-context span').textContent = effectiveSeenEp == null ? '질문에 따라 실시간으로 바뀌어요' : '이 지점 이후는 스포일러 보호';
+  const hasSeen = Number.isFinite(Number(effectiveSeenEp));
   $('.spoiler-lock').hidden = !hasSeen;
-  if (hasSeen) $('.spoiler-lock span').textContent = `${Number(seenEp)}화 이후 청크는 검색 전에 제외`;
+  if (hasSeen) $('.spoiler-lock span').textContent = `${Number(effectiveSeenEp)}화 이후 청크는 검색 전에 제외`;
   $$('[data-context-seen]').forEach(button => { button.hidden = !hasSeen; });
   renderRailRecords();
 }
@@ -490,13 +504,61 @@ async function applyConversationContext(seriesId, seenEp = null, fallbackTitle =
 function renderRailRecords() {
   const rail = $('#rail-posters');
   if (!rail) return;
-  const records = savedWatchRecords.filter(record => record.status !== 'planned');
-  rail.innerHTML = records.map(record => {
+  const records = savedWatchRecords;
+  if (records.length <= 8) railRecordsExpanded = false;
+  const posterButton = record => {
     const localTitle = onboardingTitles[record.series_id];
     const title = record.title || record.name || localTitle?.title || '작품';
     const image = record.poster_url || (localTitle ? onboardingImage(localTitle) : '');
     return `<button class="rail-record-poster ${record.series_id === activeSeriesId ? 'active' : ''}" type="button" data-rail-series="${escapeHtml(record.series_id)}" title="${escapeHtml(title)}">${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(title)}">` : '<span>AW</span>'}</button>`;
-  }).join('');
+  };
+  const visible = railRecordsExpanded ? records : records.slice(0, 8);
+  let html = visible.map(posterButton).join('');
+  if (!railRecordsExpanded && records.length > 8) {
+    const rotating = records.slice(8, 14).map((record, index) => {
+      const localTitle = onboardingTitles[record.series_id];
+      const image = record.poster_url || (localTitle ? onboardingImage(localTitle) : '');
+      return image ? `<img src="${escapeHtml(image)}" alt="" style="--poster-index:${index}">` : '';
+    }).join('');
+    html += `<button type="button" class="rail-record-more-tile" data-rail-toggle="expand"><span class="rail-more-posters">${rotating}</span><span class="rail-more-shade"></span><b>${records.length - 8}개 작품<br>더보기</b></button>`;
+  }
+  rail.innerHTML = html;
+  const more = $('#rail-records-more');
+  if (more) {
+    more.hidden = !railRecordsExpanded;
+    more.textContent = '시청 기록 접기 ↑';
+    more.dataset.railToggle = 'collapse';
+  }
+  const watching = records.filter(record => record.status === 'watching');
+  const tip = $('#rail-watch-tip');
+  if (tip) {
+    const names = watching.slice(0, 2).map(record => record.title || record.name || onboardingTitles[record.series_id]?.title || '선택한 작품');
+    const titleText = `${names.join(', ')}${watching.length > 2 ? ` 외 ${watching.length - 2}작품` : ''}`;
+    const exampleTitle = records[0]?.title || records[0]?.name || onboardingTitles[records[0]?.series_id]?.title || '좋아하는 작품';
+    railTipMessages = [
+      watching.length ? `시청 중인 ${titleText}에서 어디까지 기억나는지 말해주시면, 어느 회차까지 봤는지 찾아드려요!` : '기억나는 장면을 말해주시면 어느 작품의 몇 화인지 찾아드려요!',
+      `좋아하는 작품과 비슷한 애니를 찾으려면 “${exampleTitle} 같은 애니 알려줘”를 쳐보세요!`,
+      '스포일러 없는 애니 추천 문구를 받아서 친구에게 바로 보내보세요!'
+    ];
+    tip.hidden = records.length === 0;
+    railTipIndex %= railTipMessages.length;
+    showRailTip();
+    clearInterval(railTipTimer);
+    railTipTimer = setInterval(() => advanceRailTip(1), 5500);
+  }
+}
+
+function showRailTip() {
+  const tip = $('#rail-watch-tip');
+  if (!tip || tip.hidden || !railTipMessages.length) return;
+  $('p', tip).textContent = railTipMessages[railTipIndex];
+  $('.tip-index', tip).textContent = `${railTipIndex + 1}/${railTipMessages.length}`;
+}
+
+function advanceRailTip(direction) {
+  if (!railTipMessages.length) return;
+  railTipIndex = (railTipIndex + direction + railTipMessages.length) % railTipMessages.length;
+  showRailTip();
 }
 
 async function persistOnboardingRecords(records) {
@@ -524,10 +586,11 @@ function renderLibrary() {
     const article = document.createElement('article');
     article.className = `watch-card featured real-record record-${record.status || 'watching'}`;
     article.dataset.recordSeries = record.series_id;
-    article.innerHTML = `${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(title)} 포스터">` : '<div class="record-cover-fallback">AniWhere</div>'}<div class="watch-copy"><span class="watching record-status">${record.status === 'completed' ? '✓ 시청 완료' : status}</span><h2>${escapeHtml(title)}</h2><p>${escapeHtml(position)}</p><small>${record.status === 'planned' ? '시청을 시작하면 스포일러 보호 범위를 설정할 수 있어요.' : record.status === 'completed' ? '전 회차를 시청 완료한 작품입니다.' : '저장한 회차 이후 정보는 보호됩니다.'}</small><button type="button" class="record-edit-button" data-record-edit="${escapeHtml(record.series_id)}">기록 수정</button></div>`;
+    article.innerHTML = `<div class="record-poster-shell">${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(title)} 포스터">` : '<div class="record-cover-fallback">AniWhere</div>'}<div class="record-card-overlay"><strong>${escapeHtml(title)}</strong>${record.status !== 'planned' ? '<button type="button" data-record-action="recap">3분 복습</button>' : ''}<button type="button" data-record-action="providers">시청처 보기</button><button type="button" data-record-action="edit">기록 수정</button></div></div><div class="watch-copy"><span class="watching record-status">${record.status === 'completed' ? '✓ 시청 완료' : status}</span><h2>${escapeHtml(title)}</h2><p>${escapeHtml(position)}</p><small>${record.status === 'planned' ? '시청을 시작하면 스포일러 보호 범위를 설정할 수 있어요.' : record.status === 'completed' ? '전 회차를 시청 완료한 작품입니다.' : '저장한 회차 이후 정보는 보호됩니다.'}</small><button type="button" class="record-edit-button" data-record-edit="${escapeHtml(record.series_id)}">기록 수정</button></div>`;
     grid.appendChild(article);
   });
   renderRailRecords();
+  loadPersonalRecommendations();
 }
 
 function saveLocalRecord(record) {
@@ -594,11 +657,25 @@ function setSuggestions(items = []) {
   items.forEach(item => {
     const label = typeof item === 'string' ? item : item.label;
     const message = typeof item === 'string' ? item : item.message;
+    const action = typeof item === 'string' ? null : item.action;
     const button = document.createElement('button');
     button.type = 'button'; button.textContent = label;
-    button.addEventListener('click', () => send(message || label));
+    button.addEventListener('click', () => {
+      if (action === 'dictionary') openDictionary();
+      else if (action === 'recap') hasRecord ? openRecap() : showToast('복습할 시청 기록을 먼저 추가해 주세요.');
+      else if (action === 'providers') activeSeriesId ? openProviders() : send('내 시청 기록 중 볼 수 있는 곳을 알려줘');
+      else send(message || label);
+    });
     suggestions.appendChild(button);
   });
+}
+
+function setQuickSuggestions() {
+  setSuggestions([
+    { label:'3분 복습', action:'recap' },
+    { label:'시청처 보기', action:'providers' },
+    { label:'인물 사전', action:'dictionary' }
+  ]);
 }
 
 function reply(text, labels = [], card = '', actions = ['시청 기록 확인 중…', '관련 청크 찾는 중…']) {
@@ -616,7 +693,7 @@ function resetChat() {
   localStorage.removeItem(CHAT_HISTORY_KEY); localStorage.removeItem(CHAT_MESSAGES_KEY);
   messages.replaceChildren(); setSuggestions();
   addMessage('agent', '애니에 관한 무엇이든 물어보세요! 흐릿하게 기억나는 장면도 작품과 회차까지 함께 찾아드릴게요.');
-  setSuggestions(hasRecord ? ['마지막으로 본 장면을 찾고 싶어', '내 기록까지 복습해줘', '어디서 볼 수 있어?'] : ['기억나는 장면으로 작품 찾기', '취향에 맞는 애니 추천받기']);
+  setQuickSuggestions();
 }
 
 function startTasteInterview() {
@@ -636,12 +713,17 @@ function resultCardFromChat(data) {
     const candidate = found.candidates[0];
     return `<div class="result-card result-with-poster" data-series-id="${escapeHtml(candidate.series_id)}"><div class="result-copy"><small>${found.status === 'episode' ? '회차 후보' : '작품 후보'}</small><h3>${escapeHtml(candidate.title || candidate.name || candidate.series_id)}</h3><p>${escapeHtml(candidate.label || (candidate.abs_ep ? `전체 ${candidate.abs_ep}화` : '추가 단서를 알려주세요.'))}</p></div><div class="result-poster-placeholder" aria-hidden="true">AniWhere</div></div>`;
   }
+  const searched = results.search_series?.items || [];
+  if (searched.length === 1) {
+    const series = searched[0];
+    return `<div class="result-card result-with-poster" data-series-id="${escapeHtml(series.series_id)}"><div class="result-copy"><small>작품 확인</small><h3>${escapeHtml(series.name || series.title || series.series_id)}</h3><p>이 작품에 대해 이어서 물어보세요.</p></div>${series.poster_url ? `<img class="result-poster" src="${escapeHtml(series.poster_url)}" alt="${escapeHtml(series.name || series.title || '')} 포스터">` : '<div class="result-poster-placeholder" aria-hidden="true">AniWhere</div>'}</div>`;
+  }
   const review = results.review;
   if (review?.answer) return `<div class="result-card"><small>${review.seen_ep}화까지 복습</small><p>${escapeHtml(review.answer)}</p><button type="button" class="result-recap-button" data-open-review>3분 요약 열기 →</button></div>`;
   const watching = results.where_to_watch;
-  if (watching?.seasons?.length) return `<div class="result-card provider-overview"><small>시청처 안내</small><h3>${escapeHtml(watching.title)}</h3><p>${watching.seasons.map(season => `${escapeHtml(season.name)} · ${season.providers.map(escapeHtml).join(', ')}`).join('<br>')}</p><div class="result-providers">${providerButtons(watching)}</div></div>`;
-  const recommended = results.recommend?.picks?.[0];
-  if (recommended) return `<div class="result-card"><small>취향 추천</small><h3>${escapeHtml(recommended.title)}</h3><p>${escapeHtml(recommended.reason)}</p></div>`;
+  if (watching?.seasons?.length) return `<div class="result-card provider-overview result-with-poster" data-series-id="${escapeHtml(watching.series_id || data.context?.series_id || '')}"><div class="result-copy"><small>시청처 안내</small><h3>${escapeHtml(watching.title)}</h3><p>${watching.seasons.map(season => `${escapeHtml(season.name)} · ${season.providers.map(escapeHtml).join(', ')}`).join('<br>')}</p></div><div class="result-poster-placeholder" aria-hidden="true">AniWhere</div><div class="result-providers">${providerButtons(watching)}</div></div>`;
+  const recommended = results.recommend?.picks || [];
+  if (recommended.length) return `<div class="recommendation-result-grid">${recommended.map(pick => `<div class="result-card taste-pick result-with-poster" data-series-id="${escapeHtml(pick.series_id)}"><div class="result-copy"><small>취향 추천</small><h3>${escapeHtml(pick.title)}</h3><p>${escapeHtml(pick.reason)}</p></div>${pick.poster_url ? `<img class="result-poster" src="${escapeHtml(pick.poster_url)}" alt="${escapeHtml(pick.title)} 포스터">` : '<div class="result-poster-placeholder" aria-hidden="true">AniWhere</div>'}</div>`).join('')}</div>`;
   return '';
 }
 
@@ -713,7 +795,7 @@ async function hydrateResultPoster(seriesId, card = null) {
 }
 
 async function handleTasteInterview(text) {
-  addMessage('user', escapeHtml(text)); question.value = '';
+  addMessage('user', escapeHtml(text)); question.value = ''; resizeComposer();
   tasteInterview.answers.push(text); tasteInterview.step += 1;
   if (tasteInterview.step < tasteQuestions.length) {
     reply(tasteQuestions[tasteInterview.step], ['잘 모르겠어요']);
@@ -743,7 +825,7 @@ async function send(value) {
   if (persona === 'l' && tasteInterview.active) { handleTasteInterview(text); return; }
   if (text === '3분 복습') { if (hasRecord) openRecap('직전 내용'); else showToast('복습할 시청 지점을 먼저 찾아주세요.'); return; }
   if (text === '시청처 보기') { openProviders(); return; }
-  addMessage('user', escapeHtml(text)); question.value = '';
+  addMessage('user', escapeHtml(text)); question.value = ''; resizeComposer();
   busy = true; setSuggestions();
   const typing = document.createElement('div'); typing.className = 'typing';
   typing.innerHTML = '<i></i><span>Agent가 답변을 생각하고 있어요…</span>'; messages.appendChild(typing);
@@ -756,11 +838,16 @@ async function send(value) {
     const foundCandidates = data.results?.find?.candidates || [];
     const foundSeriesId = foundCandidates[0]?.series_id;
     if (foundSeriesId) { hydrateResultPoster(foundSeriesId); hydrateWatchProviders(foundSeriesId); }
+    $$('[data-series-id]', messages).slice(-8).forEach(card => {
+      if (!card.dataset.seriesId) return;
+      hydrateResultPoster(card.dataset.seriesId, card);
+      if (!card.querySelector('.result-providers')) hydrateWatchProviders(card.dataset.seriesId, card);
+    });
     const nextSuggestions = data.suggestions || [];
     if (!nextSuggestions.length && activeCandidateEp != null && /^(응|네|맞아|맞아요|그래|그거야)[.! ]*$/.test(text)) {
       nextSuggestions.push({ label:`${activeCandidateEp}화까지 봤어요`, message:`${activeSeriesTitle} ${activeCandidateEp}화까지 봤어` });
     }
-    setSuggestions(nextSuggestions);
+    setQuickSuggestions();
     chatHistory.push({ role:'user', content:apiMessage }, { role:'assistant', content:data.answer, context:data.context || null });
     persistConversation();
     if (data.results?.save_record) saveLocalRecord(data.results.save_record);
@@ -972,7 +1059,7 @@ function updateHunterGraph() {
     edge.classList.remove('related','dimmed');
   });
   $$('.hunter-node').forEach(node => node.classList.remove('selected'));
-  $('#hunter-detail').innerHTML = `<small>SPOILER SAFE · EP ${episode}</small><h3>${hunterCheckpoints[episode]}</h3><p>이 시점까지 확인된 인물과 관계만 연결했어요. 노드나 선을 선택해 설명을 확인하세요.</p><span>${episode < 139 ? '잠긴 실루엣은 이후 회차에 공개됩니다.' : '준비된 모든 관계가 공개됐어요.'}</span>`;
+  $('#hunter-detail').innerHTML = `<small>SPOILER SAFE · EP ${episode}</small><h3>${hunterCheckpoints[episode] || `내 시청 기록 · ${episode}화`}</h3><p>이 시점까지 확인된 인물과 관계만 연결했어요. 노드나 선을 선택해 설명을 확인하세요.</p><span>${episode < 139 ? '잠긴 실루엣은 이후 회차에 공개됩니다.' : '준비된 모든 관계가 공개됐어요.'}</span>`;
 }
 
 function filterDictionary() {
@@ -991,12 +1078,16 @@ function filterDictionary() {
   $('#dictionary-safe-label').textContent = `${episode}화까지 공개`;
 }
 
-function openHunterDictionary() {
+function openHunterDictionary(seenEp = 63) {
+  const safeEpisode = Math.max(0, Number(seenEp ?? 63));
+  const checkpointOptions = Object.entries(hunterCheckpoints).filter(([episode]) => Number(episode) <= safeEpisode);
+  if (!checkpointOptions.some(([episode]) => Number(episode) === safeEpisode)) checkpointOptions.push([String(safeEpisode), `내 시청 기록 · ${safeEpisode}화`]);
+  checkpointOptions.sort((a, b) => Number(a[0]) - Number(b[0]));
   const categories = ['전체', ...new Set(hunterDictionary.map(([, category]) => category))];
-  openDrawer('PROTOTYPE · FEATURE 08', '헌터×헌터 인물·용어 사전', `
+  openDrawer('PROTOTYPE · FEATURE 08', '헌터×헌터 관계도·용어 사전', `
     <div class="dictionary-toolbar">
-      <div><small>현재 시청 지점</small><select id="dictionary-checkpoint">${Object.entries(hunterCheckpoints).map(([episode, label]) => `<option value="${episode}"${episode === '63' ? ' selected' : ''}>${label}</option>`).join('')}</select></div>
-      <span class="dictionary-safe" id="dictionary-safe-label">63화까지 공개</span>
+      <div><small>시청 기록과 연동된 지점</small><select id="dictionary-checkpoint">${checkpointOptions.map(([episode, label]) => `<option value="${episode}"${Number(episode) === safeEpisode ? ' selected' : ''}>${label}</option>`).join('')}</select></div>
+      <span class="dictionary-safe" id="dictionary-safe-label">${safeEpisode}화까지 공개</span>
     </div>
     <div class="dictionary-tabs" role="tablist" aria-label="사전 보기 선택">
       <button class="active" data-dictionary-tab="relations" role="tab">인물 관계</button>
@@ -1042,22 +1133,53 @@ function openHunterDictionary() {
 
 function isHunterTitle(title) { return /헌터\s*[×xX]?\s*헌터|hunter\s*[×xX]?\s*hunter/i.test(title || ''); }
 
+const dictionaryKorean = {
+  'Caesar Zeppeli':'윌 A. 체펠리의 손자이자 파문 전사입니다. 침착하고 세련된 성격이며 조셉과 함께 기둥 속 사내들과 맞섭니다.',
+  'Dio Brando':'죠스타 가문과 깊은 악연으로 얽힌 인물입니다. 강한 야망과 집착을 지녔으며 이야기의 핵심 대립을 만듭니다.',
+  'Jonathan Joestar':'정직하고 정의로운 죠스타 가문의 후계자입니다. 디오와의 갈등 속에서 신사로서의 신념을 지키며 성장합니다.',
+  'Joseph Joestar':'재치와 임기응변이 뛰어난 죠스타 가문의 인물입니다. 상대의 수를 읽는 독특한 전투 방식으로 위기를 돌파합니다.',
+  'Denji':'빚을 갚기 위해 데빌 헌터로 살아가던 소년입니다. 포치타와 계약한 뒤 체인소의 힘을 사용할 수 있게 됩니다.',
+  'Makima':'공안 소속 데빌 헌터로 덴지를 조직에 받아들인 인물입니다. 차분하고 위압적인 분위기로 주변 사람들을 이끕니다.',
+  'Aki Hayakawa':'공안 대마 특이과 소속 데빌 헌터입니다. 악마에게 가족을 잃은 뒤 복수를 목표로 싸우고 있습니다.',
+  'Power':'피의 마인으로 덴지와 함께 공안에서 활동합니다. 제멋대로인 성격이지만 동료들과 함께하며 관계가 달라집니다.',
+  'Bouryoku no Majin':'공안에서 활동하는 폭력의 마인입니다. 강한 힘을 억제하기 위해 항상 독성이 있는 가면을 착용합니다.'
+};
+const dictionaryKoreanNames = {
+  'Caesar Zeppeli':'시저 안토니오 체펠리', 'Dio Brando':'디오 브란도',
+  'Jonathan Joestar':'조나단 죠스타', 'Joseph Joestar':'죠셉 죠스타',
+  'Denji':'덴지', 'Makima':'마키마', 'Aki Hayakawa':'하야카와 아키',
+  'Power':'파워', 'Bouryoku no Majin':'폭력의 마인'
+};
+
+function koreanDictionaryDescription(entry) {
+  if (dictionaryKorean[entry.name]) return dictionaryKorean[entry.name];
+  if (/[가-힣]/.test(entry.text || '')) return entry.text;
+  return '한국어 인물 설명을 준비하고 있어요. 현재는 이름과 최초 등장 회차를 기준으로 스포일러 없이 표시합니다.';
+}
+
+function hunterPrototypeTeaser() {
+  return `<section class="hunter-prototype-teaser"><div><small>HUNTER × HUNTER · PROTOTYPE</small><h3>인물 관계도와 용어 사전</h3><p>열심히 만든 기존 관계선·인물 사진·회차별 공개 범위를 그대로 확인할 수 있어요.</p></div><img src="assets/zoldyck-family-map.png" alt="헌터×헌터 인물 관계도 미리보기"><button type="button" data-open-hunter-prototype>관계도·용어 사전 열기 →</button></section>`;
+}
+
 async function showSeriesDictionary(seriesId, title, posterUrl, seenEp = null) {
-  if (isHunterTitle(title)) { openHunterDictionary(); return; }
+  if (isHunterTitle(title)) { openHunterDictionary(seenEp); return; }
   if (seenEp == null) {
-    openDrawer('FEATURE 08 · SPOILER SAFE', `${title} 인물·용어 사전`, `<div class="dictionary-series-head">${posterUrl ? `<img src="${escapeHtml(posterUrl)}" alt="">` : ''}<div><h3>어디까지 봤나요?</h3><p>선택한 회차까지 등장한 인물과 용어만 보여드려요.</p></div></div><form class="dictionary-episode-form" id="dictionary-episode-form"><label>전체 기준 회차<input id="dictionary-episode-input" type="number" min="1" value="1" required></label><button>사전 열기</button></form><button class="text-button" data-dictionary-browse>← 다른 작품 찾기</button>`);
+    openDrawer('FEATURE 08 · SPOILER SAFE', `${title} 인물 사전`, `<div class="dictionary-series-head">${posterUrl ? `<img src="${escapeHtml(posterUrl)}" alt="">` : ''}<div><h3>어디까지 봤나요?</h3><p>선택한 회차까지 등장한 인물만 보여드려요.</p></div></div><form class="dictionary-episode-form" id="dictionary-episode-form"><label>전체 기준 회차<input id="dictionary-episode-input" type="number" min="1" value="1" required></label><button>인물 사전 열기</button></form><button class="text-button" data-dictionary-browse>← 다른 작품 찾기</button>${hunterPrototypeTeaser()}`);
     $('#dictionary-episode-form').addEventListener('submit', event => { event.preventDefault(); showSeriesDictionary(seriesId, title, posterUrl, Number($('#dictionary-episode-input').value)); });
     $('[data-dictionary-browse]').addEventListener('click', openDictionary);
+    $('[data-open-hunter-prototype]')?.addEventListener('click', openHunterDictionary);
     return;
   }
-  openDrawer('FEATURE 08 · SPOILER SAFE', `${title} 인물·용어 사전`, '<div class="drawer-card"><p>현재 회차까지의 사전을 불러오고 있어요…</p></div>');
+  openDrawer('FEATURE 08 · SPOILER SAFE', `${title} 인물 사전`, '<div class="drawer-card"><p>현재 회차까지의 인물을 불러오고 있어요…</p></div>');
   try {
     const suffix = seenEp == null ? '' : `?seen_ep=${encodeURIComponent(seenEp)}`;
     const data = await api(`/api/series/${encodeURIComponent(seriesId)}/dictionary${suffix}`);
     if (data.seen_ep == null) { showSeriesDictionary(seriesId, title, posterUrl, null); return; }
-    const entries = (data.entries || []).map(entry => `<article class="dictionary-api-entry"><small>${escapeHtml(entry.kind === 'character' ? '인물' : '용어')} · ${entry.first_ep || '?'}화 공개</small><h3>${escapeHtml(entry.name)}</h3><p>${escapeHtml(entry.text)}</p></article>`).join('');
-    $('#drawer-content').innerHTML = `<div class="dictionary-series-head">${posterUrl ? `<img src="${escapeHtml(posterUrl)}" alt="${escapeHtml(title)} 포스터">` : ''}<div><small>${data.seen_ep}화까지 공개</small><h3>${escapeHtml(title)}</h3><p>이후 회차에 처음 등장하는 정보는 숨겼어요.</p></div></div>${entries || '<div class="drawer-card"><p>이 작품은 아직 준비된 인물·용어 데이터가 없어요.</p></div>'}<button class="text-button" data-dictionary-browse>← 더 많은 작품의 사전 찾기</button>`;
+    const characters = (data.entries || []).filter(entry => ['character','appearance'].includes(entry.kind));
+    const entries = characters.map(entry => `<article class="dictionary-api-entry"><small>인물 · ${entry.first_ep || '?'}화 공개</small><h3>${escapeHtml(dictionaryKoreanNames[entry.name] || entry.name)}</h3><p>${escapeHtml(koreanDictionaryDescription(entry))}</p></article>`).join('');
+    $('#drawer-content').innerHTML = `<div class="dictionary-series-head">${posterUrl ? `<img src="${escapeHtml(posterUrl)}" alt="${escapeHtml(title)} 포스터">` : ''}<div><small>${data.seen_ep}화까지 공개</small><h3>${escapeHtml(title)}</h3><p>이후 회차에 처음 등장하는 인물은 숨겼어요.</p></div></div>${entries || '<div class="drawer-card"><p>이 작품은 아직 준비된 인물 데이터가 없어요.</p></div>'}<button class="text-button" data-dictionary-browse>← 더 많은 작품의 인물 사전 찾기</button>${hunterPrototypeTeaser()}`;
     $('[data-dictionary-browse]').addEventListener('click', openDictionary);
+    $('[data-open-hunter-prototype]')?.addEventListener('click', openHunterDictionary);
   } catch (error) { $('#drawer-content').innerHTML = `<div class="drawer-card"><h3>사전을 불러오지 못했어요.</h3><p>${escapeHtml(error.message)}</p></div><button class="text-button" data-dictionary-browse>← 다른 작품 찾기</button>`; $('[data-dictionary-browse]').addEventListener('click', openDictionary); }
 }
 
@@ -1066,17 +1188,22 @@ async function loadDictionaryCatalog(query = '') {
   if (!grid) return;
   grid.innerHTML = '<p>작품을 불러오는 중…</p>';
   try {
-    const items = await api(`/api/series?limit=30${query ? `&q=${encodeURIComponent(query)}` : ''}`);
+    const items = await api(`/api/series?limit=200${query ? `&q=${encodeURIComponent(query)}` : ''}`);
     grid.innerHTML = items.map(item => `<button type="button" data-dictionary-series="${escapeHtml(item.series_id)}" data-title="${escapeHtml(item.name || item.title)}" data-poster="${escapeHtml(item.poster_url || '')}">${item.poster_url ? `<img src="${escapeHtml(item.poster_url)}" alt="">` : '<span>AW</span>'}<b>${escapeHtml(item.name || item.title)}</b></button>`).join('') || '<p>검색 결과가 없어요.</p>';
   } catch (error) { grid.innerHTML = `<p>${escapeHtml(error.message)}</p>`; }
 }
 
 function openDictionary() {
   const records = savedWatchRecords.filter(record => record.status !== 'planned');
-  openDrawer('FEATURE 08 · SPOILER SAFE', '인물·용어 사전', `<section class="dictionary-library"><div class="dictionary-library-head"><div><small>내 시청 기록</small><h3>보고 있는 작품부터 확인하세요.</h3></div></div><div class="dictionary-record-strip">${records.length ? records.slice(0, 6).map(record => `<button type="button" data-dictionary-series="${escapeHtml(record.series_id)}" data-title="${escapeHtml(record.title || record.name)}" data-poster="${escapeHtml(record.poster_url || '')}" data-seen="${Number(recordAbsoluteEpisode(record))}">${record.poster_url ? `<img src="${escapeHtml(record.poster_url)}" alt="">` : '<span>AW</span>'}<b>${escapeHtml(record.title || record.name)}</b><small>${record.seen_ep}화까지</small></button>`).join('') : '<p>저장된 시청 기록이 없어요.</p>'}</div><div class="dictionary-more-head"><div><small>MORE DICTIONARIES</small><h3>더 많은 작품의 사전</h3></div><form id="dictionary-catalog-search"><input id="dictionary-catalog-query" type="search" placeholder="작품명 검색"><button>검색</button></form></div><div class="dictionary-catalog-grid" id="dictionary-catalog-grid"></div></section>`);
+  const current = records.find(record => record.series_id === activeSeriesId) || records[0];
+  const others = current ? records.filter(record => record.series_id !== current.series_id) : records;
+  const dictionaryCard = (record, featured = false) => { const safeEpisode = Number(recordAbsoluteEpisode(record)); const title = record.title || record.name || onboardingTitles[record.series_id]?.title || '작품'; const poster = record.poster_url || (onboardingTitles[record.series_id] ? onboardingImage(onboardingTitles[record.series_id]) : ''); return `<button type="button" class="${featured ? 'dictionary-current-card' : ''}" data-dictionary-series="${escapeHtml(record.series_id)}" data-title="${escapeHtml(title)}" data-poster="${escapeHtml(poster)}" data-seen="${safeEpisode}">${poster ? `<img src="${escapeHtml(poster)}" alt="${escapeHtml(title)} 포스터">` : '<span>AW</span>'}<b>${escapeHtml(title)}</b><small>전체 ${safeEpisode}화까지 공개</small></button>`; };
+  openDrawer('FEATURE 08 · SPOILER SAFE', '인물 사전', `<section class="dictionary-library"><div class="dictionary-library-head"><div><small>현재 대화 중인 작품</small><h3>저장한 회차까지만 인물을 공개해요.</h3></div></div>${current ? `<div class="dictionary-current">${dictionaryCard(current, true)}</div>` : '<p>저장된 시청 기록이 없어요.</p>'}${others.length ? `<div class="dictionary-saved-divider"><span>다른 저장 작품</span></div><div class="dictionary-record-strip dictionary-record-grid">${others.map(record => dictionaryCard(record)).join('')}</div>` : ''}<div class="dictionary-more-head"><div><small>MORE CHARACTERS</small><h3>더 많은 작품의 인물 사전</h3></div><form id="dictionary-catalog-search"><input id="dictionary-catalog-query" type="search" placeholder="작품명 검색"><button>검색</button></form></div><div class="dictionary-catalog-grid" id="dictionary-catalog-grid"></div>${hunterPrototypeTeaser()}</section>`);
   const content = $('#drawer-content');
   content.addEventListener('click', event => { const card = event.target.closest('[data-dictionary-series]'); if (!card) return; showSeriesDictionary(card.dataset.dictionarySeries, card.dataset.title, card.dataset.poster, card.dataset.seen ? Number(card.dataset.seen) : null); });
   $('#dictionary-catalog-search').addEventListener('submit', event => { event.preventDefault(); loadDictionaryCatalog($('#dictionary-catalog-query').value.trim()); });
+  $('#dictionary-catalog-query').addEventListener('input', event => { if (!event.target.value.trim()) loadDictionaryCatalog(); });
+  $('[data-open-hunter-prototype]')?.addEventListener('click', openHunterDictionary);
   loadDictionaryCatalog();
 }
 
@@ -1116,10 +1243,10 @@ async function openRecord() {
   } catch (error) { $('#drawer-content').innerHTML = `<div class="drawer-card"><h3>기록을 불러오지 못했어요.</h3><p>${escapeHtml(error.message)}</p></div>`; }
 }
 function openSimilar() { openDrawer('확장 프로토타입 · FEATURE 02', '“진격의 거인 같은 거”', `<div class="drawer-card"><h3>강철의 연금술사</h3><p>거대한 세계의 비밀, 군과 권력의 음모, 뒤집히는 진실이 가까워요.</p></div><div class="drawer-card"><h3>86 -에이티식스-</h3><p>전쟁 속에서 감춰진 사회 구조와 인물들의 선택을 따라가요.</p></div><div class="drawer-card"><h3>메이드 인 어비스</h3><p>미지의 세계를 탐험할수록 새로운 진실이 드러나는 작품이에요.</p></div>`); }
-function openWatchOrder() { openDrawer('확장 프로토타입 · FEATURE 03', '나의 히어로 아카데미아 시청 순서', `<div class="character-scene finished-scene light-scene"><img src="assets/light-card-user.png" alt="시청 순서를 계획하는 라이토"></div><div class="order-list"><div class="order-item"><b>1</b><div><strong>TV 애니 1기</strong><br><span>먼저 보기 · 필수</span></div><em>13화</em></div><div class="order-item"><b>2</b><div><strong>TV 애니 2기</strong><br><span>이어서 보기 · 필수</span></div><em>25화</em></div><div class="order-item"><b>3</b><div><strong>극장판: 두 명의 히어로</strong><br><span>2기 이후 추천 · 건너뛰어도 본편 이해 가능</span></div><em>영화</em></div><div class="order-item"><b>4</b><div><strong>TV 애니 3기</strong><br><span>현재 시청 중</span></div><em>EP11</em></div></div><div class="drawer-card"><p>방영 순·시간 순 전환은 실제 AniList 관계 정보 연결 후 제공할 예정입니다.</p></div>`); }
-function openHookGuide() { openDrawer('확장 프로토타입 · FEATURE 04', '몇 화부터 재밌어져요?', `<div class="character-scene finished-scene okabe-scene"><img src="assets/okabe-card-user.png" alt="여기서부터 재미있어진다고 안내하는 오카베 린타로"></div><div class="drawer-card"><h3>슈타인즈 게이트</h3><p><strong>8화까지</strong> 인물과 설정을 차근차근 쌓고, <strong>9화부터</strong> 앞서 등장한 요소들이 맞물리면서 긴장감과 이야기의 속도가 본격적으로 높아져요.</p></div><div class="drawer-card safe"><h3>스포일러 없는 안내</h3><p>구체적인 사건이나 결과는 숨기고, 이야기의 속도와 분위기가 바뀌는 지점만 알려줘요.</p></div>`); }
+function openWatchOrder() { openDrawer('확장 프로토타입 · FEATURE 03', '나의 히어로 아카데미아 시청 순서', `<div class="character-scene finished-scene light-scene"><img src="assets/light-card-user.png" alt="시청 순서를 계획하는 라이토"></div><div class="order-flow"><article class="order-step"><b>1</b><strong>TV 애니 1기</strong><span>먼저 보기 · 필수</span><em>13화</em></article><i>→</i><article class="order-step"><b>2</b><strong>TV 애니 2기</strong><span>이어서 보기 · 필수</span><em>25화</em></article><i>→</i><article class="order-step optional"><b>3</b><strong>극장판<br>두 명의 히어로</strong><span>2기 이후 추천</span><em>영화</em></article><i>→</i><article class="order-step current"><b>4</b><strong>TV 애니 3기</strong><span>현재 시청 중</span><em>EP11</em></article></div>`); }
+function openHookGuide() { openDrawer('확장 프로토타입 · FEATURE 04', '몇 화부터 재밌어져요?', `<div class="character-scene finished-scene okabe-scene"><img src="assets/okabe-card-user.png" alt="여기서부터 재미있어진다고 안내하는 오카베 린타로"></div><div class="drawer-card"><h3>슈타인즈 게이트</h3><p><strong>8화까지</strong> 인물과 설정을 차근차근 쌓고, <strong>9화부터</strong> 앞서 등장한 요소들이 맞물리면서 긴장감과 이야기의 속도가 본격적으로 높아져요.</p></div><p class="feature-note"><b>스포일러 없이</b> 구체적인 사건이나 결과는 숨기고, 이야기의 속도와 분위기가 바뀌는 지점만 알려줘요.</p>`); }
 function openSeasonAlert() { openDrawer('확장 프로토타입 · FEATURE 10', '새 시즌이 시작됐어요', `<div class="drawer-card"><h3>나의 히어로 아카데미아 · 다음 시즌</h3><p>마지막 기록이 시즌 3 · 11화라서, 바로 새 시즌으로 이동하기 전에 보던 시즌부터 이어보는 것을 추천해요.</p><button class="copy-button" data-alert-recap>직전 내용 3분 복습</button></div>`); $('[data-alert-recap]').addEventListener('click', () => openRecap('직전 내용')); }
-function openMangaLink() { openDrawer('확장 프로토타입 · FEATURE 12', '애니 다음은 원작 어디부터?', `<div class="character-scene finished-scene gon-scene"><img src="assets/gon-card-user.png" alt="애니메이션 다음 이야기를 원작으로 보려는 곤"></div><div class="drawer-card"><h3>헌터×헌터 · 2011년판 완주 기준</h3><p>애니메이션 마지막 이후의 이야기는 원작 <strong>32권</strong>부터 이어서 확인할 수 있어요.</p></div><div class="drawer-card"><h3>프로토타입 안내</h3><p>현재는 헌터×헌터 기준의 예시 연결입니다. 작품별 정확한 권·화 연결은 원작 대응 데이터 검수 후 확장할 예정이에요.</p></div>`); }
+function openMangaLink() { openDrawer('확장 프로토타입 · FEATURE 12', '애니 다음은 원작 어디부터?', `<div class="character-scene finished-scene gon-scene"><img src="assets/gon-card-user.png" alt="애니메이션 다음 이야기를 원작으로 보려는 곤"></div><div class="drawer-card manga-link-result"><h3>헌터×헌터 · 2011년판 완주 기준</h3><p>애니메이션 마지막 이후의 이야기는 원작 <strong class="manga-volume">32권</strong>부터 이어서 확인할 수 있어요.</p></div>`); }
 function openShareCopy() { const copy = '평범한 능력물 같지만, 주인공이 힘의 의미를 배워가는 과정과 주변 인물의 성장이 정말 좋은 작품이야. 초반 설정만 알고 보면 더 재미있어!'; openDrawer('확장 프로토타입 · FEATURE 14', '스포일러 없는 추천 문구', `<div class="drawer-card"><h3>친구에게 보내기</h3><div class="share-box" id="share-copy">${copy}</div><button class="copy-button" id="copy-share">문구 복사</button></div><div class="drawer-card"><p>저장된 시청 회차 이후의 인물·사건은 추천 문구 생성 전에 제외하는 구조를 가정했어요.</p></div>`); $('#copy-share').addEventListener('click', async () => { try { await navigator.clipboard.writeText(copy); showToast('추천 문구를 복사했어요.'); } catch { showToast('문구를 선택해서 복사해주세요.'); } }); }
 function showToast(text) { toast.textContent = text; toast.classList.add('show'); clearTimeout(showToast.timer); showToast.timer = setTimeout(() => toast.classList.remove('show'), 2300); }
 
@@ -1128,13 +1255,26 @@ $$('[data-view]').forEach(button => button.addEventListener('click', () => {
   playTransitionSfx('ゴゴゴゴ');
   $$('.view').forEach(v => v.classList.toggle('active', v.id === `${view}-view`));
   $$('.topbar nav button').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+  if (view === 'discover') loadPersonalRecommendations();
   scrollPageToTop();
   requestAnimationFrame(scrollPageToTop);
 }));
 $$('[data-action]').forEach(button => button.addEventListener('click', () => { const action = button.dataset.action; const needsRecord = ['recap','watch-order','hook-guide','manga-link','season-alert','edit-record']; if (!hasRecord && needsRecord.includes(action)) { showToast('먼저 작품과 시청 지점을 기록해 주세요.'); return; } if (action === 'recap') openRecap(); else if (action === 'providers') openProviders(); else if (action === 'dictionary') openDictionary(); else if (action === 'edit-record') openRecord(); else if (action === 'similar') openSimilar(); else if (action === 'watch-order') openWatchOrder(); else if (action === 'hook-guide') openHookGuide(); else if (action === 'season-alert') openSeasonAlert(); else if (action === 'manga-link') openMangaLink(); else if (action === 'share-copy') openShareCopy(); else if (action === 'find-episode') { $('[data-view="chat"]').click(); resetChat(); } else if (action === 'interview') startTasteInterview(); }));
 $$('[data-close]').forEach(b => b.addEventListener('click', closeDrawer));
 $('#new-chat').addEventListener('click', resetChat);
+$('#rail-watch-tip').addEventListener('click', event => {
+  const button = event.target.closest('[data-tip-direction]');
+  if (!button) return;
+  clearInterval(railTipTimer);
+  advanceRailTip(button.dataset.tipDirection === 'prev' ? -1 : 1);
+  railTipTimer = setInterval(() => advanceRailTip(1), 5500);
+});
 composer.addEventListener('submit', e => { e.preventDefault(); send(question.value); });
+function resizeComposer() {
+  question.style.height = 'auto';
+  question.style.height = `${Math.min(question.scrollHeight, 180)}px`;
+}
+question.addEventListener('input', resizeComposer);
 messages.addEventListener('click', event => {
   if (!event.target.closest('[data-open-review]')) return;
   if (latestReview?.answer) showRecapData(latestReview);
@@ -1163,19 +1303,36 @@ $$('[data-onboarding-skip]').forEach(button => button.addEventListener('click', 
 $('#add-watch-record').addEventListener('click', openOnboardingForRecords);
 $('#library-grid').addEventListener('click', event => {
   const button = event.target.closest('[data-record-edit]');
+  const action = event.target.closest('[data-record-action]');
+  const poster = event.target.closest('.record-poster-shell');
   const card = event.target.closest('[data-record-series]');
   const seriesId = button?.dataset.recordEdit || card?.dataset.recordSeries;
   if (!seriesId) return;
   const record = savedWatchRecords.find(item => item.series_id === seriesId);
   if (!record) return;
-  if (button) { activeSeriesId = record.series_id; openRecord(); }
-  else openRecordActions(record);
+  activeSeriesId = record.series_id;
+  activeSeriesTitle = record.title || record.name || '선택한 작품';
+  if (button || action?.dataset.recordAction === 'edit') openRecord();
+  else if (action?.dataset.recordAction === 'recap') openRecap();
+  else if (action?.dataset.recordAction === 'providers') openProviders();
+  else if (poster) {
+    $$('.watch-card.actions-open').forEach(item => { if (item !== card) item.classList.remove('actions-open'); });
+    card.classList.toggle('actions-open');
+  }
 });
 $('#rail-posters').addEventListener('click', event => {
+  const toggle = event.target.closest('[data-rail-toggle]');
+  if (toggle) { railRecordsExpanded = true; renderRailRecords(); return; }
   const button = event.target.closest('[data-rail-series]');
   if (!button) return;
   const record = savedWatchRecords.find(item => item.series_id === button.dataset.railSeries);
   if (record) { activeSeriesId = record.series_id; openRecord(); }
+});
+$('#rail-records-more').addEventListener('click', event => {
+  if (!event.currentTarget.dataset.railToggle) return;
+  event.preventDefault(); event.stopPropagation();
+  railRecordsExpanded = false;
+  renderRailRecords();
 });
 $('#onboarding-search').addEventListener('submit', async event => {
   event.preventDefault();
@@ -1183,7 +1340,7 @@ $('#onboarding-search').addEventListener('submit', async event => {
   if (!queryText) return;
   $('#onboarding-titles').innerHTML = '<p class="catalog-loading">작품을 검색하고 있어요…</p>';
   try {
-    const items = await api(`/api/series?q=${encodeURIComponent(queryText)}&limit=30`);
+    const items = await api(`/api/series?q=${encodeURIComponent(queryText)}&limit=200`);
     renderOnboardingCatalog(items);
     $('#onboarding-search-reset').hidden = false;
   } catch (error) {
@@ -1195,36 +1352,28 @@ $('#onboarding-search-reset').addEventListener('click', () => {
   $('#onboarding-search-reset').hidden = true;
   loadOnboardingCatalog();
 });
+$('#onboarding-search-input').addEventListener('input', event => {
+  if (event.target.value.trim()) return;
+  $('#onboarding-search-reset').hidden = true;
+  renderOnboardingCatalog(onboardingCatalogCache);
+});
 $('#onboarding-titles').addEventListener('click', event => {
-  const button = event.target.closest('[data-onboarding-title]');
-  if (!button) return;
-  const id = button.dataset.onboardingTitle;
-  if (onboardingSelection.has(id)) {
+  const selectButton = event.target.closest('.onboarding-title-select');
+  if (!selectButton) return;
+  const card = selectButton.closest('[data-onboarding-title]');
+  const id = card.dataset.onboardingTitle;
+  if (onboardingSelection.get(id)?.status) {
     onboardingSelection.delete(id);
-    const editor = $('#onboarding-editor');
-    if (editor.dataset.editing === id) { editor.hidden = true; delete editor.dataset.editing; }
+    const editor = $('.onboarding-card-editor', card);
+    editor.hidden = true;
     updateOnboardingSelection();
     showToast(`${onboardingTitles[id].title} 선택을 해제했어요.`);
     return;
   }
   openOnboardingEditor(id);
 });
-$('#onboarding-agent-form').addEventListener('submit', async event => {
-  event.preventDefault();
-  const input = $('#onboarding-agent-input');
-  const response = $('#onboarding-agent-dock-response');
-  const text = input.value.trim();
-  if (!text) return;
-  response.textContent = 'Agent가 답변을 생각하고 있어요…';
-  try {
-    const data = await api('/api/chat', { method:'POST', body:JSON.stringify({ message:text, history:[] }) });
-    response.textContent = data.answer;
-    if (data.results?.save_record) saveLocalRecord(data.results.save_record);
-    input.value = '';
-  } catch (error) { response.textContent = `연결 중 문제가 생겼어요. ${error.message}`; }
-});
 $('#onboarding-to-details').addEventListener('click', async () => {
-  const records = [...onboardingSelection.values()].map(record => ({ ...record, seen_ep: record.status === 'planned' ? 0 : record.seen_ep }));
+  const records = [...onboardingSelection.values()].filter(record => record.status).map(record => ({ ...record, seen_ep: record.status === 'planned' ? 0 : record.seen_ep }));
   const button = $('#onboarding-to-details');
   button.disabled = true;
   button.textContent = '기록 저장 중…';
@@ -1237,8 +1386,8 @@ $('#onboarding-to-details').addEventListener('click', async () => {
   } catch (error) {
     showToast(`기록을 저장하지 못했어요. ${error.message}`);
   } finally {
-    button.textContent = '선택 완료하고 시작';
-    button.disabled = onboardingSelection.size === 0;
+    button.textContent = '완료하고 시작';
+    button.disabled = ![...onboardingSelection.values()].some(record => record.status);
   }
 });
 cutinReturn.addEventListener('click', closeSpoilerCutin);
@@ -1246,9 +1395,9 @@ document.addEventListener('keydown', event => { if (event.key === 'Escape' && !s
 setRecordState(hasRecord);
 renderLibrary();
 if (!restoreConversation()) resetChat();
+else setQuickSuggestions();
 initializeOnboarding();
 loadOnboardingCatalog();
-loadRecommendationPosters();
 
 // 로그인 전에는 공용 데모 DB의 기록을 개인 기록으로 취급하지 않습니다.
 
@@ -1264,6 +1413,7 @@ async function requestInstall() {
   await installPrompt.userChoice;
   installPrompt = null;
   installButton.hidden = true;
+  onboardingInstallButton.hidden = true;
   installGuide.hidden = true;
 }
 
@@ -1273,10 +1423,11 @@ window.addEventListener('beforeinstallprompt', event => {
   installButton.hidden = false;
   if (!sessionStorage.getItem('aniwhere-install-dismissed')) installGuide.hidden = false;
 });
-window.addEventListener('appinstalled', () => { installButton.hidden = true; installGuide.hidden = true; showToast('AniWhere 앱을 설치했어요.'); });
+window.addEventListener('appinstalled', () => { installButton.hidden = true; onboardingInstallButton.hidden = true; installGuide.hidden = true; showToast('AniWhere 앱을 설치했어요.'); });
 installButton.addEventListener('click', requestInstall);
+onboardingInstallButton.addEventListener('click', requestInstall);
 installGuideAction.addEventListener('click', requestInstall);
 installGuideClose.addEventListener('click', hideInstallGuide);
 
 if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js').catch(() => {}));
-if (isStandalone()) document.documentElement.classList.add('standalone-app');
+if (isStandalone()) { document.documentElement.classList.add('standalone-app'); onboardingInstallButton.hidden = true; }

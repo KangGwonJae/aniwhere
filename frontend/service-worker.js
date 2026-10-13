@@ -1,4 +1,4 @@
-const CACHE = 'aniwhere-app-v51-clearer-poster-wall';
+const CACHE = 'aniwhere-app-v63-fixed-navigation';
 const APP_SHELL = [
   './',
   './index.html',

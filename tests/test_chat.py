@@ -74,7 +74,7 @@ def test_context_and_suggest_for_find():
     assert chat.suggest("find", FIND_SERIES, ctx) == []                       # 되묻는 중이면 칩 없음
     no_follow = dict(FIND_SERIES, follow_up=None)
     assert labels(chat.suggest("find", no_follow, ctx)) == [("시청처 보기", "테스트 칼날 어디서 볼 수 있어?"),
-                                                            ("인물·용어", "테스트 칼날 인물·용어 알려줘")]
+                                                            ("인물 사전", "테스트 칼날 인물 알려줘")]
     ctx = chat.context_of("find", {}, FIND_AMB)
     assert ctx == {"tool": "find"} and chat.suggest("find", FIND_AMB, ctx) == []
 
@@ -84,7 +84,7 @@ def test_context_and_suggest_for_records():
     ctx = chat.context_of("save_record", {"series_id": A, "seen_ep": 7}, saved)
     assert ctx == {"tool": "save_record", "series_id": A, "title": "테스트 거인", "seen_ep": 7}
     assert labels(chat.suggest("save_record", saved, ctx)) == [("3분 복습", "테스트 거인 지금까지 복습해줘"),
-                                                               ("인물·용어", "테스트 거인 인물·용어 알려줘")]
+                                                               ("인물 사전", "테스트 거인 인물 알려줘")]
     assert chat.context_of("get_record", {"series_id": A}, RECORD) == {"tool": "get_record", "series_id": A,
                                                                       "title": "테스트 거인", "seen_ep": 7}
     assert chat.suggest("get_record", RECORD, chat.context_of("get_record", {"series_id": A}, RECORD)) == []
@@ -97,7 +97,7 @@ def test_context_and_suggest_for_review_dictionary_where():
     review = {"answer": "요약", "seen_ep": 7, "sources": [], "follow_up": None}
     ctx = chat.context_of("review", {"series_id": A, "mode": "summary"}, review, title="테스트 거인")
     assert ctx == {"tool": "review", "series_id": A, "title": "테스트 거인", "seen_ep": 7}
-    assert labels(chat.suggest("review", review, ctx)) == [("인물·용어", "테스트 거인 인물·용어 알려줘"),
+    assert labels(chat.suggest("review", review, ctx)) == [("인물 사전", "테스트 거인 인물 알려줘"),
                                                            ("시청처 보기", "테스트 거인 어디서 볼 수 있어?")]
     assert chat.suggest("review", review, chat.context_of("review", {"series_id": A}, review)) == []   # 제목 없으면 칩 뺌
     asking = {"answer": None, "seen_ep": None, "sources": [], "follow_up": ASK_SEEN}
@@ -113,7 +113,7 @@ def test_context_and_suggest_for_review_dictionary_where():
     ctx = chat.context_of("where_to_watch", {"series_id": A}, where)          # 제목은 결과에서
     assert ctx == {"tool": "where_to_watch", "series_id": A, "title": "테스트 거인"}
     assert labels(chat.suggest("where_to_watch", where, ctx)) == [("3분 복습", "테스트 거인 지금까지 복습해줘"),
-                                                                  ("인물·용어", "테스트 거인 인물·용어 알려줘")]
+                                                                  ("인물 사전", "테스트 거인 인물 알려줘")]
 
 
 def test_context_and_suggest_for_search_and_recommend():
@@ -343,7 +343,7 @@ def test_value_error_from_tool_becomes_error_message_and_loop_continues():
     assert [(s["tool"], s["ok"]) for s in r["steps"]] == [("where_to_watch", False), ("where_to_watch", True)]
     assert "모르는 작품" in tool_messages(llm, 1)[0]["content"]
     assert r["results"]["where_to_watch"]["series_id"] == A and r["answer"] == "넷플릭스요."
-    assert r["context"]["title"] == "테스트 거인" and [c["label"] for c in r["suggestions"]] == ["3분 복습", "인물·용어"]
+    assert r["context"]["title"] == "테스트 거인" and [c["label"] for c in r["suggestions"]] == ["3분 복습", "인물 사전"]
 
 
 def test_other_exceptions_propagate():

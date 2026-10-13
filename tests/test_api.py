@@ -458,7 +458,7 @@ def test_fake_chat_saves_record_from_episode_sentence(client):
     assert body["follow_up"] is None
     assert body["results"]["save_record"]["seen_ep"] == 11 and body["results"]["save_record"]["previous_seen_ep"] == 49
     assert body["context"] == {"tool": "save_record", "series_id": fake.HERO, "title": "나의 히어로 아카데미아", "seen_ep": 11}
-    assert [c["label"] for c in body["suggestions"]] == ["3분 복습", "인물·용어"]
+    assert [c["label"] for c in body["suggestions"]] == ["3분 복습", "인물 사전"]
     assert client.get(f"/api/records/{fake.HERO}").json()["seen_ep"] == 11
     bad = client.post("/api/chat", json={"message": "999화까지 봤어"}).json()
     assert bad["steps"][1] == {"tool": "save_record", "label": "시청 기록 저장 중", "ok": False,
@@ -502,7 +502,7 @@ def test_fake_chat_asks_when_record_is_gone(client):
     assert body["results"]["get_record"] == {"record": None} and body["context"]["tool"] == "review"
 
 
-CHIP_TOOL = {"여기까지 봤어요": "save_record", "시청처 보기": "where_to_watch", "인물·용어": "dictionary",
+CHIP_TOOL = {"여기까지 봤어요": "save_record", "시청처 보기": "where_to_watch", "인물 사전": "dictionary",
              "3분 복습": "review", "다른 추천": "recommend"}
 
 

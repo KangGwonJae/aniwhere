@@ -263,3 +263,150 @@ body.onboarding-open{overflow:hidden}.onboarding[hidden]{display:none}.onboardin
 @media(max-width:620px){.dictionary-record-strip{grid-template-columns:repeat(2,1fr)}.dictionary-catalog-grid{grid-template-columns:repeat(3,1fr)}.dictionary-more-head{grid-template-columns:1fr}#dictionary-catalog-search input{width:100%}}
 @media(max-width:900px){.poster-atmosphere img,.poster-atmosphere img:nth-child(n){display:block;opacity:.58}.chat-workspace::before{inset:4px;background:rgba(10,17,28,.7);backdrop-filter:blur(5px) saturate(.84)}}
 @media(max-width:620px){.poster-atmosphere{inset:56px -32vw 62px}.poster-atmosphere img,.poster-atmosphere img:nth-child(n){width:100%;opacity:.48}.poster-atmosphere::after{background:rgba(15,21,32,.4)}.chat-workspace::before{background:rgba(10,17,28,.74)}}
+
+/* Feature dialogs are centered so they read as focused tasks, not navigation drawers. */
+.drawer.open{display:grid;place-items:center;padding:24px}
+.drawer-panel,.drawer.dictionary-open .drawer-panel{position:relative;right:auto;top:auto;width:min(920px,calc(100vw - 48px));height:auto;max-height:calc(100svh - 48px);padding:26px 30px;border:1px solid #465875;border-radius:22px;box-shadow:0 28px 90px rgba(0,0,0,.6);animation:modal-rise .24s both}
+.drawer.dictionary-open .drawer-panel{width:min(1120px,calc(100vw - 48px))}
+@keyframes modal-rise{from{opacity:0;transform:translateY(18px) scale(.98)}to{opacity:1;transform:none}}
+
+/* Watch-history actions live directly over the selected poster. */
+.record-poster-shell{position:relative;overflow:hidden;border-radius:11px;cursor:pointer}
+.record-poster-shell>img,.record-poster-shell>.record-cover-fallback{display:block;width:100%;border-radius:11px}
+.record-card-overlay{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;justify-content:center;gap:9px;padding:18px;background:linear-gradient(180deg,rgba(8,13,22,.54),rgba(8,13,22,.92));opacity:0;pointer-events:none;transition:.2s}
+.record-card-overlay strong{margin-bottom:4px;font:700 19px/1.25 var(--display);text-align:center}
+.record-card-overlay button{padding:10px 8px;border:1px solid rgba(154,174,211,.7);border-radius:10px;background:rgba(27,39,59,.88);font-size:12px;font-weight:800}
+.record-card-overlay button:hover{border-color:var(--cyan);background:rgba(41,57,84,.96);color:var(--cyan)}
+.watch-card.actions-open .record-card-overlay{opacity:1;pointer-events:auto}
+
+.hunter-prototype-teaser{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:14px;align-items:center;margin-top:26px;padding:18px;border:1px solid #52617a;border-radius:16px;background:linear-gradient(135deg,#172235,#202b3e)}
+.hunter-prototype-teaser small{color:var(--cyan);font-size:10px;font-weight:900}.hunter-prototype-teaser h3{margin:5px 0;font:700 23px var(--display)}.hunter-prototype-teaser p{margin:0;color:var(--text2);font-size:12px;line-height:1.6}.hunter-prototype-teaser img{grid-row:1/3;grid-column:2;width:100%;max-height:150px;object-fit:cover;border-radius:10px}.hunter-prototype-teaser button{justify-self:start;padding:10px 13px;border:0;border-radius:10px;background:var(--accent);font-weight:800}
+.recommendation-result-grid{display:grid;gap:10px;margin-top:10px}.recommendation-result-grid .result-card{margin-top:0}
+@media(max-width:620px){.drawer.open{padding:10px}.drawer-panel,.drawer.dictionary-open .drawer-panel{width:calc(100vw - 20px);max-height:calc(100svh - 20px);padding:19px 15px;border-radius:18px}.hunter-prototype-teaser{grid-template-columns:1fr}.hunter-prototype-teaser img{grid-row:auto;grid-column:auto;max-height:190px}.record-card-overlay{padding:10px;gap:6px}.record-card-overlay strong{font-size:15px}.record-card-overlay button{padding:8px 5px;font-size:10px}}
+
+/* The rail shows every saved state (including planned titles) in a roomy 3-column grid. */
+.rail-library{gap:10px;margin-top:17px}.rail-library>small{font-size:11px}
+.rail-posters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:start;gap:10px;min-height:0;padding:2px;overflow:visible;scroll-snap-type:none}
+.rail-record-poster{width:100%;height:auto;aspect-ratio:2/3;padding:0;border-radius:11px;box-shadow:4px 6px 14px rgba(0,0,0,.32)}
+.rail-record-poster img{width:100%;height:100%;object-fit:cover}.rail-record-poster:hover{transform:translateY(-3px) scale(1.025)}
+#rail-records-more{width:100%;margin-top:12px;padding:10px 4px;text-align:center;font-size:12px;font-weight:800}
+
+/* Larger, more legible actions over a selected history poster. */
+.record-card-overlay{gap:12px;padding:20px}.record-card-overlay strong{font-size:21px}
+.record-card-overlay button{min-height:45px;padding:12px 10px;font-size:14px;letter-spacing:.01em}
+
+/* Prototype artwork is supporting material; keep it compact inside the modal. */
+.drawer-panel>.character-scene.finished-scene{width:min(32%,300px);min-width:230px;margin:15px auto 20px}
+.drawer-panel>.character-scene.finished-scene img{width:100%;max-height:225px;object-fit:cover}
+@media(max-width:620px){.rail-posters{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.drawer-panel>.character-scene.finished-scene{width:min(58%,250px);min-width:180px}.record-card-overlay{gap:6px;padding:9px}.record-card-overlay strong{font-size:14px}.record-card-overlay button{min-height:36px;padding:7px 4px;font-size:10px}}
+
+/* Lightweight onboarding: choose a state first, reveal episode controls only when needed. */
+.onboarding-editor .simple-status{grid-template-columns:repeat(3,1fr);gap:10px}
+.onboarding-editor .simple-status button{min-height:92px;padding:16px 10px;font-size:16px}
+.onboarding-editor .simple-status button small{font-size:10px;font-weight:600}
+.onboarding-editor .simple-picker{grid-template-columns:1fr 1fr;margin-top:2px}
+.onboarding-watching-done{width:100%;margin-top:14px;padding:13px;border:0;border-radius:11px;background:var(--accent);font-size:14px;font-weight:900}
+.onboarding-forgot{display:block;margin:9px auto 0;padding:4px 8px;border:0;background:none;color:var(--text2);font-size:11px;text-decoration:underline;text-underline-offset:3px}
+.rail-watch-tip{margin:14px 0;padding:14px;border:1px solid rgba(114,216,242,.42);border-radius:14px;background:linear-gradient(135deg,rgba(32,61,75,.92),rgba(24,36,54,.94))}
+.rail-watch-tip small{color:var(--cyan);font-size:9px;font-weight:900;letter-spacing:.1em}.rail-watch-tip p{margin:6px 0 0;color:#dcebf3;font-size:11px;line-height:1.65}
+@media(max-width:620px){.onboarding-editor .simple-status{grid-template-columns:1fr}.onboarding-editor .simple-status button{min-height:58px}.onboarding-editor .simple-picker{grid-template-columns:1fr 1fr}}
+
+/* Keep the rail compact: five records plus one animated "more" tile. */
+.rail-record-more-tile{position:relative;width:100%;aspect-ratio:2/3;padding:0;overflow:hidden;border:2px solid #455979;border-radius:11px;background:#172235;color:#fff;isolation:isolate}
+.rail-more-posters,.rail-more-posters img,.rail-more-shade{position:absolute;inset:0;width:100%;height:100%}
+.rail-more-posters img{object-fit:cover;opacity:0;animation:rail-poster-cycle 12s infinite;animation-delay:calc(var(--poster-index) * 2s)}
+.rail-more-shade{z-index:1;background:linear-gradient(180deg,rgba(10,17,28,.34),rgba(10,17,28,.88));backdrop-filter:saturate(.75)}
+.rail-record-more-tile b{position:absolute;inset:0;z-index:2;display:grid;place-items:center;padding:8px;text-align:center;font:700 14px/1.35 var(--display);text-shadow:0 2px 8px #000}
+.rail-record-more-tile:hover{border-color:var(--cyan);transform:translateY(-3px)}
+@keyframes rail-poster-cycle{0%,15%{opacity:1}22%,100%{opacity:0}}
+
+/* Stronger rail hierarchy and persistent feature shortcuts. */
+@media(min-width:901px){.chat-view{grid-template-columns:350px minmax(0,1fr)}.context-rail{padding-left:25px;padding-right:25px}}
+.rail-watch-tip{position:relative;margin-top:12px;padding:17px 15px 15px 52px;overflow:visible}
+.rail-watch-tip::before{content:'TIP';position:absolute;left:13px;top:15px;width:30px;height:30px;display:grid;place-items:center;border:3px solid #fff;border-radius:50%;background:#e54f58;color:#fff;font-size:9px;font-weight:1000;letter-spacing:.04em;box-shadow:0 4px 12px rgba(229,79,88,.42)}
+.rail-watch-tip>small{display:none}
+.spoiler-lock{border-color:#a84349;background:linear-gradient(135deg,#461e25,#281820);box-shadow:0 8px 22px rgba(91,18,28,.26)}
+.spoiler-lock i,.spoiler-lock b{color:#ff858d}.spoiler-lock span{color:#e6bdc1}
+.rail-actions{position:sticky;bottom:-30px;z-index:8;gap:10px;margin:18px -8px -30px;padding:12px 8px 30px;background:linear-gradient(180deg,rgba(24,33,49,0),rgba(24,33,49,.98) 15%,rgba(24,33,49,.98));backdrop-filter:blur(9px)}
+.rail-actions button{min-height:56px;padding:14px;border:1px solid rgba(114,216,242,.72);background:linear-gradient(135deg,rgba(39,86,96,.94),rgba(27,59,72,.96));color:var(--cyan);text-align:center;font-size:16px;font-weight:900;box-shadow:0 8px 18px rgba(6,24,30,.25)}
+.rail-actions button:hover{border-color:#b8f1ff;background:#315d69;color:#fff;transform:translateY(-1px)}
+.suggestions button{border-color:var(--cyan);background:rgba(30,71,82,.9);color:var(--cyan);font-size:13px;box-shadow:0 5px 14px rgba(4,25,31,.25)}
+.suggestions button:hover{background:var(--cyan);color:#10202a}
+
+/* Let the writing area grow before the compact keyboard hint takes space. */
+.composer{padding:12px 14px 9px}.composer textarea{display:block;min-height:52px;max-height:180px;overflow-y:auto;resize:none;font-size:16px;line-height:1.65}
+.composer-bottom{min-height:36px;margin-top:4px;padding-top:6px}.composer-bottom span{align-self:flex-end;font-size:9px;line-height:1.2;opacity:.78}.composer-bottom button{padding:9px 15px}
+
+/* Keep onboarding decisions on the poster they belong to. */
+.onboarding-title-card{position:relative;min-width:0;overflow:hidden;border:2px solid transparent;border-radius:17px;background:#182235;transition:.2s}
+.onboarding-title-card:hover{transform:translateY(-4px);border-color:#526686}.onboarding-title-card.selected{border-color:var(--accent);box-shadow:0 0 0 4px rgba(126,145,255,.14)}
+.onboarding-titles .onboarding-title-select{display:block;width:100%;height:100%;border:0;border-radius:0;background:transparent;text-align:left;transform:none}
+.onboarding-titles .onboarding-title-select:hover{border-color:transparent;transform:none}
+.onboarding-title-card.selected .onboarding-title-select i{display:grid}.onboarding-title-card.selected .onboarding-title-select em{display:block}
+.onboarding-card-editor{position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;justify-content:center;padding:12px;background:rgba(8,15,25,.84);backdrop-filter:blur(3px);animation:rise .18s both}
+.onboarding-card-editor[hidden]{display:none}.onboarding-card-editor>header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}.onboarding-card-editor>header small{color:var(--cyan);font-size:8px;font-weight:900}.onboarding-card-editor>header h3{margin:3px 0 0;font:700 16px/1.15 var(--display)}
+.onboarding-card-editor>header button{width:28px;height:28px;padding:0;border:1px solid rgba(114,216,242,.65);border-radius:50%;background:rgba(20,48,59,.9);color:var(--cyan)}
+.onboarding-card-editor .simple-status{display:grid;grid-template-columns:1fr;gap:7px}.onboarding-card-editor .simple-status button{min-height:0;padding:10px 7px;border:1px solid rgba(114,216,242,.7);border-radius:10px;background:rgba(34,82,94,.94);color:var(--cyan);font-size:13px;font-weight:900}.onboarding-card-editor .simple-status small{font-size:8px;color:#d8f7ff}
+.onboarding-card-editor .simple-picker{display:grid;grid-template-columns:1fr;gap:7px}.onboarding-card-editor .simple-picker label{display:grid;gap:3px;color:#dbe6ef;font-size:8px}.onboarding-card-editor .simple-picker select{width:100%;padding:8px;border:1px solid rgba(114,216,242,.65);border-radius:8px;background:#142433;color:#fff;font-size:10px}
+.onboarding-card-editor .onboarding-watching-done{margin-top:8px;padding:9px;background:#2f6975;color:#c8f5ff;font-size:11px}.onboarding-card-editor .onboarding-forgot{margin-top:5px;color:#fff;font-size:9px}
+.onboarding-complete-dock{position:sticky;bottom:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:14px;margin:14px -42px 0;padding:13px 42px 14px;border-top:1px solid #40516b;background:rgba(17,25,39,.97);backdrop-filter:blur(16px)}
+.onboarding-complete-dock span{color:var(--text2);font-size:11px}.onboarding-complete-dock button{padding:14px 22px;border:0;border-radius:12px;background:var(--accent);font-weight:900}.onboarding-complete-dock button:disabled{opacity:.42;cursor:not-allowed}
+.onboarding-brand-actions{display:flex;align-items:center;gap:13px}.onboarding-brand-actions button{padding:8px 12px;border:1px solid rgba(114,216,242,.62);border-radius:10px;background:rgba(34,82,94,.72);color:var(--cyan);font-size:11px;font-weight:900}.onboarding-brand-actions button:hover{border-color:#c8f6ff;background:#34717e;color:#fff}.onboarding-brand-actions button[hidden]{display:none}
+
+/* The tip sits next to the active title and is easy to spot without warning colors. */
+.rail-watch-tip{display:flex;align-items:center;min-height:74px;padding:15px 15px 15px 62px}.rail-watch-tip[hidden]{display:none}.rail-watch-tip p{margin:0;line-height:1.55}
+.rail-watch-tip::before{left:14px;top:50%;width:34px;height:34px;transform:translateY(-50%);border:3px solid #fff;background:#fff;color:#273446;box-shadow:0 4px 14px rgba(255,255,255,.2)}
+
+/* Poster actions use the product mint instead of a second dark layer. */
+.record-card-overlay button{border-color:rgba(114,216,242,.86);background:rgba(34,82,94,.94);color:var(--cyan)}
+.record-card-overlay button:hover{border-color:#c6f6ff;background:#34717e;color:#fff}
+
+/* Feature artwork is supporting content, not the modal itself. */
+#drawer-content>.character-scene.finished-scene{width:min(46%,420px);min-width:0;margin:15px auto 20px}
+#drawer-content>.character-scene.finished-scene img{width:100%;max-height:315px;object-fit:contain}
+@media(max-width:800px){.onboarding-complete-dock{margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px}}
+@media(max-width:620px){.onboarding-complete-dock{align-items:stretch;flex-direction:column}.onboarding-complete-dock button{width:100%}.onboarding-brand-actions{gap:8px}.onboarding-brand-actions button{padding:7px 9px;font-size:10px}.onboarding-brand-actions span{display:none}#drawer-content>.character-scene.finished-scene{width:min(65%,310px)}}
+
+/* Taller spoiler guard art keeps Eren's full composition visible. */
+.recap-safety-visual{height:310px;background:#190f13}.recap-safety-visual img{object-fit:contain;object-position:center}
+
+/* Three compact tips rotate in the context rail. */
+.rail-watch-tip{padding-right:48px;transition:opacity .2s}.rail-watch-tip .tip-index{position:absolute;right:13px;top:50%;padding:3px 6px;border-radius:999px;background:rgba(255,255,255,.12);color:#d8edf3;font-size:9px;font-weight:900;transform:translateY(-50%)}
+
+/* Personal recommendations fit five cards across on wide screens. */
+.recommend-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:11px}.recommend{min-height:245px;padding:15px;background:linear-gradient(180deg,rgba(10,16,25,.08),rgba(10,16,25,.94)),var(--recommend-poster) center/cover}.recommend h3{font-size:20px}.recommend p{display:-webkit-box;overflow:hidden;font-size:11px;-webkit-box-orient:vertical;-webkit-line-clamp:3}.recommend-loading{grid-column:1/-1;padding:32px;border:1px solid var(--line);border-radius:16px;background:rgba(24,33,49,.75);color:var(--text2);text-align:center}
+
+/* Prevent browser/PWA overscroll from revealing seams around sticky chrome. */
+html,body{min-height:100%;overscroll-behavior-y:none}body{overflow-x:hidden}.topbar{top:0;margin:0}.chat-view{margin:0}.context-rail{height:100%;margin:0;overscroll-behavior:contain}
+@media(max-width:1200px){.recommend-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:900px){.recommend-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.recap-safety-visual{height:230px}.recommend-grid{grid-template-columns:1fr}}
+
+/* TIP carousel can be advanced without waiting for the timer. */
+.rail-watch-tip{padding-right:82px}.rail-watch-tip .tip-controls{position:absolute;right:10px;top:50%;display:flex;align-items:center;gap:2px;transform:translateY(-50%)}
+.rail-watch-tip .tip-controls button{width:22px;height:28px;padding:0;border:0;border-radius:7px;background:transparent;color:#dff8ff;font-size:20px;line-height:1}.rail-watch-tip .tip-controls button:hover{background:rgba(114,216,242,.18);color:#fff}
+.rail-watch-tip .tip-controls .tip-index{position:static;min-width:27px;padding:3px 4px;transform:none;text-align:center}
+
+/* Dictionary hierarchy: current conversation first, compact saved titles below. */
+.dictionary-current{display:flex;justify-content:center;padding:4px 0 18px}.dictionary-current .dictionary-current-card{width:min(210px,48%);padding:10px;border:1px solid var(--cyan);border-radius:15px;background:#172438;text-align:left;box-shadow:0 10px 28px rgba(4,20,28,.28)}
+.dictionary-current-card img{display:block;width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:10px}.dictionary-current-card b{display:block;margin-top:9px;font:700 16px var(--display)}.dictionary-current-card small{display:block;margin-top:3px;color:var(--text2);font-size:9px}
+.dictionary-saved-divider{position:relative;display:flex;justify-content:center;align-items:center;margin:0 0 13px;color:var(--text2);font-size:9px;font-weight:800;letter-spacing:.08em}.dictionary-saved-divider::before,.dictionary-saved-divider::after{content:'';height:1px;flex:1;background:repeating-linear-gradient(90deg,#40506a 0 7px,transparent 7px 12px)}.dictionary-saved-divider span{padding:0 12px}
+.dictionary-record-strip.dictionary-record-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}.dictionary-record-grid button{padding:6px}.dictionary-record-grid b{margin-top:5px;font-size:9px}.dictionary-record-grid small{display:block;margin-top:2px;font-size:7px}.dictionary-record-grid img{border-radius:6px}
+@media(max-width:900px){.dictionary-record-strip.dictionary-record-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:620px){.rail-watch-tip{padding-right:72px}.dictionary-current .dictionary-current-card{width:min(190px,62%)}.dictionary-record-strip.dictionary-record-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+/* A watch order should read as one connected route. */
+.order-flow{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;align-items:center;gap:8px;margin-top:18px}.order-flow>i{color:var(--cyan);font-style:normal;font-size:25px;font-weight:900}.order-step{position:relative;display:flex;aspect-ratio:1/1;min-width:0;flex-direction:column;justify-content:center;align-items:center;gap:7px;padding:15px 10px;border:1px solid #42546f;border-radius:16px;background:linear-gradient(145deg,#1e2b40,#131d2c);text-align:center}.order-step>b{position:absolute;left:9px;top:9px;width:25px;height:25px;display:grid;place-items:center;border-radius:50%;background:var(--accent);font-size:11px}.order-step strong{font:700 17px/1.22 var(--display)}.order-step span{color:var(--text2);font-size:9px}.order-step em{color:var(--cyan);font-size:12px;font-style:normal;font-weight:900}.order-step.optional{border-style:dashed}.order-step.current{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(114,216,242,.1)}
+.feature-note{margin:12px 4px 0;color:var(--text2);font-size:11px;line-height:1.7}.feature-note b{color:var(--cyan)}
+.manga-volume{display:inline-block;margin:0 3px;padding:2px 8px;border-radius:8px;background:#ffcf4a;color:#17202d;font:900 25px/1.15 var(--display);box-shadow:0 5px 18px rgba(255,207,74,.25)}.manga-link-result p{font-size:14px}
+@media(max-width:760px){.order-flow{grid-template-columns:1fr 24px 1fr}.order-flow>i:nth-of-type(2){display:none}.order-step:nth-of-type(3){grid-column:1}.order-flow>i:nth-of-type(3){grid-column:2}.order-step:nth-of-type(4){grid-column:3}.order-step{aspect-ratio:auto;min-height:145px}}
+
+/* High-contrast guidance and answer cards stand out from the dark shell. */
+.rail-watch-tip{border-color:#bceef7;background:linear-gradient(135deg,#eafcff,#cceff5);box-shadow:0 10px 26px rgba(81,196,217,.2)}.rail-watch-tip p{color:#17303b;font-weight:700}.rail-watch-tip::before{border-color:#17303b;background:#fff;color:#17303b;box-shadow:0 4px 14px rgba(23,48,59,.16)}
+.rail-watch-tip .tip-controls button{color:#17303b}.rail-watch-tip .tip-controls button:hover{background:rgba(23,48,59,.12);color:#07181f}.rail-watch-tip .tip-controls .tip-index{background:rgba(23,48,59,.12);color:#17303b}
+.message.agent .result-card.result-with-poster{border-color:#9bdce8;background:linear-gradient(135deg,#f5fdff,#d9f3f7);color:#132b36;box-shadow:0 10px 26px rgba(70,184,204,.18)}.message.agent .result-card.result-with-poster small{color:#167a8e}.message.agent .result-card.result-with-poster p{color:#38535f}.message.agent .result-card.result-with-poster .result-providers{margin:0;padding:12px 14px;border-top-color:#9acbd4;background:rgba(255,255,255,.45)}.message.agent .result-card.result-with-poster .provider-meta{color:#49636d}.message.agent .result-card.result-with-poster .provider-meta a{color:#076f85}
+
+/* Global navigation and chat context remain visible while the page moves. */
+.topbar{position:fixed;inset:0 0 auto;width:100%;z-index:150}main{padding-top:66px}.chat-view{align-items:start}.context-rail{position:sticky;top:66px;align-self:start;height:calc(100svh - 66px);overflow-y:auto;scrollbar-gutter:stable}.chat-workspace{height:calc(100svh - 66px)}
+@media(max-width:620px){main{padding-top:56px}.context-rail{top:56px;height:calc(100svh - 56px - 62px)}.chat-workspace{height:calc(100svh - 56px - 62px)}}
+.standalone-app main{padding-top:calc(66px + env(safe-area-inset-top))}.standalone-app .context-rail{top:calc(66px + env(safe-area-inset-top));height:calc(100svh - 66px - env(safe-area-inset-top))}.standalone-app .chat-workspace{height:calc(100svh - 66px - env(safe-area-inset-top))}

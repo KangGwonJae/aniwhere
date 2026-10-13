@@ -376,7 +376,7 @@ def test_chat_saves_record_when_user_states_episode(db, chat_llm):
     assert [(s["tool"], s["ok"]) for s in r["steps"]] == [("search_series", True), ("save_record", True)]
     assert r["results"]["save_record"]["seen_ep"] == 7 and r["results"]["save_record"]["rating"] is None
     assert r["answer"].startswith("「테스트 거인」 7화까지로 저장했어요.") and r["follow_up"] is None
-    assert [c["label"] for c in r["suggestions"]] == ["3분 복습", "인물·용어"]
+    assert [c["label"] for c in r["suggestions"]] == ["3분 복습", "인물 사전"]
     assert r["context"] == {"tool": "save_record", "series_id": A, "title": "테스트 거인", "seen_ep": 7}
     assert len(llm.script.calls) == 3
 
@@ -414,4 +414,4 @@ def test_chat_answering_the_follow_up_saves_then_reviews(db, chat_llm):
     assert "[직전 결과: tool=review, series_id=tmdb:1, 제목=테스트 거인]" in llm.script.calls[0]["messages"][1]["content"]
     assert not leaked(json.dumps(r, ensure_ascii=False), "A", 7) and not leaked(llm.seen("review"), "A", 7)
     assert r["answer"].startswith("「테스트 거인」 7화까지로 저장했어요.") and r["context"]["tool"] == "review"
-    assert [c["label"] for c in r["suggestions"]] == ["인물·용어", "시청처 보기"]
+    assert [c["label"] for c in r["suggestions"]] == ["인물 사전", "시청처 보기"]
