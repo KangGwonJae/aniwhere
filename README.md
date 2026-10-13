@@ -57,6 +57,12 @@ make api                  # API 서버 + 화면 (http://localhost:8000, 문서 /
 make api FAKE=1           # DB·LLM 없이 가짜 응답으로 띄우기 (프론트엔드 개발용)
 ```
 
+## 발표용 웹 배포
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/KangGwonJae/aniwhere/tree/feat/uijin-ui-integration-v2)
+
+QR 시연용 배포와 브라우저별 익명 시청 기록 분리 방식은 [`docs/DEPLOY.md`](docs/DEPLOY.md)를 참고하세요.
+
 ## 협업 방법
 
 1. `main`에서 브랜치 생성: `git switch -c feat/이름-주제`

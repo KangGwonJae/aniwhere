@@ -36,13 +36,19 @@ ASK_QUESTION = "무엇이 궁금한지 알려 주세요."                       
 ASK_MORE = "기억나는 인물의 생김새나 이름, 장소, 그 장면 앞뒤에 있었던 일을 조금 더 알려 주세요."   # agent/find.py ASK_MORE
 MODES = ("summary", "characters", "last", "ask")
 
-_records: dict[str, dict] = {}
+_records: dict[str, dict[str, dict]] = {}
 
 
 def reset():
     """기록장을 처음 상태로 되돌림 (테스트가 매번 부름)."""
     _records.clear()
-    _records[HERO] = {"seen_ep": 49, "rating": None, "updated_at": "2026-10-05T21:00:00+09:00"}
+    _records[USER] = {
+        HERO: {"seen_ep": 49, "rating": None, "updated_at": "2026-10-05T21:00:00+09:00"}
+    }
+
+
+def _user_records(user_id: str) -> dict[str, dict]:
+    return _records.setdefault(user_id, {})
 
 
 reset()
@@ -55,9 +61,10 @@ def _series(series_id):
     return info
 
 
-def _seen(series_id, seen_ep):
-    if seen_ep is None and series_id in _records:
-        return _records[series_id]["seen_ep"]
+def _seen(series_id, seen_ep, user_id=USER):
+    records = _user_records(user_id)
+    if seen_ep is None and series_id in records:
+        return records[series_id]["seen_ep"]
     return seen_ep
 
 
@@ -109,7 +116,7 @@ def review(series_id: str, seen_ep: int | None = None, mode: str = "summary", qu
     if mode not in MODES:
         raise ValueError(f"mode는 {list(MODES)} 중 하나여야 합니다: {mode!r}")
     info = _series(series_id)
-    seen_ep = _seen(series_id, seen_ep)
+    seen_ep = _seen(series_id, seen_ep, user_id)
     if seen_ep is None:
         return {"answer": None, "seen_ep": None, "sources": [], "follow_up": ASK_SEEN}
     seen_ep = min(int(seen_ep), info["total_episodes"])
@@ -124,7 +131,7 @@ def review(series_id: str, seen_ep: int | None = None, mode: str = "summary", qu
 
 def dictionary(series_id: str, seen_ep: int | None = None, *, user_id=USER) -> dict:
     _series(series_id)
-    seen_ep = _seen(series_id, seen_ep)
+    seen_ep = _seen(series_id, seen_ep, user_id)
     if seen_ep is None:
         return {"seen_ep": None, "entries": [], "follow_up": ASK_SEEN}
     return {"seen_ep": seen_ep, "follow_up": None, "entries": [
@@ -146,14 +153,15 @@ def save_record(series_id: str, seen_ep: int, rating: float | None = None, *, us
         raise ValueError(f"본 회차는 0부터 {info['total_episodes']}까지의 정수여야 합니다: {seen_ep!r}")
     if rating is not None and not 0.5 <= rating <= 5:
         raise ValueError(f"평점은 0.5부터 5까지입니다: {rating!r}")
-    old = _records.get(series_id, {})
-    _records[series_id] = {"seen_ep": seen_ep, "rating": rating if rating is not None else old.get("rating"),
-                           "updated_at": dt.datetime.now(dt.timezone.utc).isoformat()}
-    return get_record(series_id)
+    records = _user_records(user_id)
+    old = records.get(series_id, {})
+    records[series_id] = {"seen_ep": seen_ep, "rating": rating if rating is not None else old.get("rating"),
+                          "updated_at": dt.datetime.now(dt.timezone.utc).isoformat()}
+    return get_record(series_id, user_id=user_id)
 
 
 def get_record(series_id: str, *, user_id=USER) -> dict | None:
-    r = _records.get(series_id)
+    r = _user_records(user_id).get(series_id)
     if not r:
         return None
     info = SERIES[series_id]
@@ -164,12 +172,13 @@ def get_record(series_id: str, *, user_id=USER) -> dict | None:
 
 def list_records(*, user_id=USER) -> list[dict]:
     """records.list_all처럼 최근에 저장한 기록이 먼저."""
-    newest = sorted(_records, key=lambda sid: dt.datetime.fromisoformat(_records[sid]["updated_at"]), reverse=True)
-    return [get_record(sid) for sid in newest]
+    records = _user_records(user_id)
+    newest = sorted(records, key=lambda sid: dt.datetime.fromisoformat(records[sid]["updated_at"]), reverse=True)
+    return [get_record(sid, user_id=user_id) for sid in newest]
 
 
 def delete_record(series_id: str, *, user_id=USER) -> bool:
-    return _records.pop(series_id, None) is not None
+    return _user_records(user_id).pop(series_id, None) is not None
 
 
 def search_series(query: str | None = None, limit: int = 50) -> list[dict]:
@@ -184,7 +193,7 @@ def series(series_id: str) -> dict | None:
     return SERIES.get(series_id)
 
 
-def chat(message: str, history: list[dict] | None = None) -> dict:
+def chat(message: str, history: list[dict] | None = None, *, user_id=USER) -> dict:
     """→ {answer, follow_up?, steps[{tool, label, ok, args}], results{}, suggestions[{label, message}], context?}
     LLM 없이 낱말 규칙으로 흐름을 재현(설계 문서 "가짜 모드" 표). 위에서부터 먼저 맞는 것 하나:
     봤어+숫자 → 저장 / 시청처·어디서 → 시청처 / 복습·줄거리 → 복습 / 인물·용어·누구·사전 → 사전 / 추천 / 기록 / 그 외 → find.
@@ -214,7 +223,10 @@ def chat(message: str, history: list[dict] | None = None) -> dict:
         args = {"series_id": matched["series_id"], "seen_ep": int(number.group()), "rating": None}
         try:
             saved = step("save_record", _chat.save_with_previous(
-                {"get_record": get_record, "save_record": save_record}, args["series_id"], args["seen_ep"]), **args)
+                {"get_record": lambda series_id: get_record(series_id, user_id=user_id),
+                 "save_record": lambda series_id, seen_ep, rating=None: save_record(
+                     series_id, seen_ep, rating, user_id=user_id)},
+                args["series_id"], args["seen_ep"]), **args)
         except ValueError as e:
             steps.append({"tool": "save_record", "label": _chat.LABELS["save_record"], "ok": False, "args": args})
             return reply("search_series", {"query": "히어로"}, str(e))
@@ -227,23 +239,23 @@ def chat(message: str, history: list[dict] | None = None) -> dict:
     if "복습" in message or "줄거리" in message:
         target = _series_in(message)
         sid = target["series_id"]
-        step("get_record", get_record(sid), series_id=sid)
-        r = step("review", review(sid, None, "summary"), series_id=sid, mode="summary")
+        step("get_record", get_record(sid, user_id=user_id), series_id=sid)
+        r = step("review", review(sid, None, "summary", user_id=user_id), series_id=sid, mode="summary")
         return reply("review", {"series_id": sid, "mode": "summary"},
                      f"「{target['name']}」 {r['seen_ep']}화까지의 복습이에요. 자세한 내용은 복습 카드에 있어요.")
     if any(w in message for w in ("인물", "용어", "누구", "사전")):
         target = _series_in(message)
         sid = target["series_id"]
-        step("get_record", get_record(sid), series_id=sid)
-        r = step("dictionary", dictionary(sid), series_id=sid)
+        step("get_record", get_record(sid, user_id=user_id), series_id=sid)
+        r = step("dictionary", dictionary(sid, user_id=user_id), series_id=sid)
         return reply("dictionary", {"series_id": sid},
                      f"「{target['name']}」 {r['seen_ep']}화까지 나온 인물·용어 {len(r['entries'])}개를 찾았어요.")
     if "추천" in message:
-        r = step("recommend", recommend(message), likes=message)
+        r = step("recommend", recommend(message, user_id=user_id), likes=message)
         pick = r["picks"][0]
         return reply("recommend", {"likes": message}, f"「{pick['title']}」을(를) 추천해요. {pick['reason']}")
     if "기록" in message:
-        r = step("list_records", list_records())
+        r = step("list_records", list_records(user_id=user_id))
         return reply("list_records", {}, f"시청 기록이 {len(r['items'])}개 있어요.")
-    r = step("find", find(message, history))
+    r = step("find", find(message, history, user_id=user_id))
     return reply("find", {}, r["answer"])

@@ -1,0 +1,6 @@
+# 발표용 Render 배포에 필요한 최소 패키지입니다.
+# ANIWHERE_FAKE=1에서는 수집·임베딩·Streamlit 패키지를 설치하지 않아도 됩니다.
+fastapi>=0.115
+uvicorn[standard]>=0.30
+psycopg[binary]>=3.2
+PyYAML>=6.0

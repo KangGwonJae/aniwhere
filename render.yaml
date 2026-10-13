@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: aniwhere-demo
+    runtime: python
+    plan: free
+    region: singapore
+    branch: feat/uijin-ui-integration-v2
+    buildCommand: pip install -r requirements-deploy.txt
+    startCommand: python -m uvicorn aniwhere.api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: ANIWHERE_FAKE
+        value: "1"
+      - key: PYTHON_VERSION
+        value: "3.13.4"

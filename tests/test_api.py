@@ -275,7 +275,7 @@ def test_find_passes_question_and_history_unchanged(recorder):
     rec, c = recorder
     history = [{"role": "user", "content": "거인 나오는 거"}, {"role": "assistant", "content": "어떤 장면이었나요?"}]
     c.post("/api/find", json={"question": "벽을 부숴", "history": history})
-    assert rec.calls == [("find", ("벽을 부숴", history), {})]
+    assert rec.calls == [("find", ("벽을 부숴", history), {"user_id": "local"})]
 
 
 def test_find_rejects_empty_or_missing_question(client):
@@ -286,13 +286,13 @@ def test_find_rejects_empty_or_missing_question(client):
 def test_review_passes_arguments_unchanged(recorder):
     rec, c = recorder
     c.post("/api/review", json={"series_id": fake.HERO, "seen_ep": 49, "mode": "last"})
-    assert rec.calls == [("review", (fake.HERO, 49, "last", None), {})]
+    assert rec.calls == [("review", (fake.HERO, 49, "last", None), {"user_id": "local"})]
 
 
 def test_review_defaults(recorder):
     rec, c = recorder
     c.post("/api/review", json={"series_id": fake.HERO})
-    assert rec.calls == [("review", (fake.HERO, None, "summary", None), {})]
+    assert rec.calls == [("review", (fake.HERO, None, "summary", None), {"user_id": "local"})]
 
 
 def test_review_without_seen_ep_and_record_asks_back(client):
@@ -356,7 +356,7 @@ def test_recommend(client, recorder):
     assert set(r.json()) >= {"mood", "picks"}
     rec, c = recorder
     c.post("/api/recommend", json={"likes": "기생충"})
-    assert rec.calls == [("recommend", ("기생충",), {})]
+    assert rec.calls == [("recommend", ("기생충",), {"user_id": "local"})]
 
 
 def test_records_crud(client):
@@ -376,10 +376,29 @@ def test_records_crud(client):
     assert client.get(f"/api/records/{fake.TITAN}").status_code == 404
 
 
+def test_browser_records_are_isolated(client):
+    """발표 QR로 동시에 접속해도 브라우저 A의 기록이 B에게 보이면 안 됩니다."""
+    alice = {"X-AniWhere-User": "browser_alice_123"}
+    bob = {"X-AniWhere-User": "browser_bob_456"}
+
+    assert client.get("/api/records", headers=alice).json() == []
+    assert client.get("/api/records", headers=bob).json() == []
+    saved = client.put(f"/api/records/{fake.TITAN}", headers=alice, json={"seen_ep": 12}).json()
+    assert saved["seen_ep"] == 12
+    assert client.get(f"/api/records/{fake.TITAN}", headers=alice).status_code == 200
+    assert client.get(f"/api/records/{fake.TITAN}", headers=bob).status_code == 404
+    assert client.get("/api/records", headers=bob).json() == []
+
+
+def test_browser_user_header_is_validated(client):
+    assert client.get("/api/records", headers={"X-AniWhere-User": "short"}).status_code == 400
+    assert client.get("/api/records", headers={"X-AniWhere-User": "browser bad value"}).status_code == 400
+
+
 def test_record_save_passes_arguments_unchanged(recorder):
     rec, c = recorder
     c.put(f"/api/records/{fake.HERO}", json={"seen_ep": 50})
-    assert rec.calls == [("save_record", (fake.HERO, 50, None), {})]
+    assert rec.calls == [("save_record", (fake.HERO, 50, None), {"user_id": "local"})]
 
 
 def test_record_out_of_range_is_400_not_500(client):
@@ -434,9 +453,9 @@ def test_chat_passes_message_and_history_unchanged(recorder):
                {"role": "assistant", "content": "저장했어요.", "context": {"tool": "save_record", "series_id": fake.HERO}}]
     c.post("/api/chat", json={"message": "그거 어디서 봐?", "history": history})
     expected = [dict(history[0], context=None), history[1]]
-    assert rec.calls == [("chat", ("그거 어디서 봐?", expected), {})]
+    assert rec.calls == [("chat", ("그거 어디서 봐?", expected), {"user_id": "local"})]
     c.post("/api/chat", json={"message": "안녕"})
-    assert rec.calls[1] == ("chat", ("안녕", []), {})
+    assert rec.calls[1] == ("chat", ("안녕", []), {"user_id": "local"})
 
 
 def test_chat_rejects_bad_input(client):
