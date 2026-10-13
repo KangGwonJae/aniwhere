@@ -1,4 +1,4 @@
-const CACHE = 'aniwhere-app-v64-browser-users';
+const CACHE = 'aniwhere-app-v63-fixed-navigation';
 const APP_SHELL = [
   './',
   './index.html',

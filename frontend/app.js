@@ -48,12 +48,6 @@ let recommendationSignature = '';
 const RECORD_KEY = 'aniwhere-demo-watch-record';
 const ONBOARDING_KEY = 'aniwhere-onboarding-completed-v3';
 const WATCH_RECORDS_KEY = 'aniwhere-watch-records';
-const USER_ID_KEY = 'aniwhere-browser-user-v1';
-let browserUserId = localStorage.getItem(USER_ID_KEY);
-if (!browserUserId) {
-  browserUserId = `browser_${crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(36).slice(2)}`}`;
-  localStorage.setItem(USER_ID_KEY, browserUserId);
-}
 let savedWatchRecords = [];
 try { savedWatchRecords = JSON.parse(localStorage.getItem(WATCH_RECORDS_KEY) || '[]'); } catch { savedWatchRecords = []; }
 let hasRecord = localStorage.getItem(RECORD_KEY) === '1' || savedWatchRecords.length > 0;
@@ -159,7 +153,7 @@ async function api(path, options = {}) {
   const response = await fetch(path, {
     ...options,
     signal: options.signal || AbortSignal.timeout(70000),
-    headers: { 'Content-Type': 'application/json', 'X-AniWhere-User':browserUserId, ...(options.headers || {}) }
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }
   });
   if (!response.ok) {
     let detail = '서버 요청에 실패했습니다.';
