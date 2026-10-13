@@ -7,6 +7,7 @@ from aniwhere import records
 from aniwhere.agent.llm import prompt
 from aniwhere.config import section
 from aniwhere.retrieval import catalog
+from aniwhere.retrieval.catalog import UnknownSeries
 from aniwhere.retrieval.embedder import embed_query
 from aniwhere.retrieval.search import chunks_upto, search_chunks
 
@@ -58,7 +59,7 @@ def review(db, series_id, seen_ep=None, mode="summary", question=None, *, llm=No
         raise ValueError(f"mode는 {list(MODES)} 중 하나여야 합니다: {mode!r}")
     info = catalog.series_info(db, series_id)
     if not info:
-        raise ValueError(f"모르는 작품입니다: {series_id}")
+        raise UnknownSeries(f"모르는 작품입니다: {series_id}")
     if seen_ep is None:                                  # 기록장의 진행 회차가 복습 범위를 정함
         record = records.get(db, series_id, user_id=user_id)
         seen_ep = record["seen_ep"] if record else None

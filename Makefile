@@ -1,5 +1,5 @@
 # 자주 쓰는 명령 모음. 데모 코드를 옮기면서 각 명령을 실제 스크립트에 연결합니다.
-.PHONY: setup data index run test eval db-dump db-restore
+.PHONY: setup data index run api test eval db-dump db-restore
 
 # 인기순 상위 몇 개 시리즈까지 받을지: make data LIMIT=1000
 LIMIT ?= 300
@@ -22,6 +22,12 @@ index:
 
 run:
 	.venv/bin/streamlit run aniwhere/app/demo.py
+
+# API 서버 + 화면 (http://localhost:8000, 문서 /docs). DB·LLM 없이 가짜 응답으로 띄우기: make api FAKE=1
+# --reload-dir aniwhere: .venv·data/까지 감시하면 시작이 느려서 앱 코드만 감시
+FAKE ?=
+api:
+	ANIWHERE_FAKE=$(FAKE) .venv/bin/uvicorn aniwhere.api.main:app --reload --reload-dir aniwhere --port 8000
 
 test:
 	.venv/bin/python -m pytest tests

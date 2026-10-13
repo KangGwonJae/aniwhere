@@ -10,6 +10,10 @@ HANGUL_RE = re.compile(r"[가-힣]")
 _names_cache: dict[str, list] = {}
 
 
+class UnknownSeries(ValueError):
+    """DB에 없는 series_id. API는 이 예외를 404로 바꿉니다 (그 외 ValueError는 400)."""
+
+
 def norm(text) -> str:
     return re.sub(r"[\W_]+", "", (text or "").lower())
 

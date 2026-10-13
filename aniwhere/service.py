@@ -11,9 +11,11 @@
 | 08 회차 기준 인물·용어 사전 | dictionary(series_id, seen_ep) |
 | 09 맞춤 복습 | review(series_id, seen_ep, mode, question) |
 | 13 시청 기록장 | save_record / get_record / list_records / delete_record |
+| 에이전트 대화 (모든 기능의 입구) | chat(message, history) |
 | 11 스포일러 차단 | 위 모든 함수에 적용 (aniwhere/retrieval/search.py) |
 """
 from aniwhere import records
+from aniwhere.agent import chat as _chat
 from aniwhere.agent import find as _find
 from aniwhere.agent import recommend as _recommend
 from aniwhere.agent import review as _review
@@ -51,7 +53,9 @@ def _plain(value):
 
 
 def find(question: str, history: list[dict] | None = None, *, user_id=USER) -> dict:
-    """→ {status, answer, candidates[{series_id, title, abs_ep?, label?, score?}], follow_up?, sources[]}"""
+    """→ {status, answer, candidates[{series_id, title, abs_ep?, label?, score?}], follow_up?,
+    sources[{series_id, abs_ep, name, license, url}], debug?}. sources에 줄거리 본문은 없음(스포일러 방지).
+    debug는 단서·검색 순위(개발 확인용)."""
     return _plain(_find.find(db(), question, history, llm=get_llm(), user_id=user_id))
 
 
@@ -59,20 +63,23 @@ def where_to_watch(series_id: str) -> dict:
     """→ {series_id, title, seasons[{name, providers[], checked_at, link}], attribution}"""
     info = catalog.series_info(db(), series_id)
     if not info:
-        raise ValueError(f"모르는 작품입니다: {series_id}")
+        raise catalog.UnknownSeries(f"모르는 작품입니다: {series_id}")
     return _plain({"series_id": series_id, "title": info["name"], "seasons": catalog.streaming(db(), series_id),
                    "attribution": "시청처 정보: JustWatch (TMDB 제공). 구독형 제공처만 표시합니다."})
 
 
 def review(series_id: str, seen_ep: int | None = None, mode: str = "summary", question: str | None = None, *,
            user_id=USER) -> dict:
-    """→ {answer, seen_ep, sources[{text, abs_ep, url, license}], follow_up?}. seen_ep가 없으면 기록장에서 읽고,
-    기록도 없으면 검색하지 않고 follow_up으로 되묻습니다."""
+    """→ {answer, seen_ep, sources[{n, text, abs_ep, url, license, name}], follow_up?}. seen_ep가 없으면 기록장에서
+    읽고, 기록도 없으면 검색하지 않고 follow_up으로 되묻습니다. mode가 ask인데 질문이 비어 있어도 오류 대신
+    follow_up으로 되묻습니다(본 회차 확인이 먼저)."""
     return _plain(_review.review(db(), series_id, seen_ep, mode, question, llm=get_llm(), user_id=user_id))
 
 
 def dictionary(series_id: str, seen_ep: int | None = None, *, user_id=USER) -> dict:
     """→ {seen_ep, entries[{kind, name, text, first_ep, url, ...}], follow_up?}"""
+    if not catalog.series_info(db(), series_id):
+        raise catalog.UnknownSeries(f"모르는 작품입니다: {series_id}")
     if seen_ep is None:
         record = records.get(db(), series_id, user_id=user_id)
         seen_ep = record["seen_ep"] if record else None
@@ -88,15 +95,17 @@ def recommend(likes: str, *, user_id=USER) -> dict:
 
 
 def save_record(series_id: str, seen_ep: int, rating: float | None = None, *, user_id=USER) -> dict:
-    """→ 저장된 기록 {series_id, name, seen_ep, total_episodes, rating, updated_at}"""
+    """→ {series_id, name, seen_ep, total_episodes, rating, updated_at, poster_url} (저장된 기록)"""
     return _plain(records.save(db(), series_id, seen_ep, rating, user_id=user_id))
 
 
 def get_record(series_id: str, *, user_id=USER) -> dict | None:
+    """→ {series_id, name, seen_ep, total_episodes, rating, updated_at, poster_url}. 기록이 없으면 None."""
     return _plain(records.get(db(), series_id, user_id=user_id))
 
 
 def list_records(*, user_id=USER) -> list[dict]:
+    """get_record와 같은 형식의 목록, 최근에 저장한 기록이 먼저 → [{…}]"""
     return _plain(records.list_all(db(), user_id=user_id))
 
 
@@ -110,4 +119,16 @@ def search_series(query: str | None = None, limit: int = 50) -> list[dict]:
 
 
 def series(series_id: str) -> dict | None:
+    """→ {series_id, name, title, title_ko, overview_ko, poster_url, status, next_episode_at, total_episodes,
+    genres_ko, first_air_date}. 모르는 작품이면 None."""
     return _plain(catalog.series_info(db(), series_id))
+
+
+def chat(message: str, history: list[dict] | None = None) -> dict:
+    """→ {answer, follow_up?, steps[{tool, label, ok, args}], results{}, suggestions[{label, message}], context?}
+    에이전트 대화. LLM이 위 함수들을 도구로 골라 부르고(한 턴에 3번), 되물으면 follow_up을 그대로 답으로 씁니다.
+    history의 assistant 턴에는 전 응답의 context를 그대로 붙여 보냅니다. 판단은 모두 agent/chat.py에 있습니다."""
+    fns = {"search_series": search_series, "list_records": list_records, "get_record": get_record,
+           "save_record": save_record, "find": find, "review": review, "dictionary": dictionary,
+           "where_to_watch": where_to_watch, "recommend": recommend, "series": series}
+    return _chat.run(get_llm(), message, history or [], fns)

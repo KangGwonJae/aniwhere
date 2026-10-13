@@ -5,8 +5,11 @@ psycopg[binary]>=3.2
 PyYAML>=6.0
 # 청크 임베딩 (data/collect.py embed, search)
 sentence-transformers>=3.0
-# 앱 (aniwhere/): LLM, 확인용 화면
+# 앱 (aniwhere/): LLM, 확인용 화면, API 서버
 openai>=1.60
 streamlit>=1.38
+fastapi>=0.115
+uvicorn[standard]>=0.30
 # 테스트
 pytest>=8.0
+httpx>=0.27
