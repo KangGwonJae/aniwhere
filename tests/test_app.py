@@ -301,6 +301,8 @@ def test_series_is_found_by_title_or_alias(db, monkeypatch, tmp_path):
     monkeypatch.setattr(catalog, "ALIASES", tmp_path / "aliases.json")
     catalog._names_cache.clear()
     assert catalog.mentioned_series(db, "테거 3화") == [A]
+    assert [item["series_id"] for item in catalog.list_series(db, "테거")] == [A]
+    assert [item["series_id"] for item in catalog.list_series(db, "테스트 거인 2기")] == [A]
     catalog._names_cache.clear()
 
 

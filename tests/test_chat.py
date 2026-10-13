@@ -66,7 +66,7 @@ def labels(chips):
 
 def test_context_and_suggest_for_find():
     ctx = chat.context_of("find", {}, FIND_EP)
-    assert ctx == {"tool": "find", "series_id": B, "title": "테스트 칼날", "seen_ep": 3}
+    assert ctx == {"tool": "find", "series_id": B, "title": "테스트 칼날", "candidate_ep": 3}
     assert labels(chat.suggest("find", FIND_EP, ctx)) == [("여기까지 봤어요", "테스트 칼날 3화까지 봤어"),
                                                           ("시청처 보기", "테스트 칼날 어디서 볼 수 있어?")]
     ctx = chat.context_of("find", {}, FIND_SERIES)

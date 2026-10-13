@@ -1,4 +1,4 @@
-const CACHE = 'aniwhere-app-v39-chat-transparency';
+const CACHE = 'aniwhere-app-v51-clearer-poster-wall';
 const APP_SHELL = [
   './',
   './index.html',
@@ -15,6 +15,7 @@ const APP_SHELL = [
   './assets/gon-card-user.png',
   './assets/okabe-card-user.png',
   './assets/l-detective-user.png',
+  './assets/L.png',
   './assets/eren-spoiler-user.png',
   './assets/naruto-history-user.png',
   './assets/zoldyck-family-map.png',
@@ -28,7 +29,12 @@ const APP_SHELL = [
   './assets/hxh-illumi.png',
   './assets/hxh-phantom-troupe.png',
   './assets/hxh-zeno.png',
-  './assets/hxh.png'
+  './assets/hxh.png',
+  './assets/netflix.png',
+  './assets/crunchyroll.png',
+  './assets/tving.png',
+  './assets/watcha.png',
+  './assets/wavve.png'
 ];
 
 self.addEventListener('install', event => {

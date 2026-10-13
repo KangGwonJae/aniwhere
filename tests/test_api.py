@@ -491,7 +491,7 @@ def test_fake_chat_branches(client):
     assert body["results"]["find"]["status"] == "ambiguous" and body["answer"] == body["follow_up"] == fake.ASK_MORE
     assert body["suggestions"] == [] and body["context"] == {"tool": "find"}
     body = client.post("/api/chat", json={"message": "키 작은 아저씨가 칼 들고 날아다녀"}).json()
-    assert body["context"] == {"tool": "find", "series_id": fake.TITAN, "title": "진격의 거인", "seen_ep": 1}
+    assert body["context"] == {"tool": "find", "series_id": fake.TITAN, "title": "진격의 거인", "candidate_ep": 1}
     assert [c["label"] for c in body["suggestions"]] == ["여기까지 봤어요", "시청처 보기"]
 
 

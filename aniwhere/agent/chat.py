@@ -139,8 +139,10 @@ def context_of(tool: str, args: dict, result: dict, title: str | None = None) ->
     if tool == "find":
         first = (result.get("candidates") or [None])[0]
         if first and result.get("status") in ("episode", "series"):
-            put(first.get("series_id"), first.get("title"),
-                first.get("abs_ep") if result["status"] == "episode" else None)
+            put(first.get("series_id"), first.get("title"))
+            # 찾은 회차는 시청 완료 지점이 아니라 아직 확인 전인 후보다.
+            if result["status"] == "episode" and first.get("abs_ep") is not None:
+                ctx["candidate_ep"] = first["abs_ep"]
     elif tool in ("save_record", "get_record"):
         if result.get("series_id"):
             put(result["series_id"], result.get("name"), result.get("seen_ep"))
@@ -162,7 +164,8 @@ def suggest(tool: str, result: dict, context: dict | None) -> list[dict]:
     마지막으로 성공한 도구 기준의 규칙. 되묻는 중(follow_up)이면 []. {제목}이 없으면 그 칩을 뺀다."""
     if not result or not context or result.get("follow_up"):
         return []
-    title, seen_ep = context.get("title"), context.get("seen_ep")
+    title = context.get("title")
+    seen_ep = context.get("candidate_ep") if context.get("tool") == "find" else context.get("seen_ep")
     chips = {
         "seen": ("여기까지 봤어요", f"{title} {seen_ep}화까지 봤어" if title and seen_ep is not None else None),
         "watch": ("시청처 보기", f"{title} 어디서 볼 수 있어?" if title else None),
@@ -190,6 +193,8 @@ def _context_line(ctx: dict) -> str:
         parts.append(f"제목={ctx['title']}")
     if ctx.get("seen_ep") is not None:
         parts.append(f"회차={ctx['seen_ep']}")
+    if ctx.get("candidate_ep") is not None:
+        parts.append(f"후보 회차={ctx['candidate_ep']}")
     return "[직전 결과: " + ", ".join(parts) + "]"
 
 

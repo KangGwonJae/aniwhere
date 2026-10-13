@@ -45,7 +45,7 @@
         <div class="onboarding-ribbon poster-belt" id="onboarding-poster-belt" aria-hidden="true"></div>
       </div>
       <div class="onboarding-step" data-onboarding-step="titles" hidden>
-        <div class="onboarding-heading onboarding-heading-row"><div><small>STEP 01 · WATCH LIST</small><h2>작품을 누르고 시청 상태를 알려주세요.</h2><p>보고 싶은 작품도 저장할 수 있어요. 시즌과 회차 목록은 백엔드 작품 데이터로 채워집니다.</p></div><div class="onboarding-heading-actions"><span id="onboarding-selection-count">0개 저장</span><button class="primary" id="onboarding-to-details" disabled>선택 완료하고 시작</button><button data-onboarding-skip>건너뛰기</button></div></div>
+        <div class="onboarding-heading onboarding-heading-row"><div><small>STEP 01 · WATCH LIST</small><h2>작품을 누르고 시청 상태를 알려주세요.</h2><p>인기 작품에서 고르거나 제목으로 검색할 수 있어요.</p><form id="onboarding-search" class="onboarding-search"><input id="onboarding-search-input" type="search" placeholder="애니 제목 검색 · 예: 헌터헌터" autocomplete="off"><button type="submit">검색</button><button type="button" id="onboarding-search-reset" hidden>인기 작품</button></form></div><div class="onboarding-heading-actions"><span id="onboarding-selection-count">0개 저장</span><button class="primary" id="onboarding-to-details" disabled>선택 완료하고 시작</button><button data-onboarding-skip>건너뛰기</button></div></div>
         <div class="onboarding-titles" id="onboarding-titles"><p class="catalog-loading">TMDB 작품 포스터를 불러오는 중…</p></div>
         <section class="onboarding-editor" id="onboarding-editor" hidden aria-live="polite"></section>
         <div class="onboarding-footer"><button data-onboarding-back="welcome">이전</button></div>
@@ -65,35 +65,29 @@
           <p>기억나는 장면을 말하거나, 먼저 본 작품과 시청 지점을 등록해 주세요.</p>
         </div>
         <div class="record-context" id="record-context" hidden>
-          <div class="loaded-record"><span>✓</span><div><b>내 시청 기록을 불러왔어요</b><small>저장한 지점부터 이어서 안내해요</small></div></div>
-          <div class="rail-heading"><small>지금 대화 중</small><h2>나의 히어로<br>아카데미아</h2></div>
-          <div class="watch-context">
+          <div class="loaded-record"><span>✓</span><div><b>내 시청 기록</b><small>저장한 작품을 옆으로 넘겨 확인하세요</small></div></div>
+          <div class="conversation-empty" id="conversation-empty"><small>지금 대화 중인 작품</small><b>아직 없어요</b><span>작품을 찾거나 질문하면 여기에 표시돼요.</span></div>
+          <div class="rail-heading" hidden><small>지금 대화 중인 작품</small><h2></h2></div>
+          <div class="watch-context" hidden>
             <img src="assets/my-hero-academia.jpg" alt="나의 히어로 아카데미아 포스터">
             <div><b>저장된 시청 지점</b><span>내 기록을 기준으로 스포일러 보호</span></div>
           </div>
           <div class="rail-library"><small>내 시청 기록</small><div class="rail-posters" id="rail-posters"></div></div>
           <button class="change-title" data-view="library">전체 기록 보기</button>
-          <div class="spoiler-lock"><i>⌾</i><div><b>스포일러 보호 중</b><span>12화 이후 청크는 검색 전에 제외</span></div></div>
-          <div class="rail-actions">
-            <button data-action="recap">3분 복습</button>
+          <div class="spoiler-lock" hidden><i>⌾</i><div><b>스포일러 보호 중</b><span></span></div></div>
+          <div class="rail-actions" hidden>
+            <button data-action="recap" data-context-seen>3분 복습</button>
             <button data-action="providers">시청처 보기</button>
-            <button data-action="dictionary">인물·용어</button>
+            <button data-action="dictionary" data-context-seen>인물·용어</button>
           </div>
         </div>
       </aside>
 
       <div class="chat-workspace">
         <header class="chat-heading">
-          <div><span class="agent-dot"><img src="assets/midoriya-mascot.png?v=2" alt="AniWhere Agent"></span><small id="chat-kicker">ANIWHERE AGENT</small><h1 id="chat-title">무엇이든 물어보세요!</h1><p class="chat-subtitle">흐릿한 기억 속 장면으로부터 정확한 작품과 회차를 찾아드려요.</p></div>
+          <div><span class="agent-dot"><img src="assets/midoriya-mascot.png?v=2" alt="AniWhere Agent"></span><small id="chat-kicker">ANIWHERE AGENT</small><h1 id="chat-title">애니에 관한 무엇이든 물어보세요!</h1><p class="chat-subtitle">흐릿한 기억 속 장면으로부터 정확한 작품과 회차를 찾아드려요.</p></div>
           <button class="new-chat" id="new-chat">＋ 새 대화</button>
         </header>
-
-        <div class="agent-shortcuts" aria-label="자주 찾는 기능">
-          <button data-action="recap" data-requires-record><i>◴</i><span><b>3분 복습</b><small>내 기록까지만</small></span></button>
-          <button data-action="watch-order"><i>☷</i><span><b>시청 순서</b><small>본편·극장판</small></span></button>
-          <button data-action="hook-guide"><i>▶</i><span><b>몇 화부터?</b><small>스포일러 없이</small></span></button>
-          <button data-action="manga-link"><i>≡</i><span><b>원작 연결</b><small>어디서부터?</small></span></button>
-        </div>
 
         <div class="messages" id="messages" aria-live="polite"></div>
         <div class="suggestions" id="suggestions"></div>
