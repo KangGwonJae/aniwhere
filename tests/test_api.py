@@ -157,6 +157,7 @@ def test_fake_series_and_record_match_real_keys():
     assert set(fake.series(fake.HERO)) == {"series_id", "name", "title", "title_ko", "overview_ko", "poster_url",
                                            "status", "next_episode_at", "total_episodes", "genres_ko",
                                            "first_air_date"}
+    assert all(row["poster_url"] for row in fake.SERIES.values())
     record_keys = {"series_id", "name", "seen_ep", "total_episodes", "rating", "updated_at", "poster_url"}
     assert set(fake.get_record(fake.HERO)) == record_keys
     assert all(set(r) == record_keys for r in fake.list_records())
@@ -191,7 +192,7 @@ def test_fake_rejects_bad_input_like_service():
 
 
 def test_series_list_and_search(client):
-    assert len(client.get("/api/series").json()) == 2
+    assert len(client.get("/api/series").json()) == 5
     rows = client.get("/api/series", params={"q": "거인"}).json()
     assert [r["series_id"] for r in rows] == [fake.TITAN]
     assert set(rows[0]) == {"series_id", "name", "title", "total_episodes"}

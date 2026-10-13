@@ -13,20 +13,38 @@ from aniwhere.agent import chat as _chat     # LABELS·suggest·as_result·conte
 from aniwhere.retrieval.catalog import UnknownSeries
 
 HERO, TITAN = "tmdb:65930", "tmdb:1429"
+HUNTER, STEINS, NARUTO = "demo:hxh", "demo:steins", "demo:naruto"
 USER = "local"
 
 # 키는 catalog.series_info와 같음 (name = title_ko가 있으면 title_ko, 없으면 title)
 SERIES = {
     HERO: {"series_id": HERO, "title": "My Hero Academia", "title_ko": "나의 히어로 아카데미아",
-           "overview_ko": "개성이 없던 소년 미도리야가 최고의 히어로를 꿈꾸며 유에이 고교에 들어간다.", "poster_url": None,
+           "overview_ko": "개성이 없던 소년 미도리야가 최고의 히어로를 꿈꾸며 유에이 고교에 들어간다.",
+           "poster_url": "/assets/my-hero-academia.jpg",
            "status": "Ended", "next_episode_at": None, "total_episodes": 138,
            "genres_ko": ["애니메이션", "액션 & 어드벤처", "코미디"], "first_air_date": "2016-04-03",
            "name": "나의 히어로 아카데미아"},
     TITAN: {"series_id": TITAN, "title": "Attack on Titan", "title_ko": "진격의 거인",
-            "overview_ko": "거인에게 어머니를 잃은 엘런이 조사병단에 들어가 벽 밖의 비밀을 쫓는다.", "poster_url": None,
+            "overview_ko": "거인에게 어머니를 잃은 엘런이 조사병단에 들어가 벽 밖의 비밀을 쫓는다.",
+            "poster_url": "/assets/eren-spoiler-user.png",
             "status": "Ended", "next_episode_at": None, "total_episodes": 89,
             "genres_ko": ["애니메이션", "액션 & 어드벤처", "드라마"], "first_air_date": "2013-04-07",
             "name": "진격의 거인"},
+    HUNTER: {"series_id": HUNTER, "title": "Hunter × Hunter", "title_ko": "헌터×헌터",
+             "overview_ko": "아버지를 찾기 위해 헌터 시험에 도전하는 곤의 모험.",
+             "poster_url": "/assets/hxh-gon.png", "status": "Ended", "next_episode_at": None,
+             "total_episodes": 148, "genres_ko": ["모험", "판타지"], "first_air_date": "2011-10-02",
+             "name": "헌터×헌터"},
+    STEINS: {"series_id": STEINS, "title": "Steins;Gate", "title_ko": "슈타인즈 게이트",
+             "overview_ko": "우연히 과거로 메시지를 보내는 방법을 발견한 연구소 멤버들의 이야기.",
+             "poster_url": "/assets/okabe-card-user.png", "status": "Ended", "next_episode_at": None,
+             "total_episodes": 24, "genres_ko": ["SF", "스릴러"], "first_air_date": "2011-04-06",
+             "name": "슈타인즈 게이트"},
+    NARUTO: {"series_id": NARUTO, "title": "Naruto", "title_ko": "나루토",
+             "overview_ko": "마을 최고의 닌자를 꿈꾸는 나루토의 성장 이야기.",
+             "poster_url": "/assets/naruto-history-user.png", "status": "Ended", "next_episode_at": None,
+             "total_episodes": 220, "genres_ko": ["액션", "모험"], "first_air_date": "2002-10-03",
+             "name": "나루토"},
 }
 # agent/review.py의 근거 형식: 번호(n)와 짧게 자른 본문, 출처
 SOURCE = {"n": 1, "text": "미도리야는 올마이트에게서 원 포 올을 물려받는다.", "abs_ep": 2,
