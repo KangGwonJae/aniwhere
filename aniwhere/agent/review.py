@@ -76,9 +76,17 @@ def review(db, series_id, seen_ep=None, mode="summary", question=None, *, llm=No
     context = _context(db, series_id, seen_ep, mode, question, cfg.get("max_context_chars", 60000))
     # 검색이 이미 걸렀지만, 답을 만들기 직전에 한 번 더 확인 (여기서 걸리면 검색 쪽 버그)
     assert all(c["abs_ep"] is None or c["abs_ep"] <= seen_ep for c, _ in context), "본 회차 이후 청크가 섞였습니다"
-    sources = [{"n": i, "text": c["text"][:cfg.get("source_chars", 400)], "abs_ep": c["abs_ep"],
-                "url": (c["sources"] or [{}])[0].get("url"), "license": (c["sources"] or [{}])[0].get("license"),
-                "name": (c["sources"] or [{}])[0].get("name")} for i, (c, _) in enumerate(context, 1)]
+    episode_info = catalog.episodes(db, series_id, [c["abs_ep"] for c, _ in context if c["abs_ep"] is not None])
+    sources = []
+    for i, (c, _) in enumerate(context, 1):
+        ep = episode_info.get(c["abs_ep"], {})
+        location = (f"{ep['tmdb_season']}기 {ep['tmdb_number']}화 (전체 {c['abs_ep']}화)"
+                    if ep.get("tmdb_season") and ep.get("tmdb_number") else f"전체 {c['abs_ep']}화")
+        sources.append({"n": i, "text": c["text"][:cfg.get("source_chars", 400)], "abs_ep": c["abs_ep"],
+                        "episode_label": f"{info['name']} {location}",
+                        "url": (c["sources"] or [{}])[0].get("url"),
+                        "license": (c["sources"] or [{}])[0].get("license"),
+                        "name": (c["sources"] or [{}])[0].get("name")})
     if not context:
         return {"answer": "본 회차까지의 자료에서는 확인할 수 없어요.", "seen_ep": seen_ep, "sources": [],
                 "follow_up": None}

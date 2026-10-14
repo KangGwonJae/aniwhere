@@ -66,7 +66,7 @@ def labels(chips):
 
 def test_context_and_suggest_for_find():
     ctx = chat.context_of("find", {}, FIND_EP)
-    assert ctx == {"tool": "find", "series_id": B, "title": "테스트 칼날", "seen_ep": 3}
+    assert ctx == {"tool": "find", "series_id": B, "title": "테스트 칼날", "candidate_ep": 3}
     assert labels(chat.suggest("find", FIND_EP, ctx)) == [("여기까지 봤어요", "테스트 칼날 3화까지 봤어"),
                                                           ("시청처 보기", "테스트 칼날 어디서 볼 수 있어?")]
     ctx = chat.context_of("find", {}, FIND_SERIES)
@@ -74,7 +74,7 @@ def test_context_and_suggest_for_find():
     assert chat.suggest("find", FIND_SERIES, ctx) == []                       # 되묻는 중이면 칩 없음
     no_follow = dict(FIND_SERIES, follow_up=None)
     assert labels(chat.suggest("find", no_follow, ctx)) == [("시청처 보기", "테스트 칼날 어디서 볼 수 있어?"),
-                                                            ("인물·용어", "테스트 칼날 인물·용어 알려줘")]
+                                                            ("인물 사전", "테스트 칼날 인물 알려줘")]
     ctx = chat.context_of("find", {}, FIND_AMB)
     assert ctx == {"tool": "find"} and chat.suggest("find", FIND_AMB, ctx) == []
 
@@ -84,7 +84,7 @@ def test_context_and_suggest_for_records():
     ctx = chat.context_of("save_record", {"series_id": A, "seen_ep": 7}, saved)
     assert ctx == {"tool": "save_record", "series_id": A, "title": "테스트 거인", "seen_ep": 7}
     assert labels(chat.suggest("save_record", saved, ctx)) == [("3분 복습", "테스트 거인 지금까지 복습해줘"),
-                                                               ("인물·용어", "테스트 거인 인물·용어 알려줘")]
+                                                               ("인물 사전", "테스트 거인 인물 알려줘")]
     assert chat.context_of("get_record", {"series_id": A}, RECORD) == {"tool": "get_record", "series_id": A,
                                                                       "title": "테스트 거인", "seen_ep": 7}
     assert chat.suggest("get_record", RECORD, chat.context_of("get_record", {"series_id": A}, RECORD)) == []
@@ -97,7 +97,7 @@ def test_context_and_suggest_for_review_dictionary_where():
     review = {"answer": "요약", "seen_ep": 7, "sources": [], "follow_up": None}
     ctx = chat.context_of("review", {"series_id": A, "mode": "summary"}, review, title="테스트 거인")
     assert ctx == {"tool": "review", "series_id": A, "title": "테스트 거인", "seen_ep": 7}
-    assert labels(chat.suggest("review", review, ctx)) == [("인물·용어", "테스트 거인 인물·용어 알려줘"),
+    assert labels(chat.suggest("review", review, ctx)) == [("인물 사전", "테스트 거인 인물 알려줘"),
                                                            ("시청처 보기", "테스트 거인 어디서 볼 수 있어?")]
     assert chat.suggest("review", review, chat.context_of("review", {"series_id": A}, review)) == []   # 제목 없으면 칩 뺌
     asking = {"answer": None, "seen_ep": None, "sources": [], "follow_up": ASK_SEEN}
@@ -113,7 +113,7 @@ def test_context_and_suggest_for_review_dictionary_where():
     ctx = chat.context_of("where_to_watch", {"series_id": A}, where)          # 제목은 결과에서
     assert ctx == {"tool": "where_to_watch", "series_id": A, "title": "테스트 거인"}
     assert labels(chat.suggest("where_to_watch", where, ctx)) == [("3분 복습", "테스트 거인 지금까지 복습해줘"),
-                                                                  ("인물·용어", "테스트 거인 인물·용어 알려줘")]
+                                                                  ("인물 사전", "테스트 거인 인물 알려줘")]
 
 
 def test_context_and_suggest_for_search_and_recommend():
@@ -343,7 +343,7 @@ def test_value_error_from_tool_becomes_error_message_and_loop_continues():
     assert [(s["tool"], s["ok"]) for s in r["steps"]] == [("where_to_watch", False), ("where_to_watch", True)]
     assert "모르는 작품" in tool_messages(llm, 1)[0]["content"]
     assert r["results"]["where_to_watch"]["series_id"] == A and r["answer"] == "넷플릭스요."
-    assert r["context"]["title"] == "테스트 거인" and [c["label"] for c in r["suggestions"]] == ["3분 복습", "인물·용어"]
+    assert r["context"]["title"] == "테스트 거인" and [c["label"] for c in r["suggestions"]] == ["3분 복습", "인물 사전"]
 
 
 def test_other_exceptions_propagate():
@@ -510,7 +510,7 @@ def test_save_value_error_is_returned_to_llm():
 
 # ───────────────────────── service.chat 연결 ─────────────────────────
 
-def test_service_chat_passes_only_public_functions_and_calls_run(monkeypatch):
+def test_service_chat_passes_public_tools_bound_to_login_user_and_calls_run(monkeypatch):
     seen = {}
     monkeypatch.setattr(service, "db", lambda: None)
     monkeypatch.setattr(service, "get_llm", lambda: "LLM")
@@ -520,7 +520,14 @@ def test_service_chat_passes_only_public_functions_and_calls_run(monkeypatch):
     assert seen["llm"] == "LLM" and seen["message"] == "안녕" and seen["history"] == []
     assert set(seen["fns"]) == {t["function"]["name"] for t in chat.TOOLS} | {"series"}
     public = {n: f for n, f in inspect.getmembers(service, inspect.isfunction) if f.__module__ == service.__name__}
-    assert all(seen["fns"][name] is public[name] for name in seen["fns"])
+    assert all(seen["fns"][name] is public[name] for name in ("search_series", "where_to_watch", "series"))
+    assert all(callable(seen["fns"][name]) for name in seen["fns"])
+
+    got = {}
+    monkeypatch.setattr(service, "list_records", lambda *, user_id: got.update(user_id=user_id) or [])
+    assert service.chat("안녕", user_id="user:권재") == {"answer": "ok"}
+    seen["fns"]["list_records"]()
+    assert got == {"user_id": "user:권재"}
 
 
 def test_service_chat_forwards_message_and_history_to_find(monkeypatch):

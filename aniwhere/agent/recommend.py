@@ -24,8 +24,11 @@ def recommend(db, likes: str, *, llm=None, user_id=records.LOCAL_USER) -> dict:
     if not genres and not tags:
         return {"mood": None, "picks": [], "follow_up": "취향을 읽지 못했어요. 작품 이름을 조금 더 알려 주세요."}
     count = section("recommend").get("count", 5)
-    seen = list(records.watched_map(db, user_id=user_id))
-    pool = [r for r in catalog.similar_by_tags(db, genres, tags, exclude=seen, limit=count * 4) if r["overlap"] > 0]
+    # 좋아한다고 예로 든 작품과 이미 본 작품은 추천 결과에서 제외합니다.
+    # 특히 "헌터헌터를 좋아해"에 헌터헌터 자체를 돌려주던 문제를 막습니다.
+    excluded = set(records.watched_map(db, user_id=user_id))
+    excluded.update(catalog.mentioned_series(db, likes))
+    pool = [r for r in catalog.similar_by_tags(db, genres, tags, exclude=list(excluded), limit=count * 4) if r["overlap"] > 0]
     intro = {r["series_id"]: " ".join(c["text"] for c in chunks_upto(
         db, r["series_id"], seen_ep=0, types=["summary"], include_episode_free=True))[:1200] for r in pool}
     pool = [r for r in pool if intro[r["series_id"]]]

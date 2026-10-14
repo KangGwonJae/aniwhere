@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0f1520">
+  <meta name="description" content="기억나는 장면으로 애니와 시청 지점을 찾고, 스포일러 없이 복습하세요.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="AniWhere">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/midoriya-icon-192.png?v=3" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" href="assets/midoriya-apple-touch-icon.png?v=3" sizes="180x180">
+  <title>AniWhere</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="poster-atmosphere" aria-hidden="true">
+    <img src="assets/my-hero-academia.jpg" alt=""><img src="assets/eren-spoiler-user.png" alt=""><img src="assets/hxh-gon.png" alt=""><img src="assets/okabe-card-user.png" alt=""><img src="assets/naruto-history-user.png" alt="">
+  </div>
+  <header class="topbar">
+    <button class="brand" data-view="chat" aria-label="AniWhere 홈">AniWhere</button>
+    <nav aria-label="주요 메뉴">
+      <button class="active" data-view="chat">AI 대화</button>
+      <button data-view="library">시청 기록</button>
+      <button data-view="discover">탐색</button>
+    </nav>
+    <div class="top-actions"><button class="install-app" id="install-app" type="button" hidden>앱 설치</button><button class="profile" id="profile" data-view="library" aria-label="내 시청 기록">?</button></div>
+  </header>
+
+  <section class="onboarding login" id="login" hidden role="dialog" aria-modal="true" aria-labelledby="login-title">
+    <div class="onboarding-shell login-shell">
+      <header class="onboarding-brand"><b>AniWhere</b></header>
+      <div class="login-step">
+        <div class="onboarding-welcome-copy">
+          <span class="onboarding-mascot"><img src="assets/midoriya-mascot.png?v=2" alt="미도리야 이즈쿠"></span>
+          <small>ANIWHERE AGENT</small>
+          <h1 id="login-title">닉네임으로 시작하기</h1>
+          <p>닉네임마다 시청 기록과 대화가 따로 저장돼요.<br>다른 기기에서도 같은 닉네임을 쓰면 같은 기록을 볼 수 있어요.</p>
+          <form id="login-form" class="onboarding-search login-form">
+            <label class="sr-only" for="login-nickname">닉네임</label>
+            <input id="login-nickname" type="text" placeholder="닉네임 · 한글·영문·숫자 2~20자" autocomplete="nickname" maxlength="20" required>
+            <button type="submit">시작하기</button>
+          </form>
+          <p class="login-error" id="login-error" role="alert" hidden></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="onboarding" id="onboarding" hidden role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
+    <div class="onboarding-shell">
+      <header class="onboarding-brand"><b>AniWhere</b><div class="onboarding-brand-actions"><button type="button" id="onboarding-install-app">＋ 앱 설치</button><span id="onboarding-progress">처음 만나는 중 · 1/3</span></div></header>
+      <div class="onboarding-step active" data-onboarding-step="welcome">
+        <div class="onboarding-welcome-copy">
+          <span class="onboarding-mascot"><img src="assets/midoriya-mascot.png?v=2" alt="미도리야 이즈쿠"></span>
+          <small>ANIWHERE AGENT</small>
+          <h1 id="onboarding-title">환영합니다!</h1>
+          <p>당신의 애니 생활을 함께할 aniWhere 에이전트예요!<br>그동안 본 애니를 알려주시면 스포일러 없이 도와드릴게요.</p>
+          <div class="onboarding-actions"><button class="primary" data-onboarding-next="titles">본 애니 기록하기</button><button data-onboarding-l>제 취향 애니를 찾고 싶어요</button><button data-onboarding-skip>건너뛸래요</button></div>
+        </div>
+        <div class="onboarding-ribbon poster-belt" id="onboarding-poster-belt" aria-hidden="true"></div>
+      </div>
+      <div class="onboarding-step" data-onboarding-step="titles" hidden>
+        <div class="onboarding-heading onboarding-heading-row"><div><small>STEP 01 · WATCH LIST</small><h2>작품을 누르고 시청 상태를 알려주세요.</h2><p>인기 작품에서 고르거나 제목으로 검색할 수 있어요.</p><form id="onboarding-search" class="onboarding-search"><input id="onboarding-search-input" type="search" placeholder="애니 제목 검색 · 예: 헌터헌터" autocomplete="off"><button type="submit">검색</button><button type="button" id="onboarding-search-reset" hidden>인기 작품</button></form></div><div class="onboarding-heading-actions"><span id="onboarding-selection-count">0개 저장</span><button data-onboarding-skip>건너뛰기</button></div></div>
+        <div class="onboarding-titles" id="onboarding-titles"><p class="catalog-loading">TMDB 작품 포스터를 불러오는 중…</p></div>
+        <div class="onboarding-footer"><button data-onboarding-back="welcome">이전</button></div>
+        <button class="onboarding-l-link" data-onboarding-l>본 작품이 없나요? L에게 취향 추리 맡기기 →</button>
+        <div class="onboarding-complete-dock"><span>선택한 작품은 메인 화면에서 언제든 수정할 수 있어요.</span><button class="primary" id="onboarding-to-details" disabled>완료하고 시작</button></div>
+      </div>
+    </div>
+  </section>
+
+  <main>
+    <section class="view chat-view active" id="chat-view">
+      <aside class="context-rail">
+        <div class="empty-context" id="empty-context">
+          <span class="empty-symbol">✦</span>
+          <small>처음 오셨군요</small>
+          <h2>아직 선택한<br>작품이 없어요.</h2>
+          <p>기억나는 장면을 말하거나, 먼저 본 작품과 시청 지점을 등록해 주세요.</p>
+        </div>
+        <div class="record-context" id="record-context" hidden>
+          <div class="conversation-empty" id="conversation-empty"><small>지금 대화 중인 작품</small><b>아직 없어요</b><span>작품을 찾거나 질문하면 여기에 표시돼요.</span></div>
+          <div class="rail-heading" hidden><small>지금 대화 중인 작품</small><h2></h2></div>
+          <div class="watch-context" hidden>
+            <img src="assets/my-hero-academia.jpg" alt="나의 히어로 아카데미아 포스터">
+            <div><b>저장된 시청 지점</b><span>내 기록을 기준으로 스포일러 보호</span></div>
+          </div>
+          <div class="rail-watch-tip" id="rail-watch-tip" hidden><small>AI 활용 팁</small><p></p><div class="tip-controls"><button type="button" data-tip-direction="prev" aria-label="이전 팁">‹</button><span class="tip-index" aria-live="polite">1/3</span><button type="button" data-tip-direction="next" aria-label="다음 팁">›</button></div></div>
+          <div class="rail-library"><small>내 시청 기록</small><div class="rail-posters" id="rail-posters"></div></div>
+          <button class="change-title" id="rail-records-more" type="button" hidden>시청 기록 접기 ↑</button>
+          <div class="spoiler-lock" hidden><i>⌾</i><div><b>스포일러 보호 중</b><span></span></div></div>
+        </div>
+      </aside>
+
+      <div class="chat-workspace">
+        <header class="chat-heading">
+          <div><span class="agent-dot"><img src="assets/midoriya-mascot.png?v=2" alt="AniWhere Agent"></span><small id="chat-kicker">ANIWHERE AGENT</small><h1 id="chat-title">애니에 관한 무엇이든 물어보세요!</h1><p class="chat-subtitle">흐릿한 기억 속 장면으로부터 정확한 작품과 회차를 찾아드려요.</p></div>
+          <button class="new-chat" id="new-chat">＋ 새 대화</button>
+        </header>
+
+        <div class="messages" id="messages" aria-live="polite"></div>
+        <div class="suggestions" id="suggestions"></div>
+
+        <form class="composer" id="composer">
+          <label class="sr-only" for="question">AniWhere에게 메시지 보내기</label>
+          <textarea id="question" rows="1" placeholder="기억나는 장면, 인물, 분위기를 자유롭게 말해주세요"></textarea>
+          <div class="composer-bottom"><span><kbd>Enter</kbd> 전송 · <kbd>Shift</kbd>+<kbd>Enter</kbd> 줄바꿈</span><button type="submit">보내기 <b>↗</b></button></div>
+        </form>
+      </div>
+    </section>
+
+    <section class="view library-view" id="library-view">
+      <header class="page-title library-title"><div><small>MY WATCH HISTORY</small><h1>내 시청 기록</h1><p>내 서재에 저장한 작품과 회차입니다. 이 기록이 복습과 스포일러 차단 범위를 정합니다.</p></div><div class="library-hero"><button id="add-watch-record" type="button">＋ 시청 기록 추가</button><button class="logout" id="logout" type="button">로그아웃</button><img class="naruto-history-banner" id="record-greeting" src="assets/naruto-history-user.png" alt="지난 시청 기록을 안내하는 나루토" hidden></div></header>
+      <article class="empty-library" id="empty-library" hidden><span>✦</span><h2>아직 시청 기록이 없어요.</h2><p>Agent에게 기억나는 장면을 말하거나 시청 지점을 등록해 주세요.</p><div><button data-view="chat">Agent에게 물어보기</button></div></article>
+      <div id="library-content"><div class="library-grid" id="library-grid"></div></div>
+    </section>
+
+    <section class="view discover-view" id="discover-view">
+      <header class="page-title discover-title"><div><small>DISCOVER & GUIDE</small><h1>애니를 보는 모든 방법.</h1><p>보기 전의 궁금증부터 원작으로 이어 읽기까지, 필요한 기능을 바로 선택하세요.</p></div><article class="interview l-interview"><img class="l-panel" src="assets/l-detective-user.png" alt="최고의 애니를 추리하겠다고 말하는 L"><div><small>L · TASTE DETECTIVE</small><h2>“저는 L입니다.”</h2><p>당신의 취향을 직접 추리합니다.</p></div><button data-action="interview">추리 시작</button></article></header>
+
+      <section class="guide-launcher" aria-labelledby="guide-title">
+        <div class="guide-launcher-head"><div><small>QUICK GUIDE · UI PROTOTYPE</small><h2 id="guide-title">지금 궁금한 건 무엇인가요?</h2></div><p>카드를 누르면 예시 결과를 바로 볼 수 있어요.</p></div>
+        <div class="guide-grid">
+          <button class="guide-art guide-light" data-action="watch-order"><i>03</i><b>시청 순서 가이드</b><span>본편·극장판·OVA를<br>어떤 순서로 볼지</span><em>확인하기 →</em></button>
+          <button class="guide-art guide-okabe" data-action="hook-guide"><i>04</i><b>몇 화부터 재밌어져요?</b><span>사건은 숨기고<br>분위기가 바뀌는 지점만</span><em>확인하기 →</em></button>
+          <button class="guide-art guide-hxh" data-action="dictionary"><i>08</i><b>인물 사전</b><span>현재 본 회차까지만<br>등장인물 확인</span><em>사전 열기 →</em></button>
+          <button class="guide-art guide-gon" data-action="manga-link"><i>12</i><b>애니 → 원작 연결</b><span>내가 본 회차 다음을<br>원작 권·화로 연결</span><em>확인하기 →</em></button>
+        </div>
+      </section>
+      <div class="recommend-head"><h2>이런 작품은 어때요?</h2><span id="recommend-basis">시청 기록을 분석하는 중</span></div>
+      <div class="recommend-grid" id="personal-recommendations"><p class="recommend-loading">내 시청 기록에 맞는 작품을 찾고 있어요…</p></div>
+    </section>
+  </main>
+
+  <div class="drawer" id="drawer" aria-hidden="true"><button class="drawer-backdrop" data-close aria-label="닫기"></button><section class="drawer-panel"><header><div><small id="drawer-kicker">ANIWHERE</small><h2 id="drawer-title">상세 정보</h2></div><button data-close aria-label="닫기">×</button></header><div id="drawer-content"></div></section></div>
+  <div class="toast" id="toast" role="status"></div>
+  <div class="transition-sfx" id="transition-sfx" aria-hidden="true">ゴゴゴゴ</div>
+  <div class="spoiler-cutin" id="spoiler-cutin" hidden role="dialog" aria-modal="true" aria-labelledby="cutin-title">
+    <div class="cutin-freeze"></div>
+    <section class="cutin-panel dio-panel">
+      <img class="dio-cutin-image" src="assets/spoiler-stop-dio.png" alt="더 월드를 외치며 시간을 멈추는 만화 컷인">
+      <div class="dio-warning">
+        <small>ANIWHERE · SPOILER STOP</small>
+        <div><h2 id="cutin-title">시간이여, 멈춰라!</h2><p>여기부터는 아직 보지 않은 이야기예요.</p></div>
+        <button type="button" id="cutin-return">안전한 회차로 돌아가기 ↵</button>
+      </div>
+      <div class="cutin-sfx" aria-hidden="true">두둥</div>
+    </section>
+  </div>
+  <aside class="install-guide" id="install-guide" hidden>
+    <div><b>AniWhere를 앱처럼 사용하세요</b><span id="install-copy">브라우저 메뉴에서 앱을 설치할 수 있어요.</span></div>
+    <button type="button" id="install-guide-action">설치</button>
+    <button type="button" id="install-guide-close" aria-label="안내 닫기">×</button>
+  </aside>
+  <script src="login.js"></script>
+</body>
+</html>

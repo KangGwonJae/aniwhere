@@ -81,11 +81,14 @@ def series_info(db, series_id) -> dict | None:
 
 def list_series(db, query=None, limit=50) -> list[dict]:
     """화면의 작품 선택 목록. query가 있으면 제목에 그 말이 들어간 작품만, 인기순."""
-    rows = db.execute("""SELECT series_id, coalesce(title_ko, title) AS name, title, total_episodes
+    rows = db.execute("""SELECT series_id, coalesce(title_ko, title) AS name, title, total_episodes, poster_url
                          FROM series ORDER BY popularity DESC NULLS LAST""").fetchall()
     if query:
-        want = norm(query)
-        rows = [r for r in rows if want in norm(r["name"]) or want in norm(r["title"])]
+        # 에이전트도 이 함수를 사용한다. 표시 제목만 비교하면 사람이 자주 쓰는 줄임말(나히아),
+        # 시즌 표현(나의 히어로 아카데미아 2기), 원제·영문 별칭을 놓치므로 동일한 제목 색인을 쓴다.
+        matched = find_series(db, query, limit=limit)
+        by_id = {row["series_id"]: row for row in rows}
+        rows = [by_id[sid] for sid in matched if sid in by_id]
     return rows[:limit]
 
 
