@@ -510,7 +510,7 @@ def test_save_value_error_is_returned_to_llm():
 
 # ───────────────────────── service.chat 연결 ─────────────────────────
 
-def test_service_chat_passes_only_public_functions_and_calls_run(monkeypatch):
+def test_service_chat_passes_public_tools_bound_to_login_user_and_calls_run(monkeypatch):
     seen = {}
     monkeypatch.setattr(service, "db", lambda: None)
     monkeypatch.setattr(service, "get_llm", lambda: "LLM")
@@ -520,7 +520,14 @@ def test_service_chat_passes_only_public_functions_and_calls_run(monkeypatch):
     assert seen["llm"] == "LLM" and seen["message"] == "안녕" and seen["history"] == []
     assert set(seen["fns"]) == {t["function"]["name"] for t in chat.TOOLS} | {"series"}
     public = {n: f for n, f in inspect.getmembers(service, inspect.isfunction) if f.__module__ == service.__name__}
-    assert all(seen["fns"][name] is public[name] for name in seen["fns"])
+    assert all(seen["fns"][name] is public[name] for name in ("search_series", "where_to_watch", "series"))
+    assert all(callable(seen["fns"][name]) for name in seen["fns"])
+
+    got = {}
+    monkeypatch.setattr(service, "list_records", lambda *, user_id: got.update(user_id=user_id) or [])
+    assert service.chat("안녕", user_id="user:권재") == {"answer": "ok"}
+    seen["fns"]["list_records"]()
+    assert got == {"user_id": "user:권재"}
 
 
 def test_service_chat_forwards_message_and_history_to_find(monkeypatch):

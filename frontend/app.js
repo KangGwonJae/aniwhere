@@ -29,8 +29,10 @@ const tasteQuestions = [
   '좋아하는 주인공이나 인물 관계 유형이 있나요?',
   '피하고 싶은 요소가 있다면 마지막으로 알려주세요.'
 ];
-const CHAT_HISTORY_KEY = 'aniwhere-chat-history-v3';
-const CHAT_MESSAGES_KEY = 'aniwhere-chat-messages-v3';
+// login.js가 정한 닉네임. 같은 브라우저에서 닉네임을 바꿔도 기록이 섞이지 않게 저장 키마다 붙입니다.
+const ME = window.ANIWHERE_USER;
+const CHAT_HISTORY_KEY = `aniwhere-chat-history-v3:${ME}`;
+const CHAT_MESSAGES_KEY = `aniwhere-chat-messages-v3:${ME}`;
 let chatHistory = [];
 let visualConversation = [];
 try { chatHistory = JSON.parse(localStorage.getItem(CHAT_HISTORY_KEY) || '[]'); } catch { chatHistory = []; }
@@ -45,9 +47,9 @@ let railTipIndex = 0;
 let railTipTimer = null;
 let railTipMessages = [];
 let recommendationSignature = '';
-const RECORD_KEY = 'aniwhere-demo-watch-record';
-const ONBOARDING_KEY = 'aniwhere-onboarding-completed-v3';
-const WATCH_RECORDS_KEY = 'aniwhere-watch-records';
+const RECORD_KEY = `aniwhere-demo-watch-record:${ME}`;
+const ONBOARDING_KEY = `aniwhere-onboarding-completed-v3:${ME}`;
+const WATCH_RECORDS_KEY = `aniwhere-watch-records:${ME}`;
 let savedWatchRecords = [];
 try { savedWatchRecords = JSON.parse(localStorage.getItem(WATCH_RECORDS_KEY) || '[]'); } catch { savedWatchRecords = []; }
 let hasRecord = localStorage.getItem(RECORD_KEY) === '1' || savedWatchRecords.length > 0;
@@ -153,7 +155,7 @@ async function api(path, options = {}) {
   const response = await fetch(path, {
     ...options,
     signal: options.signal || AbortSignal.timeout(70000),
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }
+    headers: { 'Content-Type': 'application/json', 'X-AniWhere-User': encodeURIComponent(ME), ...(options.headers || {}) }
   });
   if (!response.ok) {
     let detail = '서버 요청에 실패했습니다.';
@@ -1399,7 +1401,13 @@ else setQuickSuggestions();
 initializeOnboarding();
 loadOnboardingCatalog();
 
-// 로그인 전에는 공용 데모 DB의 기록을 개인 기록으로 취급하지 않습니다.
+const profileButton = $('#profile');
+profileButton.textContent = [...ME][0];
+profileButton.title = `${ME} · 내 시청 기록`;
+$('#logout').addEventListener('click', () => {
+  localStorage.removeItem('aniwhere-nickname');   // login.js NICKNAME_KEY
+  location.reload();
+});
 
 function isStandalone() { return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true; }
 function hideInstallGuide() { installGuide.hidden = true; sessionStorage.setItem('aniwhere-install-dismissed', '1'); }

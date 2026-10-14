@@ -124,11 +124,21 @@ def series(series_id: str) -> dict | None:
     return _plain(catalog.series_info(db(), series_id))
 
 
-def chat(message: str, history: list[dict] | None = None) -> dict:
+def chat(message: str, history: list[dict] | None = None, *, user_id=USER) -> dict:
     """→ {answer, follow_up?, steps[{tool, label, ok, args}], results{}, suggestions[{label, message}], context?}
     에이전트 대화. LLM이 위 함수들을 도구로 골라 부르고(한 턴에 3번), 되물으면 follow_up을 그대로 답으로 씁니다.
     history의 assistant 턴에는 전 응답의 context를 그대로 붙여 보냅니다. 판단은 모두 agent/chat.py에 있습니다."""
-    fns = {"search_series": search_series, "list_records": list_records, "get_record": get_record,
-           "save_record": save_record, "find": find, "review": review, "dictionary": dictionary,
-           "where_to_watch": where_to_watch, "recommend": recommend, "series": series}
+    # 로그인한 사용자의 도구 호출이 항상 그 사용자 기록만 읽고 쓰도록 묶습니다.
+    fns = {"search_series": search_series,
+           "list_records": lambda: list_records(user_id=user_id),
+           "get_record": lambda series_id: get_record(series_id, user_id=user_id),
+           "save_record": lambda series_id, seen_ep, rating=None: save_record(
+               series_id, seen_ep, rating, user_id=user_id),
+           "find": lambda question, history=None: find(question, history, user_id=user_id),
+           "review": lambda series_id, seen_ep=None, mode="summary", question=None: review(
+               series_id, seen_ep, mode, question, user_id=user_id),
+           "dictionary": lambda series_id, seen_ep=None: dictionary(series_id, seen_ep, user_id=user_id),
+           "where_to_watch": where_to_watch,
+           "recommend": lambda likes: recommend(likes, user_id=user_id),
+           "series": series}
     return _chat.run(get_llm(), message, history or [], fns)
