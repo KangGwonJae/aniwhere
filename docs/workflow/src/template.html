@@ -1,0 +1,335 @@
+<meta charset="utf-8">
+<title>AniWhere 워크플로우 전/후</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: 기능 지도와 같은 토큰. 한 줄 세로 문서 — 요약 → 핵심 기능 4 → 부가 기능 2 → 여유 기능 표 → 평가 근거.
+   그림 하나 = 기능 하나. 위 줄 BEFORE, 아래 줄 AFTER, 열을 맞춰 위아래로 읽는다. 슬라이드에 그대로 옮길 수 있게 넓게. */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --ink: #161a24;
+  --muted: #5d6475;
+  --line: #dfe2e9;
+  --line-strong: #b9bfcc;
+  --accent: #2346d8;        /* AniWhere 블루 */
+  --accent-soft: #e6ebff;
+  --spoiler: #d6324a;       /* 스포일러·불편 지점 */
+  --spoiler-soft: #fde8eb;
+  --good: #157a52;  --good-bg: #e3f5ec;
+  --warn: #8a5a00;  --warn-bg: #fbf0d9;
+  --f-display: "Black Han Sans", "IBM Plex Sans KR", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans KR", system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10131a; --surface: #171b24; --ink: #e8eaf0; --muted: #9aa1b2; --line: #2a303d; --line-strong: #46506a;
+    --accent: #7d95ff; --accent-soft: #1e2647; --spoiler: #ff6b80; --spoiler-soft: #3a1820;
+    --good: #5fd3a0; --good-bg: #14322a; --warn: #f0c060; --warn-bg: #352a12;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10131a; --surface: #171b24; --ink: #e8eaf0; --muted: #9aa1b2; --line: #2a303d; --line-strong: #46506a;
+  --accent: #7d95ff; --accent-soft: #1e2647; --spoiler: #ff6b80; --spoiler-soft: #3a1820;
+  --good: #5fd3a0; --good-bg: #14322a; --warn: #f0c060; --warn-bg: #352a12;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.6; margin: 0; }
+.wrap { max-width: 1200px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 72px; display: flex; flex-direction: column; gap: 56px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+p { margin: 0; }
+.prose { max-width: 68ch; }
+code { font-family: var(--f-mono); font-size: 0.86em; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+
+header { display: flex; flex-direction: column; gap: 14px; }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+h1 { font-family: var(--f-display); font-weight: 400; font-size: clamp(30px, 5vw, 46px); line-height: 1.15; letter-spacing: -0.01em; }
+.lede { font-size: 17px; color: var(--ink); }
+.meta { font-size: 13px; color: var(--muted); }
+
+.diffs { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+.diff { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.diff h3 { font-size: 15px; }
+.pair { display: grid; grid-template-columns: 70px 1fr; gap: 4px 10px; font-size: 14px; }
+.pair dt { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.04em; padding-top: 3px; }
+.pair dt.b { color: var(--spoiler); }
+.pair dt.a { color: var(--accent); }
+.pair dd { margin: 0; }
+
+/* 목차: 그림 7개로 바로 가기 */
+.toc { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+.toc a { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: inherit; text-decoration: none; min-width: 0; }
+.toc a:hover { border-color: var(--accent); }
+.toc .cat { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.06em; color: var(--muted); }
+.toc .cat.core { color: var(--accent); }
+.toc .cat.extra { color: var(--good); }
+.toc b { font-size: 14px; font-weight: 700; }
+
+.group { display: flex; flex-direction: column; gap: 32px; }
+.group-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; padding-bottom: 12px; border-bottom: 2px solid var(--ink); }
+.group-head h2 { font-size: 30px; }
+.group-head .chip { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.06em; padding: 3px 10px; border-radius: 999px; border: 1.5px solid; }
+.chip.core { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.chip.extra { color: var(--good); border-color: var(--good); background: var(--good-bg); }
+.chip.later { color: var(--warn); border-color: var(--warn); background: var(--warn-bg); }
+.group-head p { color: var(--muted); font-size: 14px; flex-basis: 100%; max-width: 76ch; }
+
+section { display: flex; flex-direction: column; gap: 14px; scroll-margin-top: 24px; }
+.sec-head { display: flex; flex-direction: column; gap: 6px; }
+.sec-num { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.08em; color: var(--muted); }
+h2 { font-family: var(--f-display); font-weight: 400; font-size: 26px; line-height: 1.2; }
+.sec-head .where { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--muted); position: sticky; top: 0; background: var(--bg); padding: 10px 0; z-index: 2; border-bottom: 1px solid var(--line); }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.sw { width: 22px; height: 14px; border-radius: 4px; border: 1.5px solid; display: inline-block; }
+.sw.n { background: var(--surface); border-color: var(--line-strong); }
+.sw.ai { background: var(--accent-soft); border-color: var(--accent); }
+.sw.pain { background: var(--spoiler-soft); border-color: var(--spoiler); border-style: dashed; }
+.sw.guard { background: var(--accent-soft); border-color: var(--spoiler); border-width: 2.5px; }
+.sw.d { width: 14px; height: 14px; transform: rotate(45deg); background: var(--surface); border-color: var(--ink); border-radius: 2px; }
+.sw.key { width: 22px; height: 0; border-width: 0; border-top: 3px solid var(--accent); border-radius: 0; }
+
+figure { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 18px 14px; display: flex; flex-direction: column; gap: 12px; }
+.scroll { overflow-x: auto; }
+.scroll svg { display: block; width: 100%; min-width: 900px; height: auto; }
+figcaption { font-size: 14px; color: var(--muted); max-width: 84ch; }
+figcaption b { color: var(--ink); font-weight: 500; }
+
+/* SVG 안 요소 — 색은 모두 토큰 */
+.mask { fill: var(--surface); stroke: none; }
+.sep { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
+.tag-b { fill: var(--spoiler-soft); } .tag-a { fill: var(--accent-soft); }
+.tagt-b { fill: var(--spoiler); font-family: var(--f-mono) !important; font-size: 11.5px; font-weight: 700; letter-spacing: 0.08em; }
+.tagt-a { fill: var(--accent); font-family: var(--f-mono) !important; font-size: 11.5px; font-weight: 700; letter-spacing: 0.08em; }
+.rowt { fill: var(--ink); font-size: 14px; font-weight: 700; }
+.stat-b { fill: var(--spoiler); font-size: 13px; font-weight: 700; }
+.stat-a { fill: var(--accent); font-size: 13px; font-weight: 700; }
+.b-n { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.5; }
+.b-ai { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+.b-pain { fill: var(--spoiler-soft); stroke: var(--spoiler); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.b-guard { fill: var(--accent-soft); stroke: var(--spoiler); stroke-width: 2.5; }
+.b-start { fill: var(--ink); stroke: none; }
+.b-d { fill: var(--surface); stroke: var(--ink); stroke-width: 1.5; }
+svg text { font-family: var(--f-body); }
+.t { fill: var(--ink); font-size: 14px; font-weight: 700; }
+.ts { fill: var(--muted); font-size: 11.5px; }
+.td { fill: var(--ink); font-size: 12.5px; font-weight: 500; }
+.t-start { fill: var(--bg); font-size: 13.5px; font-weight: 700; }
+.tnote { fill: var(--muted); font-size: 11px; }
+.tl { fill: var(--muted); font-size: 11.5px; font-weight: 500; }
+.tl-key { fill: var(--accent); font-size: 12px; font-weight: 700; }
+.tcode { fill: var(--accent); font-family: var(--f-mono) !important; font-size: 11.5px; font-weight: 700; }
+.e { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+.e-key { fill: none; stroke: var(--accent); stroke-width: 2.5; }
+.e-pain { fill: none; stroke: var(--spoiler); stroke-width: 1.8; stroke-dasharray: 6 5; }
+.ah-a { fill: var(--muted); }
+.ah-k { fill: var(--accent); }
+.ah-p { fill: var(--spoiler); }
+.bad-bg { fill: var(--spoiler-soft); stroke: var(--spoiler); stroke-width: 1; }
+.bad-dot { fill: var(--spoiler); }
+.bad-mark { fill: var(--surface); font-size: 11px; font-weight: 700; }
+.bad-t { fill: var(--spoiler); font-size: 11.5px; font-weight: 700; }
+
+.tbl { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: none; }
+thead th { font-family: var(--f-mono); font-size: 11.5px; letter-spacing: 0.06em; font-weight: 700; color: var(--muted); background: var(--bg); }
+thead th.b { color: var(--spoiler); }
+thead th.a { color: var(--accent); }
+tbody th { font-weight: 700; width: 17%; }
+td.where { font-family: var(--f-mono); font-size: 12px; color: var(--muted); width: 22%; }
+
+.bar { display: flex; height: 34px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+.bar span { display: flex; align-items: center; padding-inline: 10px; font-size: 13px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 0; overflow: hidden; }
+.bar .ok { background: var(--good-bg); color: var(--good); }
+.bar .ask { background: var(--warn-bg); color: var(--warn); }
+.bar .bad { background: var(--spoiler-soft); color: var(--spoiler); }
+.bar-key { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bar-key b { color: var(--ink); }
+.k { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: 0; }
+.k.ok { background: var(--good); } .k.ask { background: var(--warn); } .k.bad { background: var(--spoiler); }
+
+.next { border: 1.5px dashed var(--line-strong); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+.next h3 { font-size: 16px; }
+ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; }
+@media (max-width: 560px) { h2 { font-size: 22px; } .group-head h2 { font-size: 26px; } .lede { font-size: 16px; } .legend { position: static; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Category G · Workflow 전/후 비교</div>
+    <h1>AniWhere 없이 볼 때와 쓸 때</h1>
+    <p class="lede prose">기능 하나에 흐름도 하나. 위 줄은 AniWhere 없이, 아래 줄은 AniWhere로 같은 일을 하는 순서입니다. 열이 맞춰져 있어 위아래를 맞대면 어느 단계가 사라지는지 보입니다.</p>
+    <p class="meta">작성 강권재 · 2026-10-13 · 기준: <code>main</code> · 핵심/부가 구분은 <code>README.md</code> 과제 범위 표</p>
+  </header>
+
+  <div class="diffs">
+    <div class="diff">
+      <h3>들르는 곳</h3>
+      <dl class="pair"><dt class="b">없이</dt><dd>포털, 커뮤니티·챗봇, 위키, OTT 앱, 요약 영상</dd><dt class="a">AniWhere</dt><dd>한 곳</dd></dl>
+    </div>
+    <div class="diff">
+      <h3>스포일러</h3>
+      <dl class="pair"><dt class="b">없이</dt><dd>위키·요약·챗봇에서 뒷 내용이 보임</dd><dt class="a">AniWhere</dt><dd>본 회차 이후는 검색 전에 뺌</dd></dl>
+    </div>
+    <div class="diff">
+      <h3>다음 방문</h3>
+      <dl class="pair"><dt class="b">없이</dt><dd>기억에 의존</dd><dt class="a">AniWhere</dt><dd>기록장의 본 회차가 모든 기능의 범위</dd></dl>
+    </div>
+  </div>
+
+  <nav class="toc" aria-label="그림 목차">
+    <a href="#find"><span class="cat core">핵심 · 필수</span><b>작품·회차 찾기</b></a>
+    <a href="#inside"><span class="cat core">핵심 · 안쪽</span><b>에이전트가 찾는 과정</b></a>
+    <a href="#watch"><span class="cat core">핵심 · 필수</span><b>시청처 안내</b></a>
+    <a href="#guard"><span class="cat core">핵심 · 원칙</span><b>스포일러 차단</b></a>
+    <a href="#review"><span class="cat extra">부가 · 추가</span><b>맞춤 복습</b></a>
+    <a href="#record"><span class="cat extra">부가 · 추가</span><b>시청 기록장</b></a>
+  </nav>
+
+  <div class="legend" aria-label="흐름도 범례">
+    <span><i class="sw n"></i>사람이 하는 일</span>
+    <span><i class="sw ai"></i>AniWhere가 하는 일</span>
+    <span><i class="sw pain"></i>불편·스포일러</span>
+    <span><i class="sw guard"></i>스포일러 차단</span>
+    <span><i class="sw d"></i>판단</span>
+    <span><i class="sw key"></i>되묻고 이어가는 길</span>
+  </div>
+
+  <div class="group">
+    <div class="group-head">
+      <span class="chip core">핵심 기능 · 필수</span>
+      <h2>작품·회차 찾기 · 시청처 안내 · 스포일러 차단</h2>
+      <p>작품 찾기와 회차 찾기는 같은 흐름이라 한 그림입니다. 스포일러 차단은 모든 기능에 걸리는 원칙이라 따로 그렸습니다.</p>
+    </div>
+
+    <section id="find">
+      <div class="sec-head">
+        <div class="sec-num">01 핵심 · 02 탐색</div>
+        <h2>기억으로 작품·회차 찾기</h2>
+        <p class="where">agent/find.py · retrieval/search.py</p>
+      </div>
+      <figure>
+        <div class="scroll">{{FIND}}</div>
+        <figcaption><b>근거 문장이 줄거리에 있을 때만 회차로 답합니다.</b> 아니면 후보를 보여 주거나 되묻습니다. 기록이 있는 작품은 본 회차까지만 검색합니다.</figcaption>
+      </figure>
+    </section>
+
+    <section id="inside">
+      <div class="sec-head">
+        <div class="sec-num">01-b 핵심 · 안쪽</div>
+        <h2>에이전트가 찾는 과정</h2>
+        <p class="where">위 그림의 "단서 추출"부터 "근거 확인"까지의 코드 순서</p>
+      </div>
+      <figure>
+        <div class="scroll">{{INSIDE}}</div>
+        <figcaption><b>검색은 장면 청크로 작게, 판정은 회차 줄거리 전체로 크게.</b> 스포일러 범위는 검색 전에 정해서 걸러낼 청크가 애초에 검색되지 않습니다.</figcaption>
+      </figure>
+    </section>
+
+    <section id="watch">
+      <div class="sec-head">
+        <div class="sec-num">02 핵심 · 03 시청</div>
+        <h2>시청처 안내</h2>
+        <p class="where">service.where_to_watch · retrieval/catalog.py · TMDB 국내 구독형 제공처</p>
+      </div>
+      <figure>
+        <div class="scroll">{{WATCH}}</div>
+        <figcaption><b>작품이 정해지는 순간 같은 화면에 시청처가 나옵니다.</b> 시즌별 제공처, 확인일, 링크.</figcaption>
+      </figure>
+    </section>
+
+    <section id="guard">
+      <div class="sec-head">
+        <div class="sec-num">03 핵심 · 모든 단계의 원칙</div>
+        <h2>스포일러 차단</h2>
+        <p class="where">retrieval/search.py · agent/review.py · prompts/review.md · tests/</p>
+      </div>
+      <figure>
+        <div class="scroll">{{GUARD}}</div>
+        <figcaption><b>걸러내지 않고, 검색되지 않게 합니다.</b> 검색 조건에서 이후 회차를 빼고, 답 직전에 다시 확인하고, 프롬프트가 뒷 내용을 막습니다. 결과에서 지우는 방식은 규칙으로 금지하고 테스트로 지킵니다.</figcaption>
+      </figure>
+    </section>
+  </div>
+
+  <div class="group">
+    <div class="group-head">
+      <span class="chip extra">부가 기능 · 이번에 추가</span>
+      <h2>맞춤 복습 · 시청 기록장</h2>
+      <p>기록장이 복습 범위를 정하고, 복습하다 말한 회차가 기록장을 채웁니다.</p>
+    </div>
+
+    <section id="review">
+      <div class="sec-head">
+        <div class="sec-num">04 부가 · 04 이어보기</div>
+        <h2>맞춤 복습</h2>
+        <p class="where">agent/review.py · summary · characters · last · ask</p>
+      </div>
+      <figure>
+        <div class="scroll">{{REVIEW}}</div>
+        <figcaption><b>본 회차를 모르면 검색하지 않고 먼저 묻습니다.</b> 자료로 답할 수 없으면 지어내지 않고 "확인할 수 없어요".</figcaption>
+      </figure>
+    </section>
+
+    <section id="record">
+      <div class="sec-head">
+        <div class="sec-num">05 부가 · 05 깊이 빠지기</div>
+        <h2>시청 기록장</h2>
+        <p class="where">records/store.py · agent/chat.py save_record · 온보딩 화면</p>
+      </div>
+      <figure>
+        <div class="scroll">{{RECORD}}</div>
+        <figcaption><b>"N화까지 봤어" 한 문장이면 확인 없이 저장됩니다.</b> 시즌으로 말하면 전체 기준 몇 화인지 되묻습니다. 이 기록이 복습·사전·찾기의 스포일러 범위입니다.</figcaption>
+      </figure>
+    </section>
+  </div>
+
+  <div class="group">
+    <div class="group-head">
+      <span class="chip later">여유 기능 · 프로토타입</span>
+      <h2>취향 인터뷰 추천 · 인물·용어 사전</h2>
+    </div>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>기능</th><th class="b">AniWhere 없이</th><th class="a">AniWhere를 쓸 때</th><th>코드 위치</th></tr></thead>
+        <tbody>
+          <tr><th>취향 인터뷰 추천</th><td>추천 글·랭킹을 읽고 직접 가늠. 추천 문구에 반전이 적히기도</td><td>좋아한 작품·분위기를 묻고 지원 작품 중에서 고름. 스포일러 없는 문구</td><td class="where">agent/recommend.py</td></tr>
+          <tr><th>인물·용어 사전</th><td>위키 인물 문서는 정체·결말까지 한 페이지</td><td>본 회차까지 등장한 인물·용어만, 첫 등장 회차와 함께</td><td class="where">retrieval/dictionary.py</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <section id="eval">
+    <div class="sec-head">
+      <div class="sec-num">근거</div>
+      <h2>찾기 평가 75문항</h2>
+    </div>
+    <div class="bar" role="img" aria-label="75문항 중 회차 맞음 59, 못 찾고 되물음 12, 틀린 회차를 단정 4">
+      <span class="ok" style="width: 78.67%">59</span>
+      <span class="ask" style="width: 16%">12</span>
+      <span class="bad" style="width: 5.33%">4</span>
+    </div>
+    <div class="bar-key">
+      <span><i class="k ok"></i>회차 맞음 <b>59</b> (79%)</span>
+      <span><i class="k ask"></i>못 찾고 되물음 <b>12</b> (16%)</span>
+      <span><i class="k bad"></i>틀린 회차를 단정 <b>4</b> (5%)</span>
+    </div>
+    <p class="prose" style="color: var(--muted); font-size: 14px">데모 3작품, LLM 포함 전체 흐름. 틀릴 때는 단정보다 되묻는 쪽이 많습니다. 68문항은 LLM이 청크를 보고 만든 것이라 실제 질문보다 쉬울 수 있고, 사람이 쓴 7문항은 5개 정답. 출처: <code>eval/results/2026-10-08_pipeline-event.json</code></p>
+  </section>
+
+  <div class="next">
+    <h3>이 문서를 쓰는 법</h3>
+    <ul class="prose">
+      <li>그림 원본은 <code>docs/workflow/src/gen_workflow.py</code>. 고친 뒤 생성기를 다시 실행합니다.</li>
+      <li>11분 발표면 찾기 · 스포일러 차단 · 기록장 세 장이 핵심입니다.</li>
+    </ul>
+  </div>
+</div>

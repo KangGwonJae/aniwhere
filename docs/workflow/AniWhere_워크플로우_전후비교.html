@@ -1,0 +1,335 @@
+<meta charset="utf-8">
+<title>AniWhere 워크플로우 전/후</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: 기능 지도와 같은 토큰. 한 줄 세로 문서 — 요약 → 핵심 기능 4 → 부가 기능 2 → 여유 기능 표 → 평가 근거.
+   그림 하나 = 기능 하나. 위 줄 BEFORE, 아래 줄 AFTER, 열을 맞춰 위아래로 읽는다. 슬라이드에 그대로 옮길 수 있게 넓게. */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --ink: #161a24;
+  --muted: #5d6475;
+  --line: #dfe2e9;
+  --line-strong: #b9bfcc;
+  --accent: #2346d8;        /* AniWhere 블루 */
+  --accent-soft: #e6ebff;
+  --spoiler: #d6324a;       /* 스포일러·불편 지점 */
+  --spoiler-soft: #fde8eb;
+  --good: #157a52;  --good-bg: #e3f5ec;
+  --warn: #8a5a00;  --warn-bg: #fbf0d9;
+  --f-display: "Black Han Sans", "IBM Plex Sans KR", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans KR", system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10131a; --surface: #171b24; --ink: #e8eaf0; --muted: #9aa1b2; --line: #2a303d; --line-strong: #46506a;
+    --accent: #7d95ff; --accent-soft: #1e2647; --spoiler: #ff6b80; --spoiler-soft: #3a1820;
+    --good: #5fd3a0; --good-bg: #14322a; --warn: #f0c060; --warn-bg: #352a12;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10131a; --surface: #171b24; --ink: #e8eaf0; --muted: #9aa1b2; --line: #2a303d; --line-strong: #46506a;
+  --accent: #7d95ff; --accent-soft: #1e2647; --spoiler: #ff6b80; --spoiler-soft: #3a1820;
+  --good: #5fd3a0; --good-bg: #14322a; --warn: #f0c060; --warn-bg: #352a12;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.6; margin: 0; }
+.wrap { max-width: 1200px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 72px; display: flex; flex-direction: column; gap: 56px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+p { margin: 0; }
+.prose { max-width: 68ch; }
+code { font-family: var(--f-mono); font-size: 0.86em; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+
+header { display: flex; flex-direction: column; gap: 14px; }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+h1 { font-family: var(--f-display); font-weight: 400; font-size: clamp(30px, 5vw, 46px); line-height: 1.15; letter-spacing: -0.01em; }
+.lede { font-size: 17px; color: var(--ink); }
+.meta { font-size: 13px; color: var(--muted); }
+
+.diffs { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+.diff { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.diff h3 { font-size: 15px; }
+.pair { display: grid; grid-template-columns: 70px 1fr; gap: 4px 10px; font-size: 14px; }
+.pair dt { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.04em; padding-top: 3px; }
+.pair dt.b { color: var(--spoiler); }
+.pair dt.a { color: var(--accent); }
+.pair dd { margin: 0; }
+
+/* 목차: 그림 7개로 바로 가기 */
+.toc { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+.toc a { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: inherit; text-decoration: none; min-width: 0; }
+.toc a:hover { border-color: var(--accent); }
+.toc .cat { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.06em; color: var(--muted); }
+.toc .cat.core { color: var(--accent); }
+.toc .cat.extra { color: var(--good); }
+.toc b { font-size: 14px; font-weight: 700; }
+
+.group { display: flex; flex-direction: column; gap: 32px; }
+.group-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; padding-bottom: 12px; border-bottom: 2px solid var(--ink); }
+.group-head h2 { font-size: 30px; }
+.group-head .chip { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.06em; padding: 3px 10px; border-radius: 999px; border: 1.5px solid; }
+.chip.core { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.chip.extra { color: var(--good); border-color: var(--good); background: var(--good-bg); }
+.chip.later { color: var(--warn); border-color: var(--warn); background: var(--warn-bg); }
+.group-head p { color: var(--muted); font-size: 14px; flex-basis: 100%; max-width: 76ch; }
+
+section { display: flex; flex-direction: column; gap: 14px; scroll-margin-top: 24px; }
+.sec-head { display: flex; flex-direction: column; gap: 6px; }
+.sec-num { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.08em; color: var(--muted); }
+h2 { font-family: var(--f-display); font-weight: 400; font-size: 26px; line-height: 1.2; }
+.sec-head .where { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--muted); position: sticky; top: 0; background: var(--bg); padding: 10px 0; z-index: 2; border-bottom: 1px solid var(--line); }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.sw { width: 22px; height: 14px; border-radius: 4px; border: 1.5px solid; display: inline-block; }
+.sw.n { background: var(--surface); border-color: var(--line-strong); }
+.sw.ai { background: var(--accent-soft); border-color: var(--accent); }
+.sw.pain { background: var(--spoiler-soft); border-color: var(--spoiler); border-style: dashed; }
+.sw.guard { background: var(--accent-soft); border-color: var(--spoiler); border-width: 2.5px; }
+.sw.d { width: 14px; height: 14px; transform: rotate(45deg); background: var(--surface); border-color: var(--ink); border-radius: 2px; }
+.sw.key { width: 22px; height: 0; border-width: 0; border-top: 3px solid var(--accent); border-radius: 0; }
+
+figure { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 18px 14px; display: flex; flex-direction: column; gap: 12px; }
+.scroll { overflow-x: auto; }
+.scroll svg { display: block; width: 100%; min-width: 900px; height: auto; }
+figcaption { font-size: 14px; color: var(--muted); max-width: 84ch; }
+figcaption b { color: var(--ink); font-weight: 500; }
+
+/* SVG 안 요소 — 색은 모두 토큰 */
+.mask { fill: var(--surface); stroke: none; }
+.sep { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
+.tag-b { fill: var(--spoiler-soft); } .tag-a { fill: var(--accent-soft); }
+.tagt-b { fill: var(--spoiler); font-family: var(--f-mono) !important; font-size: 11.5px; font-weight: 700; letter-spacing: 0.08em; }
+.tagt-a { fill: var(--accent); font-family: var(--f-mono) !important; font-size: 11.5px; font-weight: 700; letter-spacing: 0.08em; }
+.rowt { fill: var(--ink); font-size: 14px; font-weight: 700; }
+.stat-b { fill: var(--spoiler); font-size: 13px; font-weight: 700; }
+.stat-a { fill: var(--accent); font-size: 13px; font-weight: 700; }
+.b-n { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.5; }
+.b-ai { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+.b-pain { fill: var(--spoiler-soft); stroke: var(--spoiler); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.b-guard { fill: var(--accent-soft); stroke: var(--spoiler); stroke-width: 2.5; }
+.b-start { fill: var(--ink); stroke: none; }
+.b-d { fill: var(--surface); stroke: var(--ink); stroke-width: 1.5; }
+svg text { font-family: var(--f-body); }
+.t { fill: var(--ink); font-size: 14px; font-weight: 700; }
+.ts { fill: var(--muted); font-size: 11.5px; }
+.td { fill: var(--ink); font-size: 12.5px; font-weight: 500; }
+.t-start { fill: var(--bg); font-size: 13.5px; font-weight: 700; }
+.tnote { fill: var(--muted); font-size: 11px; }
+.tl { fill: var(--muted); font-size: 11.5px; font-weight: 500; }
+.tl-key { fill: var(--accent); font-size: 12px; font-weight: 700; }
+.tcode { fill: var(--accent); font-family: var(--f-mono) !important; font-size: 11.5px; font-weight: 700; }
+.e { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+.e-key { fill: none; stroke: var(--accent); stroke-width: 2.5; }
+.e-pain { fill: none; stroke: var(--spoiler); stroke-width: 1.8; stroke-dasharray: 6 5; }
+.ah-a { fill: var(--muted); }
+.ah-k { fill: var(--accent); }
+.ah-p { fill: var(--spoiler); }
+.bad-bg { fill: var(--spoiler-soft); stroke: var(--spoiler); stroke-width: 1; }
+.bad-dot { fill: var(--spoiler); }
+.bad-mark { fill: var(--surface); font-size: 11px; font-weight: 700; }
+.bad-t { fill: var(--spoiler); font-size: 11.5px; font-weight: 700; }
+
+.tbl { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: none; }
+thead th { font-family: var(--f-mono); font-size: 11.5px; letter-spacing: 0.06em; font-weight: 700; color: var(--muted); background: var(--bg); }
+thead th.b { color: var(--spoiler); }
+thead th.a { color: var(--accent); }
+tbody th { font-weight: 700; width: 17%; }
+td.where { font-family: var(--f-mono); font-size: 12px; color: var(--muted); width: 22%; }
+
+.bar { display: flex; height: 34px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+.bar span { display: flex; align-items: center; padding-inline: 10px; font-size: 13px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 0; overflow: hidden; }
+.bar .ok { background: var(--good-bg); color: var(--good); }
+.bar .ask { background: var(--warn-bg); color: var(--warn); }
+.bar .bad { background: var(--spoiler-soft); color: var(--spoiler); }
+.bar-key { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bar-key b { color: var(--ink); }
+.k { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: 0; }
+.k.ok { background: var(--good); } .k.ask { background: var(--warn); } .k.bad { background: var(--spoiler); }
+
+.next { border: 1.5px dashed var(--line-strong); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+.next h3 { font-size: 16px; }
+ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; }
+@media (max-width: 560px) { h2 { font-size: 22px; } .group-head h2 { font-size: 26px; } .lede { font-size: 16px; } .legend { position: static; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Category G · Workflow 전/후 비교</div>
+    <h1>AniWhere 없이 볼 때와 쓸 때</h1>
+    <p class="lede prose">기능 하나에 흐름도 하나. 위 줄은 AniWhere 없이, 아래 줄은 AniWhere로 같은 일을 하는 순서입니다. 열이 맞춰져 있어 위아래를 맞대면 어느 단계가 사라지는지 보입니다.</p>
+    <p class="meta">작성 강권재 · 2026-10-13 · 기준: <code>main</code> · 핵심/부가 구분은 <code>README.md</code> 과제 범위 표</p>
+  </header>
+
+  <div class="diffs">
+    <div class="diff">
+      <h3>들르는 곳</h3>
+      <dl class="pair"><dt class="b">없이</dt><dd>포털, 커뮤니티·챗봇, 위키, OTT 앱, 요약 영상</dd><dt class="a">AniWhere</dt><dd>한 곳</dd></dl>
+    </div>
+    <div class="diff">
+      <h3>스포일러</h3>
+      <dl class="pair"><dt class="b">없이</dt><dd>위키·요약·챗봇에서 뒷 내용이 보임</dd><dt class="a">AniWhere</dt><dd>본 회차 이후는 검색 전에 뺌</dd></dl>
+    </div>
+    <div class="diff">
+      <h3>다음 방문</h3>
+      <dl class="pair"><dt class="b">없이</dt><dd>기억에 의존</dd><dt class="a">AniWhere</dt><dd>기록장의 본 회차가 모든 기능의 범위</dd></dl>
+    </div>
+  </div>
+
+  <nav class="toc" aria-label="그림 목차">
+    <a href="#find"><span class="cat core">핵심 · 필수</span><b>작품·회차 찾기</b></a>
+    <a href="#inside"><span class="cat core">핵심 · 안쪽</span><b>에이전트가 찾는 과정</b></a>
+    <a href="#watch"><span class="cat core">핵심 · 필수</span><b>시청처 안내</b></a>
+    <a href="#guard"><span class="cat core">핵심 · 원칙</span><b>스포일러 차단</b></a>
+    <a href="#review"><span class="cat extra">부가 · 추가</span><b>맞춤 복습</b></a>
+    <a href="#record"><span class="cat extra">부가 · 추가</span><b>시청 기록장</b></a>
+  </nav>
+
+  <div class="legend" aria-label="흐름도 범례">
+    <span><i class="sw n"></i>사람이 하는 일</span>
+    <span><i class="sw ai"></i>AniWhere가 하는 일</span>
+    <span><i class="sw pain"></i>불편·스포일러</span>
+    <span><i class="sw guard"></i>스포일러 차단</span>
+    <span><i class="sw d"></i>판단</span>
+    <span><i class="sw key"></i>되묻고 이어가는 길</span>
+  </div>
+
+  <div class="group">
+    <div class="group-head">
+      <span class="chip core">핵심 기능 · 필수</span>
+      <h2>작품·회차 찾기 · 시청처 안내 · 스포일러 차단</h2>
+      <p>작품 찾기와 회차 찾기는 같은 흐름이라 한 그림입니다. 스포일러 차단은 모든 기능에 걸리는 원칙이라 따로 그렸습니다.</p>
+    </div>
+
+    <section id="find">
+      <div class="sec-head">
+        <div class="sec-num">01 핵심 · 02 탐색</div>
+        <h2>기억으로 작품·회차 찾기</h2>
+        <p class="where">agent/find.py · retrieval/search.py</p>
+      </div>
+      <figure>
+        <div class="scroll"><svg viewBox="0 0 1200 500" role="img" aria-labelledby="find-title find-desc" xmlns="http://www.w3.org/2000/svg"><title id="find-title">기억으로 작품·회차 찾기: AniWhere 없이 vs 쓸 때</title><desc id="find-desc">없이는 검색어가 안 맞아 커뮤니티에 묻고 위키 회차 줄거리를 하나씩 열며 뒷 화를 보게 되고, AniWhere는 묘사를 그대로 받아 단서를 뽑고 범위 안에서 검색해 근거가 있을 때만 회차로 답한다</desc><defs><marker id="find-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-a"/></marker><marker id="find-k" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-k"/></marker><marker id="find-p" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-p"/></marker></defs><line x1="24" y1="196" x2="1176" y2="196" class="sep"/><path d="M192.0,104 L216.0,104" class="e" marker-end="url(#find-a)"/><path d="M392.0,104 L416.0,104" class="e" marker-end="url(#find-a)"/><path d="M592.0,104 L616.0,104" class="e" marker-end="url(#find-a)"/><path d="M792.0,104 L816.0,104" class="e" marker-end="url(#find-a)"/><path d="M192.0,300 L216.0,300" class="e" marker-end="url(#find-a)"/><path d="M392.0,300 L416.0,300" class="e" marker-end="url(#find-a)"/><path d="M592.0,300 L624,300" class="e" marker-end="url(#find-a)"/><path d="M784,300 L816.0,300" class="e" marker-end="url(#find-a)"/><rect x="790.0" y="276" width="20" height="16" rx="3" class="mask"/><text x="800" y="288" class="tl" text-anchor="middle">예</text><path d="M992.0,300 L1016.0,300" class="e" marker-end="url(#find-a)"/><path d="M704,344 L704,408.0" class="e" marker-end="url(#find-a)"/><rect x="712" y="360" width="44" height="16" rx="3" class="mask"/><text x="716" y="372" class="tl" text-anchor="start">아니오</text><path d="M616.0,444 L312,444 Q304,444 304,436 L304,336.0" class="e-key" marker-end="url(#find-k)"/><rect x="312" y="420" width="116" height="16" rx="3" class="mask"/><text x="316" y="432" class="tl-key" text-anchor="start">답하면 다시 찾기</text><rect x="24" y="14" width="64" height="20" rx="4" class="tag-b"/><text x="32" y="28" class="tagt-b" text-anchor="start">BEFORE</text><text x="106" y="28" class="rowt" text-anchor="start">이름을 모르면 검색이 막힌다</text><text x="1176" y="28" class="stat-b" text-anchor="end">들르는 곳 3 · 스포일러 1곳</text><rect x="16.0" y="72.0" width="176" height="64" rx="32.0" class="mask"/><rect x="16.0" y="72.0" width="176" height="64" rx="32.0" class="b-start"/><text x="104" y="100" class="t-start" text-anchor="middle">그 장면,</text><text x="104" y="118" class="t-start" text-anchor="middle">몇 화였지?</text><rect x="216.0" y="68.0" width="176" height="72" rx="8" class="mask"/><rect x="216.0" y="68.0" width="176" height="72" rx="8" class="b-n"/><text x="304" y="98" class="t" text-anchor="middle">포털에 장면 묘사</text><text x="304" y="116" class="ts" text-anchor="middle">이름을 모르면 검색어가 안 맞음</text><rect x="416.0" y="68.0" width="176" height="72" rx="8" class="mask"/><rect x="416.0" y="68.0" width="176" height="72" rx="8" class="b-pain"/><text x="504" y="98" class="t" text-anchor="middle">커뮤니티·챗봇에 묻기</text><text x="504" y="116" class="ts" text-anchor="middle">기다리거나, 근거 없이 단정</text><rect x="616.0" y="68.0" width="176" height="72" rx="8" class="mask"/><rect x="616.0" y="68.0" width="176" height="72" rx="8" class="b-n"/><text x="704" y="98" class="t" text-anchor="middle">위키 줄거리 하나씩</text><text x="704" y="116" class="ts" text-anchor="middle">회차 목록을 차례로 열기</text><rect x="602.75" y="43" width="202.5" height="22" rx="11" class="bad-bg"/><circle cx="614.75" cy="54" r="7" class="bad-dot"/><text x="614.75" y="58" class="bad-mark" text-anchor="middle">!</text><text x="626.75" y="58" class="bad-t" text-anchor="start">다음 화 줄거리가 같이 보임</text><rect x="816.0" y="68.0" width="176" height="72" rx="8" class="mask"/><rect x="816.0" y="68.0" width="176" height="72" rx="8" class="b-n"/><text x="904" y="98" class="t" text-anchor="middle">회차 확인</text><text x="904" y="116" class="ts" text-anchor="middle">맞는지는 직접 봐야 앎</text><rect x="24" y="210" width="56" height="20" rx="4" class="tag-a"/><text x="32" y="224" class="tagt-a" text-anchor="start">AFTER</text><text x="98" y="224" class="rowt" text-anchor="start">근거가 있을 때만 회차로 답한다</text><text x="1176" y="224" class="stat-a" text-anchor="end">들르는 곳 1 · 스포일러 0곳</text><rect x="16.0" y="268.0" width="176" height="64" rx="32.0" class="mask"/><rect x="16.0" y="268.0" width="176" height="64" rx="32.0" class="b-start"/><text x="104" y="296" class="t-start" text-anchor="middle">묘사 그대로</text><text x="104" y="314" class="t-start" text-anchor="middle">입력</text><rect x="216.0" y="264.0" width="176" height="72" rx="8" class="mask"/><rect x="216.0" y="264.0" width="176" height="72" rx="8" class="b-ai"/><text x="304" y="294" class="t" text-anchor="middle">단서 추출</text><text x="304" y="312" class="ts" text-anchor="middle">이름·키워드 → 작품 후보 4편</text><rect x="416.0" y="264.0" width="176" height="72" rx="8" class="mask"/><rect x="416.0" y="264.0" width="176" height="72" rx="8" class="b-guard"/><text x="504" y="288" class="t" text-anchor="middle">회차 검색</text><text x="504" y="306" class="ts" text-anchor="middle">본 회차까지만</text><text x="504" y="321" class="ts" text-anchor="middle">장면 청크 벡터 + 키워드</text><polygon points="704,256 784,300 704,344 624,300" class="mask"/><polygon points="704,256 784,300 704,344 624,300" class="b-d"/><text x="704" y="296" class="td" text-anchor="middle">근거 문장이</text><text x="704" y="312" class="td" text-anchor="middle">줄거리에 있나?</text><rect x="816.0" y="264.0" width="176" height="72" rx="8" class="mask"/><rect x="816.0" y="264.0" width="176" height="72" rx="8" class="b-ai"/><text x="904" y="294" class="t" text-anchor="middle">작품·회차 + 근거</text><text x="904" y="312" class="ts" text-anchor="middle">출처와 시청처도 같은 화면</text><rect x="1016.0" y="264.0" width="176" height="72" rx="8" class="mask"/><rect x="1016.0" y="264.0" width="176" height="72" rx="8" class="b-ai"/><text x="1104" y="294" class="t" text-anchor="middle">기록장에 저장</text><text x="1104" y="312" class="ts" text-anchor="middle">칩 한 번</text><rect x="616.0" y="408.0" width="176" height="72" rx="8" class="mask"/><rect x="616.0" y="408.0" width="176" height="72" rx="8" class="b-ai"/><text x="704" y="438" class="t" text-anchor="middle">후보 제시 또는 되묻기</text><text x="704" y="456" class="ts" text-anchor="middle">회차를 단정하지 않음</text></svg></div>
+        <figcaption><b>근거 문장이 줄거리에 있을 때만 회차로 답합니다.</b> 아니면 후보를 보여 주거나 되묻습니다. 기록이 있는 작품은 본 회차까지만 검색합니다.</figcaption>
+      </figure>
+    </section>
+
+    <section id="inside">
+      <div class="sec-head">
+        <div class="sec-num">01-b 핵심 · 안쪽</div>
+        <h2>에이전트가 찾는 과정</h2>
+        <p class="where">위 그림의 "단서 추출"부터 "근거 확인"까지의 코드 순서</p>
+      </div>
+      <figure>
+        <div class="scroll"><svg viewBox="0 0 1200 448" role="img" aria-labelledby="inside-title inside-desc" xmlns="http://www.w3.org/2000/svg"><title id="inside-title">에이전트가 찾는 과정</title><desc id="inside-desc">단서 추출, 작품 후보, 스포일러 범위, 회차 재검색, 판정을 거쳐 근거를 확인하고 회차·작품·후보·못 찾음 네 결과 중 하나로 답한다</desc><defs><marker id="inside-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-a"/></marker><marker id="inside-k" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-k"/></marker><marker id="inside-p" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-p"/></marker></defs><path d="M1104,260 L1104,292 Q1104,300 1096,300 L144,300" class="e"/><path d="M192.0,80 L216.0,80" class="e" marker-end="url(#inside-a)"/><path d="M392.0,80 L416.0,80" class="e" marker-end="url(#inside-a)"/><path d="M592.0,80 L616.0,80" class="e" marker-end="url(#inside-a)"/><path d="M792.0,80 L816.0,80" class="e" marker-end="url(#inside-a)"/><path d="M992.0,80 L1016.0,80" class="e" marker-end="url(#inside-a)"/><path d="M1104,116.0 L1104,172" class="e" marker-end="url(#inside-a)"/><path d="M144,300 L144,348.0" class="e" marker-end="url(#inside-a)"/><rect x="152" y="316" width="92" height="16" rx="3" class="mask"/><text x="156" y="328" class="tcode" text-anchor="start">episode</text><path d="M400,300 L400,348.0" class="e" marker-end="url(#inside-a)"/><rect x="408" y="316" width="80" height="16" rx="3" class="mask"/><text x="412" y="328" class="tcode" text-anchor="start">series</text><path d="M656,300 L656,348.0" class="e" marker-end="url(#inside-a)"/><rect x="664" y="316" width="116" height="16" rx="3" class="mask"/><text x="668" y="328" class="tcode" text-anchor="start">ambiguous</text><path d="M912,300 L912,348.0" class="e" marker-end="url(#inside-a)"/><rect x="920" y="316" width="56" height="16" rx="3" class="mask"/><text x="924" y="328" class="tcode" text-anchor="start">none</text><rect x="16.0" y="48.0" width="176" height="64" rx="32.0" class="mask"/><rect x="16.0" y="48.0" width="176" height="64" rx="32.0" class="b-start"/><text x="104" y="76" class="t-start" text-anchor="middle">질문 +</text><text x="104" y="94" class="t-start" text-anchor="middle">앞선 대화</text><rect x="216.0" y="44.0" width="176" height="72" rx="8" class="mask"/><rect x="216.0" y="44.0" width="176" height="72" rx="8" class="b-ai"/><text x="304" y="74" class="t" text-anchor="middle">단서 추출</text><text x="304" y="92" class="ts" text-anchor="middle">제목·이름·키워드·영어 질의</text><rect x="416.0" y="44.0" width="176" height="72" rx="8" class="mask"/><rect x="416.0" y="44.0" width="176" height="72" rx="8" class="b-ai"/><text x="504" y="74" class="t" text-anchor="middle">작품 후보 4편</text><text x="504" y="92" class="ts" text-anchor="middle">제목을 말했으면 그 작품</text><rect x="616.0" y="44.0" width="176" height="72" rx="8" class="mask"/><rect x="616.0" y="44.0" width="176" height="72" rx="8" class="b-guard"/><text x="704" y="74" class="t" text-anchor="middle">스포일러 범위</text><text x="704" y="92" class="ts" text-anchor="middle">기록 있으면 본 회차까지만</text><text x="704" y="136" class="tnote" text-anchor="middle">기록 없으면 전 회차, 답에는 번호·제목만</text><rect x="816.0" y="44.0" width="176" height="72" rx="8" class="mask"/><rect x="816.0" y="44.0" width="176" height="72" rx="8" class="b-ai"/><text x="904" y="74" class="t" text-anchor="middle">회차 검색</text><text x="904" y="92" class="ts" text-anchor="middle">장면 청크 → 회차로 묶음</text><rect x="1016.0" y="44.0" width="176" height="72" rx="8" class="mask"/><rect x="1016.0" y="44.0" width="176" height="72" rx="8" class="b-ai"/><text x="1104" y="74" class="t" text-anchor="middle">판정</text><text x="1104" y="92" class="ts" text-anchor="middle">검색된 자료만 읽고 고름</text><polygon points="1104,172 1184,216 1104,260 1024,216" class="mask"/><polygon points="1104,172 1184,216 1104,260 1024,216" class="b-d"/><text x="1104" y="212" class="td" text-anchor="middle">판정 결과</text><text x="1104" y="228" class="td" text-anchor="middle">+ 근거 확인</text><rect x="36.0" y="348.0" width="216" height="72" rx="8" class="mask"/><rect x="36.0" y="348.0" width="216" height="72" rx="8" class="b-ai"/><text x="144" y="378" class="t" text-anchor="middle">회차로 답</text><text x="144" y="396" class="ts" text-anchor="middle">근거 문장이 줄거리에 있을 때만</text><rect x="292.0" y="348.0" width="216" height="72" rx="8" class="mask"/><rect x="292.0" y="348.0" width="216" height="72" rx="8" class="b-ai"/><text x="400" y="378" class="t" text-anchor="middle">작품만 답</text><text x="400" y="396" class="ts" text-anchor="middle">장면을 더 묻고 회차를 찾음</text><rect x="548.0" y="348.0" width="216" height="72" rx="8" class="mask"/><rect x="548.0" y="348.0" width="216" height="72" rx="8" class="b-ai"/><text x="656" y="378" class="t" text-anchor="middle">후보 제시 + 되묻기</text><text x="656" y="396" class="ts" text-anchor="middle">비슷한 후보가 여럿일 때</text><rect x="804.0" y="348.0" width="216" height="72" rx="8" class="mask"/><rect x="804.0" y="348.0" width="216" height="72" rx="8" class="b-ai"/><text x="912" y="378" class="t" text-anchor="middle">못 찾음 + 되묻기</text><text x="912" y="396" class="ts" text-anchor="middle">회차를 단정하지 않음</text></svg></div>
+        <figcaption><b>검색은 장면 청크로 작게, 판정은 회차 줄거리 전체로 크게.</b> 스포일러 범위는 검색 전에 정해서 걸러낼 청크가 애초에 검색되지 않습니다.</figcaption>
+      </figure>
+    </section>
+
+    <section id="watch">
+      <div class="sec-head">
+        <div class="sec-num">02 핵심 · 03 시청</div>
+        <h2>시청처 안내</h2>
+        <p class="where">service.where_to_watch · retrieval/catalog.py · TMDB 국내 구독형 제공처</p>
+      </div>
+      <figure>
+        <div class="scroll"><svg viewBox="0 0 1200 360" role="img" aria-labelledby="watch-title watch-desc" xmlns="http://www.w3.org/2000/svg"><title id="watch-title">시청처 안내: AniWhere 없이 vs 쓸 때</title><desc id="watch-desc">없이는 OTT 앱을 하나씩 열어 검색하고, AniWhere는 작품이 정해지는 순간 같은 화면에 시즌별 제공처와 확인일을 보여 준다</desc><defs><marker id="watch-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-a"/></marker><marker id="watch-k" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-k"/></marker><marker id="watch-p" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-p"/></marker></defs><line x1="24" y1="196" x2="1176" y2="196" class="sep"/><path d="M192.0,104 L216.0,104" class="e" marker-end="url(#watch-a)"/><path d="M392.0,104 L416.0,104" class="e" marker-end="url(#watch-a)"/><path d="M592.0,104 L616.0,104" class="e" marker-end="url(#watch-a)"/><path d="M792.0,104 L816.0,104" class="e" marker-end="url(#watch-a)"/><path d="M192.0,300 L216.0,300" class="e" marker-end="url(#watch-a)"/><path d="M392.0,300 L416.0,300" class="e" marker-end="url(#watch-a)"/><path d="M592.0,300 L616.0,300" class="e" marker-end="url(#watch-a)"/><path d="M792.0,300 L816.0,300" class="e" marker-end="url(#watch-a)"/><rect x="24" y="14" width="64" height="20" rx="4" class="tag-b"/><text x="32" y="28" class="tagt-b" text-anchor="start">BEFORE</text><text x="106" y="28" class="rowt" text-anchor="start">앱을 하나씩 연다</text><text x="1176" y="28" class="stat-b" text-anchor="end">들르는 곳 2~5</text><rect x="16.0" y="72.0" width="176" height="64" rx="32.0" class="mask"/><rect x="16.0" y="72.0" width="176" height="64" rx="32.0" class="b-start"/><text x="104" y="100" class="t-start" text-anchor="middle">이거</text><text x="104" y="118" class="t-start" text-anchor="middle">어디서 보지?</text><rect x="216.0" y="68.0" width="176" height="72" rx="8" class="mask"/><rect x="216.0" y="68.0" width="176" height="72" rx="8" class="b-n"/><text x="304" y="98" class="t" text-anchor="middle">OTT 앱 열어 검색</text><text x="304" y="116" class="ts" text-anchor="middle">라프텔·넷플릭스·티빙·왓챠…</text><rect x="416.0" y="68.0" width="176" height="72" rx="8" class="mask"/><rect x="416.0" y="68.0" width="176" height="72" rx="8" class="b-pain"/><text x="504" y="98" class="t" text-anchor="middle">없으면 다음 앱</text><text x="504" y="116" class="ts" text-anchor="middle">시즌마다 있는 곳이 다름</text><rect x="397.0" y="43" width="214.0" height="22" rx="11" class="bad-bg"/><circle cx="409.0" cy="54" r="7" class="bad-dot"/><text x="409.0" y="58" class="bad-mark" text-anchor="middle">!</text><text x="421.0" y="58" class="bad-t" text-anchor="start">어느 시즌이 어디 있는지 모름</text><rect x="616.0" y="68.0" width="176" height="72" rx="8" class="mask"/><rect x="616.0" y="68.0" width="176" height="72" rx="8" class="b-n"/><text x="704" y="109" class="t" text-anchor="middle">구독 여부 확인</text><rect x="816.0" y="68.0" width="176" height="72" rx="8" class="mask"/><rect x="816.0" y="68.0" width="176" height="72" rx="8" class="b-n"/><text x="904" y="109" class="t" text-anchor="middle">시청</text><rect x="24" y="210" width="56" height="20" rx="4" class="tag-a"/><text x="32" y="224" class="tagt-a" text-anchor="start">AFTER</text><text x="98" y="224" class="rowt" text-anchor="start">작품이 정해지면 시청처가 따라온다</text><text x="1176" y="224" class="stat-a" text-anchor="end">들르는 곳 1</text><rect x="16.0" y="268.0" width="176" height="64" rx="32.0" class="mask"/><rect x="16.0" y="268.0" width="176" height="64" rx="32.0" class="b-start"/><text x="104" y="296" class="t-start" text-anchor="middle">작품</text><text x="104" y="314" class="t-start" text-anchor="middle">확정</text><rect x="216.0" y="264.0" width="176" height="72" rx="8" class="mask"/><rect x="216.0" y="264.0" width="176" height="72" rx="8" class="b-ai"/><text x="304" y="294" class="t" text-anchor="middle">시청처 조회</text><text x="304" y="312" class="ts" text-anchor="middle">국내 구독형, 시즌별</text><rect x="416.0" y="264.0" width="176" height="72" rx="8" class="mask"/><rect x="416.0" y="264.0" width="176" height="72" rx="8" class="b-ai"/><text x="504" y="294" class="t" text-anchor="middle">제공처 + 확인일 + 링크</text><text x="504" y="312" class="ts" text-anchor="middle">같은 화면의 카드</text><rect x="616.0" y="264.0" width="176" height="72" rx="8" class="mask"/><rect x="616.0" y="264.0" width="176" height="72" rx="8" class="b-n"/><text x="704" y="305" class="t" text-anchor="middle">시청</text><rect x="816.0" y="264.0" width="176" height="72" rx="8" class="mask"/><rect x="816.0" y="264.0" width="176" height="72" rx="8" class="b-ai"/><text x="904" y="294" class="t" text-anchor="middle">멈추면 기록</text><text x="904" y="312" class="ts" text-anchor="middle">&quot;N화까지 봤어&quot;</text></svg></div>
+        <figcaption><b>작품이 정해지는 순간 같은 화면에 시청처가 나옵니다.</b> 시즌별 제공처, 확인일, 링크.</figcaption>
+      </figure>
+    </section>
+
+    <section id="guard">
+      <div class="sec-head">
+        <div class="sec-num">03 핵심 · 모든 단계의 원칙</div>
+        <h2>스포일러 차단</h2>
+        <p class="where">retrieval/search.py · agent/review.py · prompts/review.md · tests/</p>
+      </div>
+      <figure>
+        <div class="scroll"><svg viewBox="0 0 1200 500" role="img" aria-labelledby="guard-title guard-desc" xmlns="http://www.w3.org/2000/svg"><title id="guard-title">스포일러 차단: AniWhere 없이 vs 쓸 때</title><desc id="guard-desc">없이는 위키 회차 목록, 시즌 요약 영상, 챗봇에서 뒷 내용이 보이고, AniWhere는 기록장의 본 회차를 기준으로 검색 전에 이후 청크를 빼고 답 직전에 다시 확인한다</desc><defs><marker id="guard-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-a"/></marker><marker id="guard-k" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-k"/></marker><marker id="guard-p" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-p"/></marker></defs><line x1="24" y1="196" x2="1176" y2="196" class="sep"/><path d="M192.0,104 L216.0,104" class="e" marker-end="url(#guard-a)"/><path d="M392.0,104 L416.0,104" class="e" marker-end="url(#guard-a)"/><path d="M592.0,104 L616.0,104" class="e" marker-end="url(#guard-a)"/><path d="M792.0,104 L816.0,104" class="e" marker-end="url(#guard-a)"/><path d="M192.0,300 L224,300" class="e" marker-end="url(#guard-a)"/><path d="M384,300 L416.0,300" class="e" marker-end="url(#guard-a)"/><rect x="390.0" y="276" width="20" height="16" rx="3" class="mask"/><text x="400" y="288" class="tl" text-anchor="middle">예</text><path d="M592.0,300 L616.0,300" class="e" marker-end="url(#guard-a)"/><path d="M792.0,300 L816.0,300" class="e" marker-end="url(#guard-a)"/><path d="M992.0,300 L1016.0,300" class="e" marker-end="url(#guard-a)"/><path d="M304,344 L304,408.0" class="e" marker-end="url(#guard-a)"/><rect x="312" y="360" width="44" height="16" rx="3" class="mask"/><text x="316" y="372" class="tl" text-anchor="start">아니오</text><path d="M404.0,444 L496,444 Q504,444 504,436 L504,336.0" class="e-key" marker-end="url(#guard-k)"/><rect x="512" y="420" width="116" height="16" rx="3" class="mask"/><text x="516" y="432" class="tl-key" text-anchor="start">답한 회차가 범위</text><rect x="24" y="14" width="64" height="20" rx="4" class="tag-b"/><text x="32" y="28" class="tagt-b" text-anchor="start">BEFORE</text><text x="106" y="28" class="rowt" text-anchor="start">뒷 내용을 감수해야 한다</text><text x="1176" y="28" class="stat-b" text-anchor="end">스포일러 3곳</text><rect x="16.0" y="72.0" width="176" height="64" rx="32.0" class="mask"/><rect x="16.0" y="72.0" width="176" height="64" rx="32.0" class="b-start"/><text x="104" y="100" class="t-start" text-anchor="middle">줄거리·인물이</text><text x="104" y="118" class="t-start" text-anchor="middle">궁금함</text><rect x="216.0" y="68.0" width="176" height="72" rx="8" class="mask"/><rect x="216.0" y="68.0" width="176" height="72" rx="8" class="b-n"/><text x="304" y="109" class="t" text-anchor="middle">위키 회차 목록</text><rect x="225.75" y="43" width="156.5" height="22" rx="11" class="bad-bg"/><circle cx="237.75" cy="54" r="7" class="bad-dot"/><text x="237.75" y="58" class="bad-mark" text-anchor="middle">!</text><text x="249.75" y="58" class="bad-t" text-anchor="start">다음 화 줄거리 노출</text><rect x="416.0" y="68.0" width="176" height="72" rx="8" class="mask"/><rect x="416.0" y="68.0" width="176" height="72" rx="8" class="b-n"/><text x="504" y="109" class="t" text-anchor="middle">시즌 요약 영상</text><rect x="448.75" y="43" width="110.5" height="22" rx="11" class="bad-bg"/><circle cx="460.75" cy="54" r="7" class="bad-dot"/><text x="460.75" y="58" class="bad-mark" text-anchor="middle">!</text><text x="472.75" y="58" class="bad-t" text-anchor="start">결말까지 섞임</text><rect x="616.0" y="68.0" width="176" height="72" rx="8" class="mask"/><rect x="616.0" y="68.0" width="176" height="72" rx="8" class="b-n"/><text x="704" y="98" class="t" text-anchor="middle">AI 챗봇</text><text x="704" y="116" class="ts" text-anchor="middle">어디까지 봤는지 모름</text><rect x="637.25" y="43" width="133.5" height="22" rx="11" class="bad-bg"/><circle cx="649.25" cy="54" r="7" class="bad-dot"/><text x="649.25" y="58" class="bad-mark" text-anchor="middle">!</text><text x="661.25" y="58" class="bad-t" text-anchor="start">반전을 먼저 말함</text><rect x="816.0" y="68.0" width="176" height="72" rx="8" class="mask"/><rect x="816.0" y="68.0" width="176" height="72" rx="8" class="b-pain"/><text x="904" y="109" class="t" text-anchor="middle">결말을 알고 봄</text><rect x="24" y="210" width="56" height="20" rx="4" class="tag-a"/><text x="32" y="224" class="tagt-a" text-anchor="start">AFTER</text><text x="98" y="224" class="rowt" text-anchor="start">본 회차 이후는 검색되지 않는다</text><text x="1176" y="224" class="stat-a" text-anchor="end">스포일러 0곳</text><rect x="16.0" y="268.0" width="176" height="64" rx="32.0" class="mask"/><rect x="16.0" y="268.0" width="176" height="64" rx="32.0" class="b-start"/><text x="104" y="296" class="t-start" text-anchor="middle">기록장의</text><text x="104" y="314" class="t-start" text-anchor="middle">본 회차</text><polygon points="304,256 384,300 304,344 224,300" class="mask"/><polygon points="304,256 384,300 304,344 224,300" class="b-d"/><text x="304" y="296" class="td" text-anchor="middle">기록이</text><text x="304" y="312" class="td" text-anchor="middle">있나?</text><rect x="416.0" y="264.0" width="176" height="72" rx="8" class="mask"/><rect x="416.0" y="264.0" width="176" height="72" rx="8" class="b-guard"/><text x="504" y="294" class="t" text-anchor="middle">검색 전에 제외</text><text x="504" y="312" class="ts" text-anchor="middle">조건: 회차 ≤ 본 회차</text><rect x="616.0" y="264.0" width="176" height="72" rx="8" class="mask"/><rect x="616.0" y="264.0" width="176" height="72" rx="8" class="b-guard"/><text x="704" y="294" class="t" text-anchor="middle">답 직전 재확인</text><text x="704" y="312" class="ts" text-anchor="middle">섞였으면 코드가 멈춤</text><rect x="816.0" y="264.0" width="176" height="72" rx="8" class="mask"/><rect x="816.0" y="264.0" width="176" height="72" rx="8" class="b-ai"/><text x="904" y="294" class="t" text-anchor="middle">자료만으로 답</text><text x="904" y="312" class="ts" text-anchor="middle">출처마다 회차 표기</text><rect x="1016.0" y="264.0" width="176" height="72" rx="8" class="mask"/><rect x="1016.0" y="264.0" width="176" height="72" rx="8" class="b-n"/><text x="1104" y="305" class="t" text-anchor="middle">시청</text><rect x="204.0" y="408.0" width="200" height="72" rx="8" class="mask"/><rect x="204.0" y="408.0" width="200" height="72" rx="8" class="b-ai"/><text x="304" y="438" class="t" text-anchor="middle">먼저 묻기</text><text x="304" y="456" class="ts" text-anchor="middle">찾기만 전 회차, 번호·제목만 답</text></svg></div>
+        <figcaption><b>걸러내지 않고, 검색되지 않게 합니다.</b> 검색 조건에서 이후 회차를 빼고, 답 직전에 다시 확인하고, 프롬프트가 뒷 내용을 막습니다. 결과에서 지우는 방식은 규칙으로 금지하고 테스트로 지킵니다.</figcaption>
+      </figure>
+    </section>
+  </div>
+
+  <div class="group">
+    <div class="group-head">
+      <span class="chip extra">부가 기능 · 이번에 추가</span>
+      <h2>맞춤 복습 · 시청 기록장</h2>
+      <p>기록장이 복습 범위를 정하고, 복습하다 말한 회차가 기록장을 채웁니다.</p>
+    </div>
+
+    <section id="review">
+      <div class="sec-head">
+        <div class="sec-num">04 부가 · 04 이어보기</div>
+        <h2>맞춤 복습</h2>
+        <p class="where">agent/review.py · summary · characters · last · ask</p>
+      </div>
+      <figure>
+        <div class="scroll"><svg viewBox="0 0 1200 500" role="img" aria-labelledby="review-title review-desc" xmlns="http://www.w3.org/2000/svg"><title id="review-title">맞춤 복습: AniWhere 없이 vs 쓸 때</title><desc id="review-desc">없이는 어디까지 봤는지부터 떠올려 요약 영상과 위키에서 결말까지 보게 되고, AniWhere는 기록장의 본 회차까지만 자료로 복습 글을 만들고 기록이 없으면 먼저 묻는다</desc><defs><marker id="review-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-a"/></marker><marker id="review-k" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-k"/></marker><marker id="review-p" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-p"/></marker></defs><line x1="24" y1="196" x2="1176" y2="196" class="sep"/><path d="M192.0,104 L216.0,104" class="e" marker-end="url(#review-a)"/><path d="M392.0,104 L416.0,104" class="e" marker-end="url(#review-a)"/><path d="M592.0,104 L616.0,104" class="e" marker-end="url(#review-a)"/><path d="M792.0,104 L816.0,104" class="e" marker-end="url(#review-a)"/><path d="M192.0,300 L224,300" class="e" marker-end="url(#review-a)"/><path d="M384,300 L416.0,300" class="e" marker-end="url(#review-a)"/><rect x="390.0" y="276" width="20" height="16" rx="3" class="mask"/><text x="400" y="288" class="tl" text-anchor="middle">예</text><path d="M592.0,300 L616.0,300" class="e" marker-end="url(#review-a)"/><path d="M792.0,300 L816.0,300" class="e" marker-end="url(#review-a)"/><path d="M992.0,300 L1016.0,300" class="e" marker-end="url(#review-a)"/><path d="M304,344 L304,408.0" class="e" marker-end="url(#review-a)"/><rect x="312" y="360" width="44" height="16" rx="3" class="mask"/><text x="316" y="372" class="tl" text-anchor="start">아니오</text><path d="M392.0,444 L496,444 Q504,444 504,436 L504,336.0" class="e-key" marker-end="url(#review-k)"/><rect x="512" y="420" width="140" height="16" rx="3" class="mask"/><text x="516" y="432" class="tl-key" text-anchor="start">답하면 저장 뒤 복습</text><rect x="24" y="14" width="64" height="20" rx="4" class="tag-b"/><text x="32" y="28" class="tagt-b" text-anchor="start">BEFORE</text><text x="106" y="28" class="rowt" text-anchor="start">복습하다 결말을 본다</text><text x="1176" y="28" class="stat-b" text-anchor="end">들르는 곳 3 · 스포일러 1곳</text><rect x="16.0" y="72.0" width="176" height="64" rx="32.0" class="mask"/><rect x="16.0" y="72.0" width="176" height="64" rx="32.0" class="b-start"/><text x="104" y="100" class="t-start" text-anchor="middle">다시 보려는데</text><text x="104" y="118" class="t-start" text-anchor="middle">다 까먹었어</text><rect x="216.0" y="68.0" width="176" height="72" rx="8" class="mask"/><rect x="216.0" y="68.0" width="176" height="72" rx="8" class="b-pain"/><text x="304" y="98" class="t" text-anchor="middle">어디까지 봤더라</text><text x="304" y="116" class="ts" text-anchor="middle">OTT마다 기록이 따로</text><rect x="416.0" y="68.0" width="176" height="72" rx="8" class="mask"/><rect x="416.0" y="68.0" width="176" height="72" rx="8" class="b-n"/><text x="504" y="109" class="t" text-anchor="middle">위키·요약 영상</text><rect x="431.5" y="43" width="145.0" height="22" rx="11" class="bad-bg"/><circle cx="443.5" cy="54" r="7" class="bad-dot"/><text x="443.5" y="58" class="bad-mark" text-anchor="middle">!</text><text x="455.5" y="58" class="bad-t" text-anchor="start">결말까지 섞인 요약</text><rect x="616.0" y="68.0" width="176" height="72" rx="8" class="mask"/><rect x="616.0" y="68.0" width="176" height="72" rx="8" class="b-n"/><text x="704" y="98" class="t" text-anchor="middle">인물 관계는 또 검색</text><text x="704" y="116" class="ts" text-anchor="middle">관계도에 뒷 정체가 적힘</text><rect x="816.0" y="68.0" width="176" height="72" rx="8" class="mask"/><rect x="816.0" y="68.0" width="176" height="72" rx="8" class="b-n"/><text x="904" y="109" class="t" text-anchor="middle">이어서 시청</text><rect x="24" y="210" width="56" height="20" rx="4" class="tag-a"/><text x="32" y="224" class="tagt-a" text-anchor="start">AFTER</text><text x="98" y="224" class="rowt" text-anchor="start">본 회차까지만 복습</text><text x="1176" y="224" class="stat-a" text-anchor="end">들르는 곳 1 · 스포일러 0곳</text><rect x="16.0" y="268.0" width="176" height="64" rx="32.0" class="mask"/><rect x="16.0" y="268.0" width="176" height="64" rx="32.0" class="b-start"/><text x="104" y="296" class="t-start" text-anchor="middle">&quot;지금까지</text><text x="104" y="314" class="t-start" text-anchor="middle">복습해 줘&quot;</text><polygon points="304,256 384,300 304,344 224,300" class="mask"/><polygon points="304,256 384,300 304,344 224,300" class="b-d"/><text x="304" y="296" class="td" text-anchor="middle">기록장에</text><text x="304" y="312" class="td" text-anchor="middle">본 회차가 있나?</text><rect x="416.0" y="264.0" width="176" height="72" rx="8" class="mask"/><rect x="416.0" y="264.0" width="176" height="72" rx="8" class="b-ai"/><text x="504" y="294" class="t" text-anchor="middle">방식 고르기</text><text x="504" y="312" class="ts" text-anchor="middle">요약 · 인물 · 마지막 화 · 질문</text><rect x="616.0" y="264.0" width="176" height="72" rx="8" class="mask"/><rect x="616.0" y="264.0" width="176" height="72" rx="8" class="b-guard"/><text x="704" y="294" class="t" text-anchor="middle">본 회차까지 청크만</text><text x="704" y="312" class="ts" text-anchor="middle">회차 순으로 읽음</text><rect x="816.0" y="264.0" width="176" height="72" rx="8" class="mask"/><rect x="816.0" y="264.0" width="176" height="72" rx="8" class="b-ai"/><text x="904" y="294" class="t" text-anchor="middle">복습 글 + 출처</text><text x="904" y="312" class="ts" text-anchor="middle">자료에 없으면 &quot;확인 불가&quot;</text><rect x="1016.0" y="264.0" width="176" height="72" rx="8" class="mask"/><rect x="1016.0" y="264.0" width="176" height="72" rx="8" class="b-n"/><text x="1104" y="305" class="t" text-anchor="middle">이어서 시청</text><rect x="216.0" y="408.0" width="176" height="72" rx="8" class="mask"/><rect x="216.0" y="408.0" width="176" height="72" rx="8" class="b-ai"/><text x="304" y="438" class="t" text-anchor="middle">어디까지 봤어요?</text><text x="304" y="456" class="ts" text-anchor="middle">검색 전에 묻기</text></svg></div>
+        <figcaption><b>본 회차를 모르면 검색하지 않고 먼저 묻습니다.</b> 자료로 답할 수 없으면 지어내지 않고 "확인할 수 없어요".</figcaption>
+      </figure>
+    </section>
+
+    <section id="record">
+      <div class="sec-head">
+        <div class="sec-num">05 부가 · 05 깊이 빠지기</div>
+        <h2>시청 기록장</h2>
+        <p class="where">records/store.py · agent/chat.py save_record · 온보딩 화면</p>
+      </div>
+      <figure>
+        <div class="scroll"><svg viewBox="0 0 1200 500" role="img" aria-labelledby="record-title record-desc" xmlns="http://www.w3.org/2000/svg"><title id="record-title">시청 기록장: AniWhere 없이 vs 쓸 때</title><desc id="record-desc">없이는 OTT마다 흩어진 기록과 머릿속 기억에 기대다 몇 달 뒤 잊고, AniWhere는 온보딩과 대화 중 한 문장으로 기록장을 채우며 그 기록이 모든 기능의 스포일러 범위가 된다</desc><defs><marker id="record-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-a"/></marker><marker id="record-k" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-k"/></marker><marker id="record-p" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-p"/></marker></defs><line x1="24" y1="196" x2="1176" y2="196" class="sep"/><path d="M192.0,104 L216.0,104" class="e" marker-end="url(#record-a)"/><path d="M392.0,104 L416.0,104" class="e" marker-end="url(#record-a)"/><path d="M592.0,104 L616.0,104" class="e" marker-end="url(#record-a)"/><path d="M792.0,104 L816.0,104" class="e" marker-end="url(#record-a)"/><path d="M192.0,300 L216.0,300" class="e" marker-end="url(#record-a)"/><path d="M392.0,300 L416.0,300" class="e" marker-end="url(#record-a)"/><path d="M592.0,300 L624,300" class="e" marker-end="url(#record-a)"/><path d="M784,300 L816.0,300" class="e" marker-end="url(#record-a)"/><rect x="778.0" y="242.0" width="44" height="16" rx="3" class="mask"/><text x="800" y="254.0" class="tl" text-anchor="middle">아니오</text><path d="M992.0,300 L1016.0,300" class="e-key" marker-end="url(#record-k)"/><path d="M704,344 L704,408.0" class="e" marker-end="url(#record-a)"/><rect x="712" y="360" width="20" height="16" rx="3" class="mask"/><text x="716" y="372" class="tl" text-anchor="start">예</text><path d="M604.0,444 L512,444 Q504,444 504,436 L504,336.0" class="e-key" marker-end="url(#record-k)"/><rect x="512" y="420" width="80" height="16" rx="3" class="mask"/><text x="516" y="432" class="tl-key" text-anchor="start">답하면 저장</text><rect x="24" y="14" width="64" height="20" rx="4" class="tag-b"/><text x="32" y="28" class="tagt-b" text-anchor="start">BEFORE</text><text x="106" y="28" class="rowt" text-anchor="start">기록이 남지 않는다</text><text x="1176" y="28" class="stat-b" text-anchor="end">기록 0곳</text><rect x="16.0" y="72.0" width="176" height="64" rx="32.0" class="mask"/><rect x="16.0" y="72.0" width="176" height="64" rx="32.0" class="b-start"/><text x="104" y="100" class="t-start" text-anchor="middle">보다가</text><text x="104" y="118" class="t-start" text-anchor="middle">멈춤</text><rect x="216.0" y="68.0" width="176" height="72" rx="8" class="mask"/><rect x="216.0" y="68.0" width="176" height="72" rx="8" class="b-n"/><text x="304" y="98" class="t" text-anchor="middle">OTT 시청 기록</text><text x="304" y="116" class="ts" text-anchor="middle">앱마다 따로</text><rect x="416.0" y="68.0" width="176" height="72" rx="8" class="mask"/><rect x="416.0" y="68.0" width="176" height="72" rx="8" class="b-pain"/><text x="504" y="109" class="t" text-anchor="middle">머리로 기억</text><rect x="616.0" y="68.0" width="176" height="72" rx="8" class="mask"/><rect x="616.0" y="68.0" width="176" height="72" rx="8" class="b-pain"/><text x="704" y="98" class="t" text-anchor="middle">몇 달 뒤</text><text x="704" y="116" class="ts" text-anchor="middle">기억 안 남</text><rect x="625.75" y="43" width="156.5" height="22" rx="11" class="bad-bg"/><circle cx="637.75" cy="54" r="7" class="bad-dot"/><text x="637.75" y="58" class="bad-mark" text-anchor="middle">!</text><text x="649.75" y="58" class="bad-t" text-anchor="start">다음엔 기억에만 의존</text><rect x="816.0" y="68.0" width="176" height="72" rx="8" class="mask"/><rect x="816.0" y="68.0" width="176" height="72" rx="8" class="b-n"/><text x="904" y="98" class="t" text-anchor="middle">처음부터 다시</text><text x="904" y="116" class="ts" text-anchor="middle">또는 요약 검색</text><rect x="24" y="210" width="56" height="20" rx="4" class="tag-a"/><text x="32" y="224" class="tagt-a" text-anchor="start">AFTER</text><text x="98" y="224" class="rowt" text-anchor="start">기록장이 모든 기능의 기준</text><text x="1176" y="224" class="stat-a" text-anchor="end">기록 1곳</text><rect x="16.0" y="268.0" width="176" height="64" rx="32.0" class="mask"/><rect x="16.0" y="268.0" width="176" height="64" rx="32.0" class="b-start"/><text x="104" y="296" class="t-start" text-anchor="middle">첫 실행 /</text><text x="104" y="314" class="t-start" text-anchor="middle">보다가 멈춤</text><rect x="216.0" y="264.0" width="176" height="72" rx="8" class="mask"/><rect x="216.0" y="264.0" width="176" height="72" rx="8" class="b-ai"/><text x="304" y="294" class="t" text-anchor="middle">온보딩</text><text x="304" y="312" class="ts" text-anchor="middle">본 애니와 회차 입력</text><rect x="416.0" y="264.0" width="176" height="72" rx="8" class="mask"/><rect x="416.0" y="264.0" width="176" height="72" rx="8" class="b-ai"/><text x="504" y="294" class="t" text-anchor="middle">대화 중 저장</text><text x="504" y="312" class="ts" text-anchor="middle">&quot;N화까지 봤어&quot; → 확인 없이</text><polygon points="704,256 784,300 704,344 624,300" class="mask"/><polygon points="704,256 784,300 704,344 624,300" class="b-d"/><text x="704" y="296" class="td" text-anchor="middle">시즌 표기</text><text x="704" y="312" class="td" text-anchor="middle">(3기 11화)?</text><rect x="816.0" y="264.0" width="176" height="72" rx="8" class="mask"/><rect x="816.0" y="264.0" width="176" height="72" rx="8" class="b-ai"/><text x="904" y="294" class="t" text-anchor="middle">기록장</text><text x="904" y="312" class="ts" text-anchor="middle">작품·회차·평점</text><rect x="1016.0" y="264.0" width="176" height="72" rx="8" class="mask"/><rect x="1016.0" y="264.0" width="176" height="72" rx="8" class="b-guard"/><text x="1104" y="294" class="t" text-anchor="middle">스포일러 범위</text><text x="1104" y="312" class="ts" text-anchor="middle">복습·사전·찾기 공통</text><rect x="604.0" y="408.0" width="200" height="72" rx="8" class="mask"/><rect x="604.0" y="408.0" width="200" height="72" rx="8" class="b-ai"/><text x="704" y="449" class="t" text-anchor="middle">전체 기준 몇 화인지 묻기</text></svg></div>
+        <figcaption><b>"N화까지 봤어" 한 문장이면 확인 없이 저장됩니다.</b> 시즌으로 말하면 전체 기준 몇 화인지 되묻습니다. 이 기록이 복습·사전·찾기의 스포일러 범위입니다.</figcaption>
+      </figure>
+    </section>
+  </div>
+
+  <div class="group">
+    <div class="group-head">
+      <span class="chip later">여유 기능 · 프로토타입</span>
+      <h2>취향 인터뷰 추천 · 인물·용어 사전</h2>
+    </div>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>기능</th><th class="b">AniWhere 없이</th><th class="a">AniWhere를 쓸 때</th><th>코드 위치</th></tr></thead>
+        <tbody>
+          <tr><th>취향 인터뷰 추천</th><td>추천 글·랭킹을 읽고 직접 가늠. 추천 문구에 반전이 적히기도</td><td>좋아한 작품·분위기를 묻고 지원 작품 중에서 고름. 스포일러 없는 문구</td><td class="where">agent/recommend.py</td></tr>
+          <tr><th>인물·용어 사전</th><td>위키 인물 문서는 정체·결말까지 한 페이지</td><td>본 회차까지 등장한 인물·용어만, 첫 등장 회차와 함께</td><td class="where">retrieval/dictionary.py</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <section id="eval">
+    <div class="sec-head">
+      <div class="sec-num">근거</div>
+      <h2>찾기 평가 75문항</h2>
+    </div>
+    <div class="bar" role="img" aria-label="75문항 중 회차 맞음 59, 못 찾고 되물음 12, 틀린 회차를 단정 4">
+      <span class="ok" style="width: 78.67%">59</span>
+      <span class="ask" style="width: 16%">12</span>
+      <span class="bad" style="width: 5.33%">4</span>
+    </div>
+    <div class="bar-key">
+      <span><i class="k ok"></i>회차 맞음 <b>59</b> (79%)</span>
+      <span><i class="k ask"></i>못 찾고 되물음 <b>12</b> (16%)</span>
+      <span><i class="k bad"></i>틀린 회차를 단정 <b>4</b> (5%)</span>
+    </div>
+    <p class="prose" style="color: var(--muted); font-size: 14px">데모 3작품, LLM 포함 전체 흐름. 틀릴 때는 단정보다 되묻는 쪽이 많습니다. 68문항은 LLM이 청크를 보고 만든 것이라 실제 질문보다 쉬울 수 있고, 사람이 쓴 7문항은 5개 정답. 출처: <code>eval/results/2026-10-08_pipeline-event.json</code></p>
+  </section>
+
+  <div class="next">
+    <h3>이 문서를 쓰는 법</h3>
+    <ul class="prose">
+      <li>그림 원본은 <code>docs/workflow/src/gen_workflow.py</code>. 고친 뒤 생성기를 다시 실행합니다.</li>
+      <li>11분 발표면 찾기 · 스포일러 차단 · 기록장 세 장이 핵심입니다.</li>
+    </ul>
+  </div>
+</div>
